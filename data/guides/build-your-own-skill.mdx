@@ -1,0 +1,80 @@
+---
+title: Build Your Own Skill
+highlight: Skill
+description: How to create Skills that automate your research workflows
+readTime: 5 min read
+order: 5
+---
+
+Skills capture methodologies and expertise in a format AI agents can follow consistently. For example, how your lab reviews protocols, what a specific checklist covers, or how certain datasets should be formatted.
+
+<div className="bg-white/40 dark:bg-surface-dark border border-gray-200 dark:border-border-dark p-6 rounded-lg shadow-sm mb-8">
+     <p className="font-bold mb-2">The easiest way to create Skills is through conversation.</p>
+     <p className="text-sm text-gray-600 dark:text-gray-400">Invoke the skill-creator Skill, describe your workflow naturally, and let the agent handle the formatting and structure. No technical expertise required.</p>
+</div>
+
+## Creating custom Skills with Claude
+
+### How to start
+
+Start a new chat and describe the intended Skill:
+
+<ul className="list-disc pl-5 space-y-2 mb-6 rounded text-sm font-mono text-gray-600 dark:text-gray-400">
+    <li>"I want to create a skill for reviewing IRB applications"</li>
+    <li>"I need a skill that follows our lab's QC checklist for RNA-seq"</li>
+    <li>"Help me create a skill for drafting grant specific aims"</li>
+</ul>
+
+**Answer the AI agent's questions about the process.** The goal is to provide enough detail that someone capable but unfamiliar could follow the approach. Specific answers produce more effective Skills.
+
+**Upload materials** that demonstrate the approach (templates, checklists, examples, etc.). The AI agent uses these to understand the methodology.
+
+## Testing & Improving
+
+### How to test
+
+Testing involves describing a task the Skill should address. `"Using [skill name]"` appears in the agent's thinking when the Skill activates. If something is off, the agent can update the Skill based on feedback.
+
+### How to improve
+
+Skills improve through use. Starting simple and refining based on real tasks works better than trying to anticipate everything upfront.
+
+<div className="space-y-4 mb-8">
+    <div className="flex gap-4">
+        <div className="w-6 h-6 rounded-full bg-black text-white dark:bg-white dark:text-black flex items-center justify-center flex-shrink-0 text-xs font-bold">1</div>
+        <div>
+            <h4 className="font-bold text-sm m-0!">Start with evaluation</h4>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Run the Skill on real-world scenarios and observe where the AI agent struggles or produces unexpected results. Pay attention to whether it triggers when expected.</p>
+        </div>
+    </div>
+    <div className="flex gap-4">
+        <div className="w-6 h-6 rounded-full bg-black text-white dark:bg-white dark:text-black flex items-center justify-center flex-shrink-0 text-xs font-bold">2</div>
+        <div>
+            <h4 className="font-bold text-sm m-0!">Iterate and refine</h4>
+            <p className="text-sm text-gray-600 dark:text-gray-400">When the AI agent goes off track, ask it to reflect on what went wrong and suggest updates. When it handles a task well, ask it to capture that approach.</p>
+        </div>
+    </div>
+</div>
+
+## What makes a good Skill?
+
+Effective Skills typically contain:
+
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4 *:border *:border-black/10">
+    <div className="bg-bg-light dark:bg-surface-dark  p-4 rounded">
+        <strong className="block text-sm mb-1">Context</strong>
+        <p className="text-xs text-gray-500">When the workflow applies, what triggers it, what falls outside its scope.</p>
+    </div>
+    <div className="bg-bg-light dark:bg-surface-dark   p-4 rounded">
+        <strong className="block text-sm mb-1">Process</strong>
+        <p className="text-xs text-gray-500">The steps followed, what gets checked, what gets flagged, how output is structured.</p>
+    </div>
+    <div className="bg-bg-light dark:bg-surface-dark   p-4 rounded">
+        <strong className="block text-sm mb-1">Examples</strong>
+        <p className="text-xs text-gray-500">Documents showing the preferred approach or format.</p>
+    </div>
+    <div className="bg-bg-light dark:bg-surface-dark   p-4 rounded">
+        <strong className="block text-sm mb-1">Reference materials</strong>
+        <p className="text-xs text-gray-500">Policy guides, checklists, templates, playbooks, style guides, regulatory requirements.</p>
+    </div>
+</div>

@@ -1,0 +1,50 @@
+import type { Metadata } from 'next'
+import { HomePage } from '@/app/(commonLayout)/home/home-page'
+import { resolveHomeSpotlightContent } from '@/app/(commonLayout)/home/home-spotlight-content'
+import {
+  buildHomepageStructuredData,
+  HOMEPAGE_DESCRIPTION,
+  HOMEPAGE_TITLE
+} from '@/app/(commonLayout)/home/home-structured-data'
+import { JsonLd } from '@/components/json-ld'
+import {
+  fetchHomepageConfig,
+  fetchHomepageReadWatch,
+  OPEN_SCIENCE_HOMEPAGE_MODULE
+} from '@/service/homepage'
+
+export const dynamic = 'force-dynamic'
+
+export const metadata: Metadata = {
+  title: HOMEPAGE_TITLE,
+  description: HOMEPAGE_DESCRIPTION,
+  openGraph: {
+    title: HOMEPAGE_TITLE
+  },
+  twitter: {
+    title: HOMEPAGE_TITLE
+  }
+}
+
+export default async function Home() {
+  const [openScienceConfig, readWatch] = await Promise.all([
+    fetchHomepageConfig(OPEN_SCIENCE_HOMEPAGE_MODULE),
+    fetchHomepageReadWatch(OPEN_SCIENCE_HOMEPAGE_MODULE)
+  ])
+  const spotlight = resolveHomeSpotlightContent(openScienceConfig, readWatch)
+  const videoItems = spotlight.media
+    .filter((item) => item.kind === 'video' || item.label.trim().toLowerCase() === 'product tour')
+    .map((item) => ({ name: item.label, url: item.url }))
+  const { lastUpdated, schemas } = buildHomepageStructuredData({
+    releaseVersion: spotlight.releaseVersion,
+    lastModified: spotlight.latestRelease.updateDate,
+    videoItems
+  })
+
+  return (
+    <>
+      <JsonLd data={schemas} />
+      <HomePage spotlightContent={spotlight} lastUpdated={lastUpdated} />
+    </>
+  )
+}

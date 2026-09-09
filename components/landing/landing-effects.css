@@ -1,0 +1,113 @@
+@reference "tailwindcss";
+
+.landing-grid-ambient::before {
+  content: "";
+  @apply absolute inset-0 z-0;
+  background-image:
+    linear-gradient(rgba(0, 0, 0, var(--landing-grid-alpha, 0.045)) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, var(--landing-grid-alpha, 0.045)) 1px, transparent 1px);
+  background-size: var(--landing-grid-size, 62px) var(--landing-grid-size, 62px);
+  -webkit-mask: radial-gradient(
+    var(--landing-grid-mask-size, 125% 110%) at var(--landing-grid-mask-position, 28% 36%),
+    #000 0%,
+    transparent var(--landing-grid-mask-stop, 78%)
+  );
+  mask: radial-gradient(
+    var(--landing-grid-mask-size, 125% 110%) at var(--landing-grid-mask-position, 28% 36%),
+    #000 0%,
+    transparent var(--landing-grid-mask-stop, 78%)
+  );
+}
+
+.landing-grid-ambient.landing-grid-drift::before {
+  animation: landing-grid-drift 40s linear infinite;
+}
+
+.landing-action {
+  @apply relative inline-flex items-center justify-center gap-2.5 overflow-hidden rounded-full bg-[#111111] font-semibold text-white no-underline shadow-[0_12px_34px_rgba(0,0,0,.18)] transition-[transform,box-shadow] duration-[220ms] ease-out;
+  --landing-action-foreground: #ffffff;
+}
+
+.landing-action::before {
+  content: "";
+  @apply pointer-events-none absolute top-0 left-[-120%] z-0 h-full w-[55%] skew-x-[-18deg];
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+}
+
+.landing-action.landing-shimmer-loop::before {
+  animation: landing-shimmer 3.4s ease-in-out infinite;
+}
+
+.landing-action.landing-shimmer-once::before {
+  animation: landing-shimmer 1.6s ease-in-out;
+}
+
+.landing-action-content {
+  @apply relative z-10 inline-flex items-center justify-center gap-[inherit];
+  color: var(--landing-action-foreground);
+}
+
+.landing-action-content svg {
+  color: var(--landing-action-foreground);
+}
+
+.landing-action:hover {
+  @apply -translate-y-0.5 shadow-[0_18px_44px_rgba(0,0,0,.24)];
+}
+
+.landing-action .arw {
+  @apply transition-transform duration-200 ease-out;
+}
+
+.landing-action:hover .arw {
+  @apply translate-x-1;
+}
+
+.landing-action-dark {
+  @apply bg-[#111111] text-white;
+  --landing-action-foreground: #ffffff;
+}
+
+.landing-action-light {
+  @apply bg-white text-[#111111] shadow-[0_12px_34px_rgba(0,0,0,.3)];
+  --landing-action-foreground: #111111;
+}
+
+.landing-action-light:hover {
+  @apply bg-[#f0f0f0];
+}
+
+.landing-action-outline {
+  @apply border border-[#3a3f4c] bg-white/5 text-white;
+  --landing-action-foreground: #ffffff;
+}
+
+.landing-action-outline:hover {
+  @apply border-[#5a606f] bg-white/10;
+}
+
+.landing-action-ghost {
+  @apply inline-flex items-center justify-center gap-2 rounded-full border border-black/20 bg-white/50 font-semibold no-underline backdrop-blur-[6px] transition-[border-color,background,transform,box-shadow] duration-[180ms] ease-out;
+  --landing-action-foreground: currentColor;
+}
+
+.landing-action-ghost:hover {
+  @apply border-black/40 bg-white/80;
+}
+
+@keyframes landing-grid-drift {
+  to {
+    background-position: var(--landing-grid-size, 62px) var(--landing-grid-size, 62px);
+  }
+}
+
+@keyframes landing-shimmer {
+  0%,
+  55% {
+    left: -120%;
+  }
+  80%,
+  100% {
+    left: 140%;
+  }
+}

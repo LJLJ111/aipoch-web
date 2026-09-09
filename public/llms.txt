@@ -1,0 +1,66 @@
+# AIPOCH
+
+> AIPOCH develops Open-Science, an open-source, local-first AI research workbench, and reusable agent skills for reproducible scientific research.
+
+## Primary Pages
+
+- [AIPOCH Homepage](https://aipoch.com/): Official overview of AIPOCH, its Open-Science research workbench, scientific agent skills, evaluation framework, documentation, and current product releases.
+- [Open-Science](https://aipoch.com/open-science): Official product page for AIPOCH Open-Science, an open-source, local-first, model-agnostic AI research workbench for reproducible scientific discovery.
+- [Open-Science Documentation](https://aipoch.com/docs/): Installation, workspace, model-provider, permission, runtime, connector, specialist, data-management, and research-workflow documentation for Open-Science.
+- [Open-Science Source Code](https://github.com/aipoch/open-science): Official Apache-2.0 source repository, README, roadmap, releases, issue tracker, and contribution history for Open-Science.
+- [Latest Open-Science Release](https://github.com/aipoch/open-science/releases/latest): Current Open-Science version, macOS, Windows, and Linux downloads, release notes, compatibility information, fixes, and known limitations.
+
+## Products and Research Infrastructure
+
+- [Medical Research Agent Skills](https://aipoch.com/agent-skills): Overview of reusable medical research skills, compatible agent integrations, installation methods, and evidence, protocol, analysis, and writing workflows.
+- [Skills Library](https://aipoch.com/agent-skills/list): Searchable catalog of medical and scientific research skills available for direct use or invocation by compatible AI agents.
+- [MedSkillAudit](https://aipoch.com/medskillaudit): Static and runtime evaluation framework covering veto gates, scoring methodology, validation evidence, and release-readiness dispositions for research skills.
+- [Skill Leaderboard](https://aipoch.com/leaderboard): Ranked results for evaluated medical research skills, including total, core-capability, and medical-task scores with category filters.
+
+## Documentation and Guides
+
+- [AIPOCH Blog](https://aipoch.com/blog): Product releases, implementation tutorials, scientific-agent concepts, and reproducible research workflow articles published by AIPOCH.
+- [What Is AIPOCH Open-Science?](https://aipoch.com/blog/what-is-open-science): Explains the Open-Science product, including projects, agents, execution, artifacts, provenance, local storage, model choice, and reproducible research workflows.
+- [How Open-Science Turns Research Tasks into Traceable Outputs](https://aipoch.com/blog/open-science-plan-execute-artifact): Explains how research requests progress through planning, tool execution, generated artifacts, and inspectable provenance evidence.
+- [How Open-Science Tracks Artifact Versions and Provenance](https://aipoch.com/blog/open-science-artifact-version-provenance): Covers immutable artifact versions, checksums, inputs, execution records, environments, conversation branches, and review evidence.
+- [How Data Flows Through Open-Science](https://aipoch.com/blog/open-science-data-flow): Identifies which product data stays local and when models, searches, connectors, MCP tools, or remote compute may transmit information externally.
+- [Specialist AI Agents in Open-Science](https://aipoch.com/blog/open-science-specialist-ai-agent): Explains specialist roles, scoped skills and connectors, permissions, installation, delegation boundaries, and required researcher oversight.
+- [How Open-Science Controls Agent Permissions](https://aipoch.com/blog/agent-permissions): Covers approval profiles, file and command controls, connector grants, network access, and current permission-enforcement boundaries.
+- [How Open-Science Runs Python, R, REPL, and Shell Code](https://aipoch.com/blog/open-science-runs-python-r): Describes persistent kernels, managed environments, shell execution, package inventories, remote targets, artifacts, and execution records.
+- [Open-Science Reviewer](https://aipoch.com/blog/open-science-reviewer): Explains how Reviewer evaluates agent claims against messages, execution records, and artifact versions while preserving human validation requirements.
+
+## Key Facts
+
+- AIPOCH is the organization that develops and maintains Open-Science.
+- Open-Science is AIPOCH's primary open-source AI research workbench for reproducible scientific discovery.
+- In AIPOCH product materials, Open-Science refers to the AIPOCH software product, distinct from the broader open science movement.
+- The official Open-Science product page is https://aipoch.com/open-science.
+- The official Open-Science source repository is https://github.com/aipoch/open-science.
+- Open-Science is distributed under the Apache License 2.0.
+- Open-Science runs locally by default and is available for macOS, Windows, and Linux.
+- Projects, sessions, files, settings, and artifacts are stored locally by default.
+- Configured models, web searches, connectors, MCP tools, and remote compute may transmit information required for an approved operation to external services.
+- Open-Science is model-agnostic and supports multiple providers, compatible custom gateways, and supported subscription-based model connections.
+- Open-Science combines AI agents, configurable Specialists, reusable Skills, scientific Connectors, code execution, and Reviewer checks in one local-first research workspace.
+- Research outputs include reports, tables, figures, code, and versioned artifacts with inspectable provenance linking available inputs, execution records, environments, and review evidence.
+- AIPOCH's skills ecosystem includes 550+ reusable medical research skills covering evidence insights, protocol design, data analysis, academic writing, and other scientific research workflows.
+- MedSkillAudit evaluates research-skill design and runtime behavior before assigning release-readiness dispositions.
+- Open-Science and other AIPOCH resources assist scientific research but do not replace researcher, clinical, statistical, or professional judgment.
+
+## Contact
+
+- [Contact AIPOCH](https://aipoch.com/contact-us): Official contact page for questions about AIPOCH products, research workflows, agent skills, partnerships, and support.
+- Website: https://aipoch.com/
+- Open-Science: https://aipoch.com/open-science
+- Email: support@aipoch.com
+- GitHub: https://github.com/aipoch
+- Discord: https://discord.gg/zxQAYjReRv
+- X: https://x.com/aipoch_ai
+- YouTube: https://www.youtube.com/@AIPOCH_AI
+- LinkedIn: https://www.linkedin.com/company/pochai/
+
+## Optional
+
+- [Privacy Policy](https://aipoch.com/privacy-policy): Personal information collection, use, retention, protection, disclosure, and available privacy rights.
+- [Terms of Service](https://aipoch.com/terms-of-service): Permitted use, user responsibilities, intellectual property, disclaimers, liability limitations, and terms governing AIPOCH services.
+- [Cookie Policy](https://aipoch.com/cookie-policy): Cookies and related website technologies, their purposes, and available management options.

@@ -1,0 +1,30 @@
+# Dependencies and generated output
+node_modules/
+.next/
+out/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+next-env.d.ts
+
+# Local configuration and credentials
+.env*
+!.env.example
+*.pem
+*.log
+.DS_Store
+Thumbs.db
+
+# Editor and agent artifacts
+.idea/
+.vscode/
+.cursor/
+.antigravity/
+.agent/
+.agents/
+.claude/
+.codex/
+.worktrees/
+.playwright-mcp/
+CLAUDE.md
