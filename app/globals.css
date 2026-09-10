@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+@import "../styles/globals.css";
+
+@plugin "@tailwindcss/typography";
+
+.markdown-body {
+  @apply prose prose-sm prose-slate min-w-0 max-w-none break-words;
+
+  /* Code blocks: min-w-0 allows flex shrinking, and overflow-x-auto scrolls long lines horizontally. */
+  & pre {
+    @apply min-w-0 overflow-x-auto max-w-full;
+  }
+
+  /* Allow long inline code, such as JWTs and URLs, to wrap by overriding typography's white-space: nowrap. */
+  & :not(pre) > code {
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+  }
+
+  /* MDX/prose renders tables directly; let each table handle horizontal scrolling without an extra wrapper. */
+  & table {
+    @apply block w-full min-w-0 max-w-full overflow-x-auto overscroll-x-contain whitespace-normal border-separate border-spacing-0 border border-black/10 box-border text-xs;
+  }
+
+  & thead,
+  & tbody {
+    @apply min-w-[768px];
+  }
+
+  & th,
+  & td {
+    @apply border-b border-black/10 px-3 py-3 align-top;
+  }
+
+  & th {
+    @apply min-w-max whitespace-nowrap bg-[#e8e8e8] text-[10px] font-bold uppercase tracking-wider text-black;
+  }
+
+  & th:last-child {
+    @apply w-full;
+  }
+  & td {
+    @apply min-w-[140px] text-black/65;
+  }
+
+  & tr:last-child td {
+    @apply border-b-0;
+  }
+
+  & blockquote {
+    @apply not-italic;
+    border-color: var(--callout-border, var(--color-zinc-400));
+
+    & p {
+      @apply m-0;
+    }
+
+    &[data-callout="note"] {
+      --callout-border: var(--color-blue-400);
+    }
+
+    &[data-callout="warning"] {
+      --callout-border: var(--color-amber-400);
+    }
+
+    &[data-callout="tip"] {
+      --callout-border: var(--color-green-400);
+    }
+
+    &[data-callout="danger"] {
+      --callout-border: var(--color-red-400);
+    }
+
+    &[data-callout="info"] {
+      --callout-border: var(--color-zinc-400);
+    }
+
+    /* Untyped callouts receive variants by render order; this rule only maps their border colors. */
+    &[data-callout-variant="blue"] {
+      --callout-border: var(--color-blue-400);
+    }
+
+    &[data-callout-variant="purple"] {
+      --callout-border: var(--color-violet-400);
+    }
+
+    &[data-callout-variant="green"] {
+      --callout-border: var(--color-green-400);
+    }
+
+    & p::before,
+    & p::after {
+      content: none;
+    }
+  }
+}
+
+.policy-document-page .markdown-body a.markdown-accent-link {
+  color: #2563eb !important;
+  text-decoration: none !important;
+}
+
+.policy-document-page .markdown-body a.markdown-accent-link:hover {
+  color: #1d4ed8 !important;
+  text-decoration: none !important;
+}

@@ -1,0 +1,29 @@
+services:
+  web:
+#    image: ghcr.io/aipoch/aipoch-web:latest
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3060:3000"
+    environment:
+      NEXT_PUBLIC_GA_ID: ${NEXT_PUBLIC_GA_ID:-}
+      NEXT_PUBLIC_CLARITY_ID: ${NEXT_PUBLIC_CLARITY_ID:-}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
+      NEXT_PUBLIC_STATIC_ASSETS_ORIGIN: ${NEXT_PUBLIC_STATIC_ASSETS_ORIGIN:-}
+      NEXT_PUBLIC_OPENSCIENCE_WIKI_URL_PREFIX: ${NEXT_PUBLIC_OPENSCIENCE_WIKI_URL_PREFIX:-}
+      INTERNAL_API_URL: ${INTERNAL_API_URL:-}
+      OPENSCIENCE_WIKI_INTERNAL_URL_PREFIX: ${OPENSCIENCE_WIKI_INTERNAL_URL_PREFIX:-}
+      SITE_DOMAIN: ${SITE_DOMAIN:-}
+
+  openscience-wiki:
+    image: ghcr.io/aipoch/openscience-wiki:latest
+    platform: linux/amd64
+    restart: unless-stopped
+    ports:
+      - "3062:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/docs/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
