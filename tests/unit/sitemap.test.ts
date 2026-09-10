@@ -48,6 +48,23 @@ globalThis.fetch = mock(async (input) => {
     </urlset>`)
   }
 
+  if (input.toString().includes('/v1/skills/sitmap')) {
+    return new Response(
+      JSON.stringify({
+        code: 0,
+        msg: 'ok',
+        data: [
+          {
+            url: `${siteDomain}/agent-skills/demo-skill`,
+            last_modified: '2026-08-01',
+            change_frequency: 'weekly',
+            priority: 0.8
+          }
+        ]
+      })
+    )
+  }
+
   return new Response(JSON.stringify({ code: 0, msg: 'ok', data: [] }))
 }) as unknown as typeof fetch
 
@@ -69,22 +86,31 @@ describe('sitemap', () => {
     const { default: sitemap } = await import('../../app/sitemap')
 
     const routes = await sitemap()
+    const homepageRoute = routes.find((route) => route.url === siteDomain)
     const openScienceRoute = routes.find((route) => route.url === `${siteDomain}/open-science`)
     const openScienceDownloadRoute = routes.find(
       (route) => route.url === `${siteDomain}/open-science/download`
     )
     const medFlowRoute = routes.find((route) => route.url === `${siteDomain}/medflow`)
     const medSkillAuditRoute = routes.find((route) => route.url === `${siteDomain}/medskillaudit`)
+    const skillsListRoute = routes.find((route) => route.url === `${siteDomain}/agent-skills/list`)
+    const skillsHubRoute = routes.find((route) => route.url === `${siteDomain}/agent-skills`)
+    const skillDetailRoute = routes.find(
+      (route) => route.url === `${siteDomain}/agent-skills/demo-skill`
+    )
+    const blogRoute = routes.find((route) => route.url === `${siteDomain}/blog`)
     const guidesIndexRoute = routes.find((route) => route.url === `${siteDomain}/guides`)
     const guideDetailRoute = routes.find(
       (route) => route.url === `${siteDomain}/guides/openclaw-local-deployment`
     )
 
+    expect((homepageRoute?.lastModified as Date).toISOString()).toBe('2026-09-10T00:00:00.000Z')
+
     expect(openScienceRoute).toMatchObject({
       changeFrequency: 'weekly',
       priority: 0.8
     })
-    expect((openScienceRoute?.lastModified as Date).toISOString()).toBe('2026-09-07T00:00:00.000Z')
+    expect((openScienceRoute?.lastModified as Date).toISOString()).toBe('2026-09-10T00:00:00.000Z')
 
     expect(openScienceDownloadRoute).toMatchObject({
       changeFrequency: 'weekly',
@@ -104,13 +130,20 @@ describe('sitemap', () => {
       changeFrequency: 'monthly',
       priority: 0.8
     })
-    expect(medSkillAuditRoute?.lastModified).toBeUndefined()
+    expect((medSkillAuditRoute?.lastModified as Date).toISOString()).toBe(
+      '2026-09-10T00:00:00.000Z'
+    )
+    expect((skillsListRoute?.lastModified as Date).toISOString()).toBe('2026-09-10T00:00:00.000Z')
+    expect((skillsHubRoute?.lastModified as Date).toISOString()).toBe('2026-09-10T00:00:00.000Z')
+    expect((skillDetailRoute?.lastModified as Date).toISOString()).toBe('2026-09-10T00:00:00.000Z')
+    expect((blogRoute?.lastModified as Date).toISOString()).toBe('2026-09-10T00:00:00.000Z')
     expect(guidesIndexRoute).toBeUndefined()
     expect(guideDetailRoute).toMatchObject({
       url: `${siteDomain}/guides/openclaw-local-deployment`,
       changeFrequency: 'weekly',
       priority: 0.7
     })
+    expect((guideDetailRoute?.lastModified as Date).toISOString()).toBe('2026-09-10T00:00:00.000Z')
     expect(routes.some((route) => route.url === `${siteDomain}/community`)).toBe(false)
   })
   test('keeps standalone presentations outside the sitemap', async () => {

@@ -40,7 +40,7 @@ describe('homepage GEO contracts', () => {
     const { buildHomepageStructuredData } = await import(
       '../../app/(commonLayout)/home/home-structured-data'
     )
-    const { schemas } = buildHomepageStructuredData({})
+    const { lastUpdated, schemas } = buildHomepageStructuredData({})
     const organization = schemas.find((schema) => schema['@type'] === 'Organization')
     const softwareApplication = schemas.find((schema) => schema['@type'] === 'SoftwareApplication')
 
@@ -48,6 +48,10 @@ describe('homepage GEO contracts', () => {
       'AIPOCH builds the open-source harness for scientific research. Open-Science is a model-agnostic AI workbench with audited medical research agent skills.'
     )
     expect(softwareApplication?.softwareVersion).toBe('v0.16.0')
+    expect(lastUpdated).toEqual({
+      dateTime: '2026-08-18',
+      label: 'Aug 18, 2026'
+    })
     expect(softwareApplication).toMatchObject({
       dateModified: '2026-08-18',
       mainEntityOfPage: { '@id': 'https://aipoch.com/open-science#webpage' },
