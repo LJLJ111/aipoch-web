@@ -1,0 +1,67 @@
+---
+title: What is a skill?
+highlight: skill
+description: Understanding Agent Skills for biomedical professionals
+readTime: 4 min read
+order: 3
+--- 
+
+Agent Skills are reusable packages that provide AI assistants with domain-specific expertise.
+
+Each Skill contains detailed instructions and optional resources (templates, protocols, etc.) that the assistant uses autonomously to complete a task. Think of a Skill like a Standard Operating Procedure (SOP) you would create for a lab assistant. It captures how to approach specific types of research: the methodology to follow, the variables to check, and the format for results.
+
+## Why use Skills
+
+Unlike prompts, which are one-off instructions for a single conversation, Skills persist across sessions. You define your methodology once, and the assistant applies it consistently whenever that type of task arises.
+
+<div className="grid *:bg-white/40 gap-6 my-8">
+    <div className=" dark:bg-surface-dark border border-gray-200 dark:border-border-dark p-6 rounded-lg shadow-sm">
+        <h4 className="font-bold text-base mb-2 flex items-center gap-2"><Check size={16} className="text-green-600"/> Consistency across the lab</h4>
+        <p className="text-sm text-gray-600 dark:text-gray-400">A protocol review Skill ensures the same checklist gets applied whether the work is done Monday morning or Friday evening, by you or a colleague. The methodology is encoded in the Skill itself.</p>
+    </div>
+    <div className=" dark:bg-surface-dark border border-gray-200 dark:border-border-dark p-6 rounded-lg shadow-sm">
+            <h4 className="font-bold text-base mb-2 flex items-center gap-2"><Check size={16} className="text-green-600"/> Knowledge that stays</h4>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Expertise that would otherwise exist only in someone's head can be captured and shared. When a senior PI develops an effective approach to grant writing or data analysis, that approach can become a Skill that benefits the entire team.</p>
+    </div>
+    <div className=" dark:bg-surface-dark border border-gray-200 dark:border-border-dark p-6 rounded-lg shadow-sm">
+            <h4 className="font-bold text-base mb-2 flex items-center gap-2"><Check size={16} className="text-green-600"/> Less repetition</h4>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Instead of explaining preferences and requirements at the start of each conversation, the Skill provides that context automatically. The agent already knows how you want the work done.</p>
+    </div>
+</div>
+
+## What a Skill contains
+
+At its core, a Skill is a folder containing a SKILL.md file:
+
+<div className="bg-[#1e1e1e] text-gray-300 p-6 rounded-md font-mono text-sm my-6 shadow-lg border border-gray-800">
+    <div className="flex items-center gap-2 text-yellow-500 mb-2">
+            <Folder size={16} /> <span>irb-application/</span>
+    </div>
+    <div className="pl-6 space-y-2">
+        <div className="flex items-center gap-2">
+            <span className="text-gray-500">├──</span> <FileText size={14} className="text-blue-400"/> <span className="text-white font-bold">SKILL.md</span> <span className="text-gray-500 text-xs ml-4"># Required: instructions and metadata</span>
+        </div>
+        <div className="flex items-center gap-2">
+            <span className="text-gray-500">├──</span> <Folder size={14} /> <span>scripts/</span> <span className="text-gray-500 text-xs ml-4"># Optional: executable code (Python/R)</span>
+        </div>
+        <div className="flex items-center gap-2">
+            <span className="text-gray-500">├──</span> <Folder size={14} /> <span>references/</span> <span className="text-gray-500 text-xs ml-4"># Optional: guidelines (ICH-GCP, FDA)</span>
+        </div>
+        <div className="flex items-center gap-2">
+            <span className="text-gray-500">└──</span> <Folder size={14} /> <span>assets/</span> <span className="text-gray-500 text-xs ml-4"># Optional: templates, examples</span>
+        </div>
+    </div>
+</div>
+
+The SKILL.md file is a simple text document with a small header (the Skill's name and description) followed by the actual instructions. The agent reads the header to know when the Skill might be relevant, then loads the full instructions when needed.
+
+An open standard
+Agent Skills were created by Anthropic and initially designed for their Claude model. However, the format became an open standard that other providers are beginning to adopt.
+
+<div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4 rounded flex gap-4 items-start">
+    <div className="p-1 bg-blue-100 dark:bg-blue-800 rounded-full text-blue-600 dark:text-blue-200"><Terminal size={16} /></div>
+    <div>
+        <h5 className="font-bold text-sm mb-1 text-blue-900 dark:text-blue-100">Portability is key</h5>
+        <p className="text-xs text-blue-800 dark:text-blue-200 leading-relaxed">A Skill written today for Claude should work with other AI assistants as they add support for the format. Rather than building workflows locked to a single vendor, Skills aim to be a common language for teaching AI agents how to handle specialized tasks.</p>
+    </div>
+</div>
