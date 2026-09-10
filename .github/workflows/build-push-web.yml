@@ -38,7 +38,8 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/aipoch/aipoch-web
+          # Publish under the current repository's namespace, including forks.
+          images: ghcr.io/${{ github.repository }}
           tags: |
             type=raw,value=latest
             type=raw,value=main
