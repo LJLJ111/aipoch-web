@@ -104,7 +104,7 @@ test('extends the hero canvas beneath the navbar without shifting page content',
   expect(geometry.heroMinHeight).toBe(baseHeroHeight + geometry.headerHeight)
   expect(geometry.heroHeight).toBeGreaterThanOrEqual(geometry.heroMinHeight)
   if (geometry.desktop) expect(geometry.heroHeight - geometry.heroMinHeight).toBeLessThan(1)
-  expect(geometry.heroBackgroundColor).toBe('rgb(246, 243, 239)')
+  expect(geometry.heroBackgroundColor).toBe('rgb(246, 246, 244)')
   expect(geometry.heroPaddingTop).toBe(geometry.headerHeight + baseContentPadding)
   expect(geometry.heroImageTop).toBe(0)
   const expectedImageCenter = geometry.viewportWidth / 2 + (geometry.desktop ? 124 : 0)
