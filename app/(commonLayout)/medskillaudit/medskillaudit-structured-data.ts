@@ -1,6 +1,7 @@
 import { buildAipochOrganizationSchema } from '@/lib/aipoch-organization'
 import { SITE_DOMAIN } from '@/lib/config'
 import { createPageMetadata } from '@/lib/page-metadata'
+import { staticImage } from '@/lib/staticAsset'
 import { validationStudy } from './benchmark-data'
 
 export const medSkillAuditSeo = {
@@ -18,10 +19,11 @@ const arxivUrl = 'https://arxiv.org/abs/2604.20441'
 const doi = '10.48550/arXiv.2604.20441'
 const doiUrl = `https://doi.org/${doi}`
 
+const medSkillAuditSocialAsset = staticImage('medskillaudit-social-card-bcc353ec.png')
 export const medSkillAuditSocialImage = {
-  url: `${SITE_DOMAIN}/medskillaudit/medskillaudit-social-card.png`,
-  width: 1280,
-  height: 720,
+  url: medSkillAuditSocialAsset.src,
+  width: medSkillAuditSocialAsset.width,
+  height: medSkillAuditSocialAsset.height,
   alt: 'MedSkillAudit — audit before deployment'
 } as const
 

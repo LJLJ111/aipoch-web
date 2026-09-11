@@ -53,6 +53,19 @@ describe('staticAsset', () => {
     })
   })
 
+  test('resolves social cards through the shared image folder', () => {
+    expect(staticImage('og-science-open-to-all-ab128c94.png')).toEqual({
+      src: 'https://statics.aipoch.com/public/f/image/og-science-open-to-all-ab128c94.png',
+      width: 1280,
+      height: 672
+    })
+    expect(staticImage('medskillaudit-social-card-bcc353ec.png')).toEqual({
+      src: 'https://statics.aipoch.com/public/f/image/medskillaudit-social-card-bcc353ec.png',
+      width: 1280,
+      height: 720
+    })
+  })
+
   test('resolves indexed image assets through the AIPOCH static origin', () => {
     expect(staticAsset('og-bfe41bdd.webp')).toBe(
       'https://statics.aipoch.com/public/f/image/og-bfe41bdd.webp'

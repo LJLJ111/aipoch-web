@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { SITE_DOMAIN } from '@/lib/config'
 import { createPageMetadata } from '@/lib/page-metadata'
+import { staticImage } from '@/lib/staticAsset'
 
 // Keep the requested page SEO copy aligned across metadata and visible heading surfaces.
 export const openScienceSeo = {
@@ -11,10 +12,11 @@ export const openScienceSeo = {
 
 const openSciencePageUrl = `${SITE_DOMAIN}/open-science`
 export const OPEN_SCIENCE_PAGE_LAST_MODIFIED = '2026-09-10'
+const openScienceSocialAsset = staticImage('og-science-open-to-all-ab128c94.png')
 export const openScienceSocialImage = {
-  url: `${SITE_DOMAIN}/open-science/og-science-open-to-all.png`,
-  width: 1280,
-  height: 672,
+  url: openScienceSocialAsset.src,
+  width: openScienceSocialAsset.width,
+  height: openScienceSocialAsset.height,
   alt: 'Science, Open to All — AIPOCH Open-Science'
 } as const
 

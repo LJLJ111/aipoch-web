@@ -105,8 +105,12 @@ describe('Open-Science page', () => {
     expect(canonicalUrl).toStartWith('https://aipoch.com')
     expect(openGraphUrl).toEndWith('/open-science')
     expect(openGraphUrl).toStartWith('https://aipoch.com')
-    expect(ogImageUrl).toContain('/open-science/og-science-open-to-all.png')
-    expect(twitterImageUrl).toContain('/open-science/og-science-open-to-all.png')
+    expect(ogImageUrl).toBe(
+      'https://statics.aipoch.com/public/f/image/og-science-open-to-all-ab128c94.png'
+    )
+    expect(twitterImageUrl).toBe(
+      'https://statics.aipoch.com/public/f/image/og-science-open-to-all-ab128c94.png'
+    )
   })
 
   test('renders one visible product heading from the Figma design', async () => {

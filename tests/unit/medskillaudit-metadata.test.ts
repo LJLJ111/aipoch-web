@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-const MEDSKILLAUDIT_IMAGE = 'https://aipoch.com/medskillaudit/medskillaudit-social-card.png'
+const MEDSKILLAUDIT_IMAGE =
+  'https://statics.aipoch.com/public/f/image/medskillaudit-social-card-bcc353ec.png'
 const AUTHORS = [
   'Yingyong Hou',
   'Xinyuan Lao',

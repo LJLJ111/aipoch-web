@@ -4,7 +4,8 @@ import type { Metadata } from 'next'
 const BLOG_TITLE = 'AIPOCH Blog | Open-Science Updates & Research Workflows'
 const BLOG_DESCRIPTION =
   'Explore AIPOCH Open-Science product updates, research workflows, and practical insights for reproducible AI-assisted scientific research.'
-const OPEN_SCIENCE_IMAGE = 'https://aipoch.com/open-science/og-science-open-to-all.png'
+const OPEN_SCIENCE_IMAGE =
+  'https://statics.aipoch.com/public/f/image/og-science-open-to-all-ab128c94.png'
 
 const expectPageMetadata = (
   metadata: Metadata,
