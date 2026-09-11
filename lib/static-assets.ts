@@ -68,6 +68,8 @@ export const aipochStaticAssets = [
       { fileName: 'open-science-community-background-bb262071.webp', width: 1672, height: 941 },
       { fileName: 'aipoch-system-map-7511f128.png', width: 1672, height: 941 },
       { fileName: 'og-open-science-download-56121c38.png', width: 1065, height: 558 },
+      { fileName: 'og-science-open-to-all-ab128c94.png', width: 1280, height: 672 },
+      { fileName: 'medskillaudit-social-card-bcc353ec.png', width: 1280, height: 720 },
       { fileName: 'open-science-github-9c5574e6.svg', width: 14, height: 14 },
       { fileName: 'open-science-discord-10feb19d.svg', width: 14, height: 14 },
       { fileName: 'open-science-check-6530ff26.svg', width: 14, height: 10 }

@@ -1,18 +1,19 @@
-import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Download, Eye, FileText } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { JsonLd } from '@/components/json-ld'
 import { MarkdownErrorBoundary, MarkdownRenderer } from '@/components/markdown'
 import { TableOfContents } from '@/components/markdown/toc'
 import { ScrollToTop } from '@/components/scroll-to-top'
-import { JsonLd } from '@/components/json-ld'
-import { extractToc } from '@/lib/toc'
+import { Badge } from '@/components/ui/badge'
 import { SITE_DOMAIN } from '@/lib/config'
+import { mapScoreDetailToSkillEvaluation } from '@/lib/map-score-detail'
+import { createPageMetadata } from '@/lib/page-metadata'
+import { extractToc } from '@/lib/toc'
 import { fetchSkillDetail, type SkillDetail } from '@/service/skills'
 import { DownloadButton } from '../components/download-button'
 import { EvaluationOverview } from '../components/evaluation-overview'
-import { mapScoreDetailToSkillEvaluation } from '@/lib/map-score-detail'
 import { FileTree, type FileTreeItem } from '../components/file-tree'
 import { SkillDetails } from '../components/skill-details'
 
@@ -37,29 +38,20 @@ export async function generateMetadata({
 
   try {
     const skill = await fetchSkillDetail(slug)
-    return {
+    return createPageMetadata({
       title: `${skill.title} | AIPOCH Agent Skill`,
       description: skill.description,
-      alternates: { canonical: canonicalUrl },
-      openGraph: {
-        type: 'website',
-        url: canonicalUrl,
-        siteName: 'AIPOCH',
-        title: `${skill.title} | AIPOCH Agent Skill`,
-        description: skill.description
-      }
-    }
+      canonical: canonicalUrl
+    })
   } catch {
     return {
-      title: 'AIPOCH Skills List — Browse All Medical Research AI Skills',
-      description:
-        'Browse all AIPOCH medical research skills across Academic Writing, Data Analysis, Evidence Insights, Protocol Design, and more.',
-      alternates: { canonical: canonicalUrl },
-      openGraph: {
-        type: 'website',
-        url: canonicalUrl,
-        siteName: 'AIPOCH'
-      }
+      ...createPageMetadata({
+        title: 'AIPOCH Skills List — Browse All Medical Research AI Skills',
+        description:
+          'Browse all AIPOCH medical research skills across Academic Writing, Data Analysis, Evidence Insights, Protocol Design, and more.',
+        canonical: canonicalUrl
+      }),
+      robots: { index: false, follow: false }
     }
   }
 }
@@ -124,17 +116,12 @@ export default async function AgentSkillPage({ params }: AgentSkillPageProps) {
   const toc = await extractToc(data.skill_md || '')
 
   const ensureTimezone = (dateStr: string | undefined) =>
-    dateStr
-      ? dateStr.endsWith('Z') || dateStr.includes('+')
-        ? dateStr
-        : `${dateStr}Z`
-      : undefined
+    dateStr ? (dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : `${dateStr}Z`) : undefined
   const datePublished = ensureTimezone(data.published_at)
   const dateModified = ensureTimezone(data.updated_at)
   const authorName = data.author?.name || 'AIPOCH'
   const firstCategory = data.categories?.[0]
-  const categoryName =
-    typeof firstCategory === 'string' ? firstCategory : firstCategory?.name
+  const categoryName = typeof firstCategory === 'string' ? firstCategory : firstCategory?.name
 
   const softwareApplicationSchema = {
     '@context': 'https://schema.org',

@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import { SITE_DOMAIN } from '@/lib/config'
+import { createPageMetadata } from '@/lib/page-metadata'
+import { staticImage } from '@/lib/staticAsset'
 
 // Keep the requested page SEO copy aligned across metadata and visible heading surfaces.
 export const openScienceSeo = {
@@ -9,29 +11,18 @@ export const openScienceSeo = {
 } as const
 
 const openSciencePageUrl = `${SITE_DOMAIN}/open-science`
-const openScienceOgImage = {
-  url: `${SITE_DOMAIN}/open-science/og-science-open-to-all.jpg`,
-  width: 1024,
-  height: 537,
+export const OPEN_SCIENCE_PAGE_LAST_MODIFIED = '2026-09-10'
+const openScienceSocialAsset = staticImage('og-science-open-to-all-ab128c94.png')
+export const openScienceSocialImage = {
+  url: openScienceSocialAsset.src,
+  width: openScienceSocialAsset.width,
+  height: openScienceSocialAsset.height,
   alt: 'Science, Open to All — AIPOCH Open-Science'
 } as const
 
-export const openScienceMetadata: Metadata = {
+export const openScienceMetadata: Metadata = createPageMetadata({
   title: openScienceSeo.title,
   description: openScienceSeo.description,
-  alternates: { canonical: openSciencePageUrl },
-  openGraph: {
-    type: 'website',
-    url: openSciencePageUrl,
-    siteName: 'AIPOCH',
-    title: openScienceSeo.title,
-    description: openScienceSeo.description,
-    images: [openScienceOgImage]
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: openScienceSeo.title,
-    description: openScienceSeo.description,
-    images: [openScienceOgImage.url]
-  }
-}
+  canonical: openSciencePageUrl,
+  image: openScienceSocialImage
+})

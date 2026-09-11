@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next'
-import { HOMEPAGE_LAST_MODIFIED } from '@/app/(commonLayout)/home/home-structured-data'
+import { OPEN_SCIENCE_PAGE_LAST_MODIFIED } from '@/app/(commonLayout)/open-science/open-science-metadata'
 import { toSchemaDate } from '@/app/(commonLayout)/open-science/open-science-structured-data'
 import { INTERNAL_API_URL, SITE_DOMAIN } from '@/lib/config'
 import { getAllGuides } from '@/lib/guides'
@@ -9,6 +9,8 @@ import { fetchOpenScienceWikiSitemap } from '@/service/wiki-sitemap'
 
 // Disable cache, regenerate on every request
 export const dynamic = 'force-dynamic'
+
+const SEO_PAGE_LAST_MODIFIED = '2026-09-10'
 
 interface SitemapItem {
   url: string
@@ -53,6 +55,12 @@ const withReliableLastModified = (
   return { ...rest, lastModified: new Date(lastModified) }
 }
 
+const latestPageDate = (...values: Array<string | undefined>): string | undefined =>
+  values
+    .filter((value): value is string => Boolean(value))
+    .sort()
+    .at(-1)
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Let dynamic sources fail independently; do not invent an Open-Science update time when the manifest is unavailable.
   const [skillsSitemap, blogSitemap, wikiRoutes, guides, releaseManifest] = await Promise.all([
@@ -62,15 +70,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     getAllGuides(),
     fetchOpenScienceDownloadManifest().catch(() => null)
   ])
-  const openScienceLastModified = releaseManifest?.releaseDate
+  const openScienceReleaseDate = releaseManifest?.releaseDate
     ? toSchemaDate(releaseManifest.releaseDate, '')
     : undefined
+  const openScienceLastModified = latestPageDate(
+    openScienceReleaseDate,
+    OPEN_SCIENCE_PAGE_LAST_MODIFIED
+  )
 
   // Static routes: only final 200 URLs; lastmod only when content/version date is known.
   const staticRoutes: MetadataRoute.Sitemap = [
     withReliableLastModified({
       url: SITE_DOMAIN,
-      lastModified: HOMEPAGE_LAST_MODIFIED,
+      lastModified: SEO_PAGE_LAST_MODIFIED,
       changeFrequency: 'weekly',
       priority: 1.0
     }),
@@ -82,7 +94,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }),
     withReliableLastModified({
       url: `${SITE_DOMAIN}/open-science/download`,
-      lastModified: openScienceLastModified,
+      lastModified: openScienceReleaseDate,
       changeFrequency: 'weekly',
       priority: 0.8
     }),
@@ -93,21 +105,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }),
     withReliableLastModified({
       url: `${SITE_DOMAIN}/agent-skills`,
+      lastModified: SEO_PAGE_LAST_MODIFIED,
       changeFrequency: 'weekly',
       priority: 0.8
     }),
     withReliableLastModified({
       url: `${SITE_DOMAIN}/agent-skills/list`,
+      lastModified: SEO_PAGE_LAST_MODIFIED,
       changeFrequency: 'weekly',
       priority: 0.8
     }),
     withReliableLastModified({
       url: `${SITE_DOMAIN}/medskillaudit`,
+      lastModified: SEO_PAGE_LAST_MODIFIED,
       changeFrequency: 'monthly',
       priority: 0.8
     }),
     withReliableLastModified({
       url: `${SITE_DOMAIN}/blog`,
+      lastModified: SEO_PAGE_LAST_MODIFIED,
       changeFrequency: 'weekly',
       priority: 0.8
     })
@@ -116,7 +132,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const dynamicRoutes: MetadataRoute.Sitemap = skillsSitemap.map((item) =>
     withReliableLastModified({
       url: item.url,
-      lastModified: item.last_modified,
+      lastModified: latestPageDate(item.last_modified, SEO_PAGE_LAST_MODIFIED),
       changeFrequency: item.change_frequency || 'weekly',
       priority: item.priority ?? 0.8
     })
@@ -136,6 +152,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const guideRoutes: MetadataRoute.Sitemap = guides.map((guide) =>
     withReliableLastModified({
       url: `${SITE_DOMAIN}/guides/${guide.slug}`,
+      lastModified: SEO_PAGE_LAST_MODIFIED,
       changeFrequency: 'weekly',
       priority: 0.7
     })

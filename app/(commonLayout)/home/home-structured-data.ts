@@ -12,6 +12,7 @@ export const HOMEPAGE_TITLE = 'AIPOCH | The Open-Source Harness for Scientific R
 export const HOMEPAGE_DESCRIPTION =
   'AIPOCH builds the open-source harness for scientific research: a model-agnostic Open-Science workbench and a growing library of audited medical research agent skills.'
 
+// Keep this fallback tied to the visible product snapshot, not deployment or SEO edit dates.
 export const HOMEPAGE_LAST_MODIFIED = '2026-08-18'
 const HOMEPAGE_VIDEO_ASSET_HOST = 'statics.aipoch.com'
 const OPEN_SCIENCE_VIDEO_DURATION = 'PT1M0.48S'

@@ -6,7 +6,10 @@ import {
   HOMEPAGE_DESCRIPTION,
   HOMEPAGE_TITLE
 } from '@/app/(commonLayout)/home/home-structured-data'
+import { openScienceSocialImage } from '@/app/(commonLayout)/open-science/open-science-metadata'
 import { JsonLd } from '@/components/json-ld'
+import { SITE_DOMAIN } from '@/lib/config'
+import { createPageMetadata } from '@/lib/page-metadata'
 import {
   fetchHomepageConfig,
   fetchHomepageReadWatch,
@@ -15,16 +18,12 @@ import {
 
 export const dynamic = 'force-dynamic'
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createPageMetadata({
   title: HOMEPAGE_TITLE,
   description: HOMEPAGE_DESCRIPTION,
-  openGraph: {
-    title: HOMEPAGE_TITLE
-  },
-  twitter: {
-    title: HOMEPAGE_TITLE
-  }
-}
+  canonical: SITE_DOMAIN,
+  image: openScienceSocialImage
+})
 
 export default async function Home() {
   const [openScienceConfig, readWatch] = await Promise.all([

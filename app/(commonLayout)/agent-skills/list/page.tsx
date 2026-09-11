@@ -1,14 +1,14 @@
 'use client'
 
-import { Input } from '@/components/ui/input'
-import { Skeleton } from '@/components/ui/skeleton'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { cn } from '@/lib/utils'
 import { useDebounce, useInViewport } from 'ahooks'
 import { ChevronDown, ChevronUp, Download, Eye, Search, Star, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Input } from '@/components/ui/input'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { cn } from '@/lib/utils'
 import type { SkillsOrderBy, SkillsOrderDirection } from '@/service/skills'
 import { useCategories, useInfiniteSkills, useTotalCount } from '@/service/skills'
+import { AGENT_SKILLS_LIST_DESCRIPTION } from './agent-skills-list-content'
 import { ErrorState } from './components/error-state'
 import { SkillCard } from './components/skill-card'
 import {
@@ -160,7 +160,7 @@ export default function SkillsPage() {
           <div className="flex-1">
             <h1 className="mb-4 text-5xl text-black md:text-6xl lg:text-8xl">Skills</h1>
             <p className="max-w-xl text-lg italic text-black/60 md:text-xl">
-            🦞OpenClaw plugin offering structured agent skills for medical research workflows.
+              {AGENT_SKILLS_LIST_DESCRIPTION}
             </p>
           </div>
           <div className="flex gap-8 lg:pt-8">
@@ -254,13 +254,17 @@ export default function SkillsPage() {
                         <ChevronUp
                           className={cn(
                             'h-3 w-3',
-                            sortState.orderBy === orderBy && sortState.orderType === 'asc' && 'text-black'
+                            sortState.orderBy === orderBy &&
+                              sortState.orderType === 'asc' &&
+                              'text-black'
                           )}
                         />
                         <ChevronDown
                           className={cn(
                             '-mt-0.5 h-3 w-3',
-                            sortState.orderBy === orderBy && sortState.orderType === 'desc' && 'text-black'
+                            sortState.orderBy === orderBy &&
+                              sortState.orderType === 'desc' &&
+                              'text-black'
                           )}
                         />
                       </button>
