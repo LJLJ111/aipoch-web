@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
+import { staticImage } from '@/lib/staticAsset'
 
 const heroStats = ['597 ACTIVE SKILLS', '3 CONTRIBUTORS', 'OPEN SOURCE', 'AUDITABLE']
 
@@ -8,14 +9,13 @@ export const HeroSection = () => {
     <section className="relative isolate min-h-[calc(620px+var(--nav-h))] overflow-hidden bg-[#f6f3ef]">
       {/* Match the artwork's warm paper tone and fade its edges to avoid a visible seam. */}
       <div className="pointer-events-none absolute inset-0 -z-10">
+        {/* Serve the lossless CDN original without another resize or lossy encoding pass. */}
         <Image
-          src="/agent-skills/hero-blueprint-figma.png"
+          {...staticImage('agent-skills-hero-3854ac8d.webp')}
           alt=""
           aria-hidden="true"
-          width={1672}
-          height={941}
           priority
-          sizes="100vw"
+          unoptimized
           className="absolute inset-y-0 left-1/2 h-full w-auto max-w-none -translate-x-1/2 object-contain object-center opacity-64 [mask-image:linear-gradient(to_right,transparent,black_4%,black_96%,transparent)] lg:ml-[124px]"
         />
       </div>
