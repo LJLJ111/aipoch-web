@@ -16,7 +16,7 @@ export const HeroSection = () => {
           aria-hidden="true"
           priority
           unoptimized
-          className="absolute inset-y-0 left-1/2 h-full w-auto max-w-none -translate-x-1/2 object-contain object-center opacity-64 [mask-image:linear-gradient(to_right,transparent,black_4%,black_96%,transparent)] lg:ml-[124px]"
+          className="absolute inset-y-0 left-1/2 h-full w-auto max-w-none -translate-x-1/2 object-contain object-center opacity-64 [mask-image:linear-gradient(to_right,transparent,black_4%,black_96%,transparent)] lg:ml-[69px]"
         />
       </div>
       <div className="absolute inset-y-0 left-0 -z-10 w-full bg-gradient-to-r from-[#f6f6f4] via-[#f6f6f4]/94 via-[58%] to-transparent lg:w-[62.5%]" />
