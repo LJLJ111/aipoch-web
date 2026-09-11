@@ -4,7 +4,6 @@ import { DM_Serif_Display, Inter, Roboto_Mono } from 'next/font/google'
 import { PublicEnvScript } from 'next-runtime-env'
 import NextTopLoader from 'nextjs-toploader'
 import { CookieConsentBanner, CookieConsentController } from '@/components/cookie-consent'
-import { staticAsset } from '@/lib/staticAsset'
 import { ApiProvider } from '@/service'
 
 const inter = Inter({
@@ -29,12 +28,7 @@ const dmSerifDisplay = DM_Serif_Display({
   display: 'swap'
 })
 
-const defaultOgImage = staticAsset('og-bfe41bdd.webp')
-
 export const metadata: Metadata = {
-  title: 'AIPOCH | OpenClaw Plugin for Medical Research Agent Skills',
-  description:
-    'AIPOCH is an OpenClaw plugin providing medical research agent skills. Explore structured AI agent skills for evidence insights, protocol design, data analysis, and academic writing in scientific research workflows.',
   authors: [{ name: 'AIPOCH_AI' }],
   creator: 'AIPOCH_AI',
   publisher: 'AIPOCH_AI',
@@ -42,35 +36,6 @@ export const metadata: Metadata = {
     'aipoch:join': 'Read https://aipoch.com/skill.md and follow the instructions to join Aipoch'
   },
   metadataBase: new URL('https://aipoch.com'),
-  alternates: {
-    canonical: '/'
-  },
-  openGraph: {
-    type: 'website',
-    locale: 'en_US',
-    url: 'https://aipoch.com',
-    siteName: 'AIPOCH',
-    title: 'AIPOCH | OpenClaw Plugin for Medical Research Agent Skills',
-    description:
-      'AIPOCH is an OpenClaw plugin providing medical research agent skills. Explore structured AI agent skills for evidence insights, protocol design, data analysis, and academic writing in scientific research workflows.',
-    images: [
-      {
-        url: defaultOgImage,
-        width: 1200,
-        height: 630,
-        alt: 'AIPOCH | OpenClaw Plugin for Medical Research Agent Skills'
-      }
-    ]
-  },
-  twitter: {
-    card: 'summary_large_image',
-    site: '@AIPOCH_AI',
-    creator: '@AIPOCH_AI',
-    title: 'AIPOCH | OpenClaw Plugin for Medical Research Agent Skills',
-    description:
-      'AIPOCH is an OpenClaw plugin providing medical research agent skills. Explore structured AI agent skills for evidence insights, protocol design, data analysis, and academic writing in scientific research workflows.',
-    images: [defaultOgImage]
-  },
   robots: {
     index: true,
     follow: true,

@@ -1,18 +1,21 @@
-import type { Metadata } from 'next'
-import { JsonLd } from '@/components/json-ld'
-import { SITE_DOMAIN } from '@/lib/config'
-import { getPostsForListPage, mapListItemToBlogPost } from '@/lib/blog'
-import { staticAsset } from '@/lib/staticAsset'
 import { BlogListClient } from '@/components/blog-list-client'
+import { JsonLd } from '@/components/json-ld'
+import { getPostsForListPage, mapListItemToBlogPost } from '@/lib/blog'
+import { SITE_DOMAIN } from '@/lib/config'
+import { createPageMetadata } from '@/lib/page-metadata'
+import { staticAsset } from '@/lib/staticAsset'
 
 export const revalidate = 0 // Disable caching so each refresh fetches the latest data.
 
-export const metadata: Metadata = {
-  title: 'AIPOCH Blog',
-  description:
-    'Discover how AIPOCH Skills and AI agents like OpenClaw assist scientific research. Explore product features and practical demonstrations of AI-powered medical research skills.',
-  alternates: { canonical: `${SITE_DOMAIN}/blog` }
-}
+const BLOG_TITLE = 'AIPOCH Blog | Open-Science Updates & Research Workflows'
+const BLOG_DESCRIPTION =
+  'Explore AIPOCH Open-Science product updates, research workflows, and practical insights for reproducible AI-assisted scientific research.'
+
+export const metadata = createPageMetadata({
+  title: BLOG_TITLE,
+  description: BLOG_DESCRIPTION,
+  canonical: `${SITE_DOMAIN}/blog`
+})
 
 export default async function BlogPage() {
   // Fetch the first page on the server and load subsequent pages on scroll.
@@ -65,9 +68,7 @@ export default async function BlogPage() {
       <JsonLd data={[itemListSchema, breadcrumbSchema]} />
       <header className="mb-12 text-center">
         <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-3">Blog</h1>
-        <p className="text-gray-500 text-lg font-mono italic">
-        Discover how AIPOCH Skills and AI agents like OpenClaw assist scientific research.
-        </p>
+        <p className="text-gray-500 text-lg font-mono italic">{BLOG_DESCRIPTION}</p>
       </header>
 
       <BlogListClient initialData={{ pages: [firstPageData], pageParams: [1] }} />
