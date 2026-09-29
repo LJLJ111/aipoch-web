@@ -39,6 +39,9 @@ describe('homepage download manifest helpers', () => {
     expect(resolveHomepageDownloadHref(sampleManifest, 'linux-x64-deb')).toBe(
       OPEN_SCIENCE_RELEASES_URL
     )
+    expect(resolveHomepageDownloadHref(sampleManifest, 'linux-arm64-deb')).toBe(
+      OPEN_SCIENCE_RELEASES_URL
+    )
   })
 
   test('getHomepageManifestPlatformLinks lists only assets with urls and formats detail', () => {

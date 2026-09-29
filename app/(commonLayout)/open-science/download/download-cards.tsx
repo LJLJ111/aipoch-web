@@ -47,10 +47,19 @@ const installerCards: {
     key: 'linux-x64-deb',
     platform: 'LINUX',
     format: 'DEB',
-    title: 'Linux',
+    title: 'Linux x64',
     architecture: 'Debian package · amd64',
     requirement: '64-bit Debian / Ubuntu',
     analyticsEvent: 'download_linux_deb'
+  },
+  {
+    key: 'linux-arm64-deb',
+    platform: 'LINUX',
+    format: 'DEB',
+    title: 'Linux ARM64',
+    architecture: 'Debian package · arm64',
+    requirement: '64-bit Debian / Ubuntu · ARM64',
+    analyticsEvent: 'download_linux_arm64_deb'
   }
 ]
 

@@ -49,7 +49,7 @@ describe('homepage GEO contracts', () => {
     )
     expect(softwareApplication?.softwareVersion).toBe('v0.16.0')
     expect(softwareApplication).toMatchObject({
-      dateModified: '2026-08-18',
+      dateModified: '2026-09-29',
       mainEntityOfPage: { '@id': 'https://aipoch.com/open-science#webpage' },
       sameAs: ['https://github.com/aipoch/open-science']
     })

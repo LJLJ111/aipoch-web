@@ -150,7 +150,7 @@ describe('Open-Science page', () => {
     const webpage = schemas.find((item) => item['@type'] === 'WebPage')
     const softwareApplication = schemas.find((item) => item['@type'] === 'SoftwareApplication')
 
-    expect(webpage?.dateModified).toBe('2026-09-07')
+    expect(webpage?.dateModified).toBe('2026-09-29')
     expect(softwareApplication).toMatchObject({
       softwareVersion: 'v1.2.3',
       dateModified: '2026-09-07',
@@ -305,6 +305,7 @@ describe('Open-Science page', () => {
       detectRecommendedDownloadKey('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)')
     ).toBeNull()
     expect(detectRecommendedDownloadKey('Mozilla/5.0 (X11; Linux x86_64)')).toBe('linux-x64-deb')
+    expect(detectRecommendedDownloadKey('Mozilla/5.0 (X11; Linux aarch64)')).toBe('linux-arm64-deb')
     expect(detectRecommendedDownloadKey('Mozilla/5.0 (Linux; Android 14)')).toBeNull()
   })
 
@@ -358,6 +359,29 @@ describe('Open-Science page', () => {
     expect(getHomepageManifestPlatformLinks(manifest, 'linux-x64-deb').map(({ id }) => id)).toEqual(
       ['linux-x64-deb', 'linux-x64-appimage', 'mac-arm64', 'mac-x64', 'win-x64']
     )
+    expect(
+      getHomepageManifestPlatformLinks(
+        {
+          ...manifest,
+          downloads: {
+            ...manifest.downloads,
+            'linux-arm64-deb': { url: 'https://cdn.example.com/open-science-linux-arm64.deb' },
+            'linux-arm64-appimage': {
+              url: 'https://cdn.example.com/open-science-linux-arm64.AppImage'
+            }
+          }
+        },
+        'linux-arm64-deb'
+      ).map(({ id }) => id)
+    ).toEqual([
+      'linux-arm64-deb',
+      'linux-arm64-appimage',
+      'linux-x64-deb',
+      'linux-x64-appimage',
+      'mac-arm64',
+      'mac-x64',
+      'win-x64'
+    ])
   })
 
   test('keeps relative platform priority when a recommended asset is unavailable', () => {

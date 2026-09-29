@@ -12,7 +12,7 @@ export const HOMEPAGE_TITLE = 'AIPOCH | The Open-Source Harness for Scientific R
 export const HOMEPAGE_DESCRIPTION =
   'AIPOCH builds the open-source harness for scientific research: a model-agnostic Open-Science workbench and a growing library of audited medical research agent skills.'
 
-export const HOMEPAGE_LAST_MODIFIED = '2026-08-18'
+export const HOMEPAGE_LAST_MODIFIED = '2026-09-29'
 const HOMEPAGE_VIDEO_ASSET_HOST = 'statics.aipoch.com'
 const OPEN_SCIENCE_VIDEO_DURATION = 'PT1M0.48S'
 const DEFAULT_HOMEPAGE_VIDEO_NAME = 'AIPOCH Open-Science product tour'
@@ -24,7 +24,7 @@ export interface HomepageLastUpdated {
 
 export const DEFAULT_HOMEPAGE_LAST_UPDATED: HomepageLastUpdated = {
   dateTime: HOMEPAGE_LAST_MODIFIED,
-  label: 'Aug 18, 2026'
+  label: 'Sep 29, 2026'
 }
 
 interface HomepageVideoFacts {

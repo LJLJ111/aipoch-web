@@ -1,13 +1,13 @@
 'use client'
 
+import { Download } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { Download } from 'lucide-react'
-import { useEffect, useState } from 'react'
 import { fetchOpenScienceDownloadManifest } from '@/service/open-science-download'
 import {
   type DownloadKey,
@@ -56,8 +56,13 @@ export function OpenScienceDownload({
     { key: 'mac-x64', label: 'macOS Intel', detail: 'For Intel Macs' },
     {
       key: manifest?.downloads['linux-x64-appimage'] ? 'linux-x64-appimage' : 'linux-x64-deb',
-      label: 'Linux',
+      label: 'Linux x64',
       detail: manifest?.downloads['linux-x64-appimage'] ? 'x64 · AppImage' : 'x64 · .deb'
+    },
+    {
+      key: manifest?.downloads['linux-arm64-appimage'] ? 'linux-arm64-appimage' : 'linux-arm64-deb',
+      label: 'Linux ARM64',
+      detail: manifest?.downloads['linux-arm64-appimage'] ? 'ARM64 · AppImage' : 'ARM64 · .deb'
     }
   ]
   platforms.sort(

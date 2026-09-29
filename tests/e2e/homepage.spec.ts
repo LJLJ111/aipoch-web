@@ -41,6 +41,10 @@ const downloadManifestFixture = {
     'linux-x64-appimage': {
       url: 'https://cdn.example.com/open-science-linux.AppImage',
       size: 150000000
+    },
+    'linux-arm64-deb': {
+      url: 'https://cdn.example.com/open-science-linux-arm64.deb',
+      size: 140000000
     }
   }
 }
@@ -317,9 +321,7 @@ test('keeps every Open-Science preview caption and status from the prototype', a
   }
 })
 
-test('uses direct Windows and Linux downloads with a macOS-only architecture menu', async ({
-  page
-}) => {
+test('uses a direct Windows download with macOS and Linux architecture menus', async ({ page }) => {
   // Resolve the initial manifest before counting the next document's request.
   await expect(
     page.getByTestId('home-platform-downloads').getByRole('link', { name: /Download Windows/i })
@@ -341,10 +343,6 @@ test('uses direct Windows and Linux downloads with a macOS-only architecture men
     'href',
     downloadManifestFixture.downloads['win-x64'].url
   )
-  await expect(downloads.getByRole('link', { name: /Download Linux/i })).toHaveAttribute(
-    'href',
-    downloadManifestFixture.downloads['linux-x64-deb'].url
-  )
   await expect(downloads.getByText('DOWNLOAD', { exact: true })).toHaveCount(3)
 
   const macDownload = downloads.getByRole('button', { name: /Download macOS/i })
@@ -362,6 +360,19 @@ test('uses direct Windows and Linux downloads with a macOS-only architecture men
   await expect(macMenu.getByRole('link', { name: /Intel/i })).toHaveAttribute(
     'href',
     downloadManifestFixture.downloads['mac-x64'].url
+  )
+
+  const linuxDownload = downloads.getByRole('button', { name: /Download Linux/i })
+  await expect(linuxDownload).toHaveAttribute('aria-expanded', 'false')
+  await linuxDownload.click()
+  const linuxMenu = downloads.locator('#home-linux-downloads')
+  await expect(linuxMenu.getByRole('link', { name: /^x64/i })).toHaveAttribute(
+    'href',
+    downloadManifestFixture.downloads['linux-x64-deb'].url
+  )
+  await expect(linuxMenu.getByRole('link', { name: /ARM64/i })).toHaveAttribute(
+    'href',
+    downloadManifestFixture.downloads['linux-arm64-deb'].url
   )
   expect(manifestRequestCount).toBe(1)
 })
@@ -539,7 +550,7 @@ test('stacks mobile downloads and keeps the provider strip close to the hero con
   const cards = [
     downloads.getByRole('link', { name: /Download Windows/i }),
     downloads.getByRole('button', { name: /Download macOS/i }),
-    downloads.getByRole('link', { name: /Download Linux/i })
+    downloads.getByRole('button', { name: /Download Linux/i })
   ]
   const rects = await Promise.all(
     cards.map((card) => card.evaluate((element) => element.getBoundingClientRect().toJSON()))

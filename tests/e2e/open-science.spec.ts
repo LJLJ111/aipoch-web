@@ -28,7 +28,8 @@ test('publishes SoftwareApplication data on the canonical Open-Science page', as
       'https://cdn.example.com/open-science-intel.dmg',
       'https://cdn.example.com/open-science-arm.dmg',
       'https://cdn.example.com/open-science.exe',
-      'https://cdn.example.com/open-science.deb'
+      'https://cdn.example.com/open-science.deb',
+      'https://cdn.example.com/open-science-arm64.deb'
     ],
     license: 'https://www.apache.org/licenses/LICENSE-2.0',
     dateModified: '2026-09-07',
@@ -44,7 +45,8 @@ const manifest = {
     'win-x64': { url: 'https://cdn.example.com/open-science.exe' },
     'mac-arm64': { url: 'https://cdn.example.com/open-science-arm.dmg' },
     'mac-x64': { url: 'https://cdn.example.com/open-science-intel.dmg' },
-    'linux-x64-deb': { url: 'https://cdn.example.com/open-science.deb' }
+    'linux-x64-deb': { url: 'https://cdn.example.com/open-science.deb' },
+    'linux-arm64-deb': { url: 'https://cdn.example.com/open-science-arm64.deb' }
   }
 }
 
@@ -204,9 +206,10 @@ test('downloads the selected platform and supports keyboard dismissal', async ({
     ['Windows', manifest.downloads['win-x64'].url],
     ['Apple Silicon', manifest.downloads['mac-arm64'].url],
     ['macOS Intel', manifest.downloads['mac-x64'].url],
-    ['Linux', manifest.downloads['linux-x64-deb'].url]
+    ['Linux x64', manifest.downloads['linux-x64-deb'].url],
+    ['Linux ARM64', manifest.downloads['linux-arm64-deb'].url]
   ])
-    await expect(menu.getByRole('menuitem', { name: new RegExp(label) })).toHaveAttribute(
+    await expect(menu.getByRole('menuitem', { name: new RegExp(`^${label}`) })).toHaveAttribute(
       'href',
       url
     )
@@ -241,7 +244,8 @@ test('downloads the selected platform and supports keyboard dismissal', async ({
 
 for (const device of [
   { name: 'Windows', userAgent: 'Windows NT 10.0; Win64; x64', expected: ['Windows'] },
-  { name: 'Linux', userAgent: 'X11; Linux x86_64', expected: ['Linux'] },
+  { name: 'Linux', userAgent: 'X11; Linux x86_64', expected: ['Linux x64'] },
+  { name: 'Linux ARM64', userAgent: 'X11; Linux aarch64', expected: ['Linux ARM64'] },
   {
     name: 'macOS',
     userAgent: 'Macintosh; Intel Mac OS X 10_15_7',
@@ -272,7 +276,7 @@ for (const device of [
     await trigger.click()
     const menu = page.getByRole('menu')
     const recommendations = menu.locator('[data-recommended="true"]')
-    await expect(menu.getByRole('menuitem')).toHaveCount(4)
+    await expect(menu.getByRole('menuitem')).toHaveCount(5)
     await expect(recommendations).toHaveCount(device.expected.length)
     for (const [index, label] of device.expected.entries()) {
       await expect(recommendations.nth(index)).toContainText(label)

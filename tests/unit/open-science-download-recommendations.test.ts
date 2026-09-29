@@ -34,6 +34,27 @@ describe('Open-Science device recommendations', () => {
     ).toEqual(['linux-x64-deb'])
   })
 
+  test('recommends ARM64 installers on Linux aarch64 and skips x64-only manifests', () => {
+    const arm64Manifest: DownloadManifest = {
+      version: '1.0.0',
+      downloads: {
+        ...manifest.downloads,
+        'linux-arm64-deb': { url: 'https://example.com/app-arm64.deb' },
+        'linux-arm64-appimage': { url: 'https://example.com/app-arm64.AppImage' }
+      }
+    }
+    expect(getOpenScienceRecommendedDownloadKeys('X11; Linux aarch64', arm64Manifest)).toEqual([
+      'linux-arm64-appimage'
+    ])
+    expect(
+      getOpenScienceRecommendedDownloadKeys('X11; Linux aarch64', {
+        version: '1.0.0',
+        downloads: { 'linux-arm64-deb': { url: 'https://example.com/app-arm64.deb' } }
+      })
+    ).toEqual(['linux-arm64-deb'])
+    expect(getOpenScienceRecommendedDownloadKeys('X11; Linux aarch64', manifest)).toEqual([])
+  })
+
   test('keeps both Mac architectures available without guessing from Intel Mac OS X', () => {
     expect(
       getOpenScienceRecommendedDownloadKeys('Macintosh; Intel Mac OS X 10_15_7', manifest)

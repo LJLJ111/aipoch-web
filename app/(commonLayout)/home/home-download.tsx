@@ -5,18 +5,45 @@ import { useEffect, useRef, useState } from 'react'
 import {
   type DownloadKey,
   type DownloadManifest,
-  getHomepageRecommendedDownloadKey,
   resolveHomepageDownloadHref
 } from '@/app/(commonLayout)/open-science/open-science-download-data'
 import { platformLogo } from '@/components/platform-logos'
 import { fetchOpenScienceDownloadManifest } from '@/service/open-science-download'
 
-type Platform = { label: string; key: DownloadKey; icon: 'apple' | 'windows' | 'linux' }
+type ArchMenuId = 'macos' | 'linux'
 
-const platforms: Platform[] = [
-  { label: 'Windows', key: 'win-x64', icon: 'windows' },
-  { label: 'macOS', key: 'mac-arm64', icon: 'apple' },
-  { label: 'Linux', key: 'linux-x64-deb', icon: 'linux' }
+type ArchMenu = {
+  id: ArchMenuId
+  menuElementId: string
+  label: string
+  icon: 'apple' | 'linux'
+  subtitle: string
+  options: readonly { key: DownloadKey; title: string; description: string }[]
+}
+
+const archMenus: readonly ArchMenu[] = [
+  {
+    id: 'macos',
+    menuElementId: 'home-macos-downloads',
+    label: 'macOS',
+    icon: 'apple',
+    subtitle: 'Apple Silicon / Intel',
+    options: [
+      { key: 'mac-arm64', title: 'Apple Silicon', description: 'Compatible with M-series chips' },
+      { key: 'mac-x64', title: 'Intel', description: 'Intel-based Macs' }
+    ]
+  },
+  {
+    id: 'linux',
+    menuElementId: 'home-linux-downloads',
+    label: 'Linux',
+    icon: 'linux',
+    subtitle: 'x64 / ARM64',
+    options: [
+      { key: 'linux-x64-deb', title: 'x64', description: 'For Intel / AMD 64-bit systems' },
+      { key: 'linux-arm64-deb', title: 'ARM64', description: 'For ARM 64-bit systems' }
+    ]
+  }
 ]
 
 let homepageManifestPromise: Promise<DownloadManifest> | null = null
@@ -33,9 +60,11 @@ const loadHomepageManifest = () => {
 
 export const HomeDownload = () => {
   const [manifest, setManifest] = useState<DownloadManifest | null>(null)
-  const [open, setOpen] = useState(false)
-  const [macArch, setMacArch] = useState<DownloadKey>('mac-arm64')
-  const menuRef = useRef<HTMLFieldSetElement>(null)
+  const [openMenu, setOpenMenu] = useState<ArchMenuId | null>(null)
+  const menuRefs = useRef<Record<ArchMenuId, HTMLFieldSetElement | null>>({
+    macos: null,
+    linux: null
+  })
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -58,16 +87,14 @@ export const HomeDownload = () => {
   )
 
   useEffect(() => {
-    const key = getHomepageRecommendedDownloadKey(navigator.userAgent)
-    setMacArch(key === 'mac-x64' ? 'mac-x64' : 'mac-arm64')
-  }, [])
-
-  useEffect(() => {
     const close = (event: PointerEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) setOpen(false)
+      const insideMenu = Object.values(menuRefs.current).some((element) =>
+        element?.contains(event.target as Node)
+      )
+      if (!insideMenu) setOpenMenu(null)
     }
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false)
+      if (event.key === 'Escape') setOpenMenu(null)
     }
     document.addEventListener('pointerdown', close)
     document.addEventListener('keydown', closeOnEscape)
@@ -77,125 +104,111 @@ export const HomeDownload = () => {
     }
   }, [])
 
+  const clearCloseTimer = () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
+    closeTimerRef.current = null
+  }
+
   return (
     <div
       data-testid="home-platform-downloads"
       className="mt-6 grid max-w-[870px] grid-cols-1 gap-2 sm:mt-8 sm:grid-cols-3 md:gap-3"
     >
-      {platforms.map((platform) => {
-        const isMac = platform.key === 'mac-arm64'
-        const href = resolveHomepageDownloadHref(manifest, isMac ? macArch : platform.key)
-        if (isMac) {
-          return (
-            <fieldset
-              className="relative min-w-0 border-0 p-0"
-              key={platform.label}
-              ref={menuRef}
-              onPointerEnter={(event) => {
-                if (event.pointerType !== 'touch') {
-                  if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
-                  closeTimerRef.current = null
-                  setOpen(true)
-                }
-              }}
-              onPointerLeave={(event) => {
-                if (event.pointerType !== 'touch') {
-                  if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
-                  closeTimerRef.current = setTimeout(() => setOpen(false), 120)
-                }
-              }}
-              onBlur={(event) => {
-                if (!event.currentTarget.contains(event.relatedTarget as Node | null))
-                  setOpen(false)
-              }}
-            >
-              <button
-                type="button"
-                aria-label="Download macOS"
-                aria-expanded={open}
-                aria-controls="home-macos-downloads"
-                onClick={() => {
-                  if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
-                  closeTimerRef.current = null
-                  setOpen(true)
-                }}
-                className={`flex min-h-[72px] w-full flex-row items-center justify-center gap-3 border border-black/10 px-3 text-left transition-[background-color,box-shadow,transform] duration-200 hover:-translate-y-px hover:bg-[#f4f4f1] hover:shadow-[0_12px_28px_rgba(17,17,17,.10)] md:min-h-[86px] ${open ? '-translate-y-px bg-[#f4f4f1] shadow-[0_12px_28px_rgba(17,17,17,.10)]' : 'bg-white'}`}
-              >
-                <span className="flex size-10 shrink-0 items-center justify-center border border-black/10 bg-[#f7f7f5] text-[#111]">
-                  {platformLogo(platform.icon, 'size-6')}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <b className="block text-sm font-semibold text-[#111] md:text-base">
-                    {platform.label}
-                  </b>
-                  <span className="block whitespace-nowrap text-[10px] text-[#aaa] sm:hidden md:block">
-                    Apple Silicon / Intel
-                  </span>
-                </span>
-                <span className="flex items-center gap-1.5 text-[9px] font-medium tracking-[0.03em] text-[#aaa] sm:hidden md:flex">
-                  DOWNLOAD
-                  <ChevronDown
-                    className={`size-3.5 text-[#777] transition ${open ? 'rotate-180' : ''}`}
-                  />
-                </span>
-              </button>
-              {open ? (
-                <div
-                  id="home-macos-downloads"
-                  className="absolute inset-x-0 top-[calc(100%+10px)] z-40 w-full border border-black/10 bg-white p-2 text-left shadow-[0_18px_45px_rgba(0,0,0,.14)]"
-                >
-                  {(['mac-arm64', 'mac-x64'] as const).map((key) => (
-                    <a
-                      key={key}
-                      href={resolveHomepageDownloadHref(manifest, key)}
-                      onClick={() => {
-                        setMacArch(key)
-                        setOpen(false)
-                      }}
-                      className="group flex items-center justify-between px-4 py-3 transition hover:bg-[#f2f2ef]"
-                    >
-                      <span>
-                        <b className="block text-base text-[#111]">
-                          {key === 'mac-arm64' ? 'Apple Silicon' : 'Intel'}
-                        </b>
-                        <small className="text-xs text-[#999]">
-                          {key === 'mac-arm64'
-                            ? 'Compatible with M-series chips'
-                            : 'Intel-based Macs'}
-                        </small>
-                      </span>
-                      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#f2f2ef] text-[#111] transition group-hover:bg-[#111] group-hover:text-white">
-                        <Download className="size-4" />
-                      </span>
-                    </a>
-                  ))}
-                </div>
-              ) : null}
-            </fieldset>
-          )
-        }
+      <a
+        href={resolveHomepageDownloadHref(manifest, 'win-x64')}
+        aria-label="Download Windows"
+        className="flex min-h-[72px] flex-row items-center justify-center gap-3 border border-black/10 bg-white px-3 text-left transition-[background-color,box-shadow,transform] duration-200 hover:-translate-y-px hover:bg-[#f4f4f1] hover:shadow-[0_12px_28px_rgba(17,17,17,.10)] md:min-h-[86px]"
+      >
+        <span className="flex size-10 shrink-0 items-center justify-center border border-black/10 bg-[#f7f7f5] text-[#111]">
+          {platformLogo('windows', 'size-6')}
+        </span>
+        <span className="min-w-0 flex-1">
+          <b className="block text-sm font-semibold text-[#111] md:text-base">Windows</b>
+          <span className="block whitespace-nowrap text-[10px] text-[#aaa] sm:hidden md:block">
+            x64
+          </span>
+        </span>
+        <span className="flex items-center gap-1.5 text-[9px] font-medium tracking-[0.03em] text-[#aaa] sm:hidden md:flex">
+          DOWNLOAD <Download className="size-3.5 text-[#aaa]" />
+        </span>
+      </a>
+      {archMenus.map((menu) => {
+        const open = openMenu === menu.id
         return (
-          <a
-            key={platform.label}
-            href={href}
-            aria-label={`Download ${platform.label}`}
-            className="flex min-h-[72px] flex-row items-center justify-center gap-3 border border-black/10 bg-white px-3 text-left transition-[background-color,box-shadow,transform] duration-200 hover:-translate-y-px hover:bg-[#f4f4f1] hover:shadow-[0_12px_28px_rgba(17,17,17,.10)] md:min-h-[86px]"
+          <fieldset
+            className="relative min-w-0 border-0 p-0"
+            key={menu.id}
+            ref={(element) => {
+              menuRefs.current[menu.id] = element
+            }}
+            onPointerEnter={(event) => {
+              if (event.pointerType !== 'touch') {
+                clearCloseTimer()
+                setOpenMenu(menu.id)
+              }
+            }}
+            onPointerLeave={(event) => {
+              if (event.pointerType !== 'touch') {
+                clearCloseTimer()
+                closeTimerRef.current = setTimeout(() => setOpenMenu(null), 120)
+              }
+            }}
+            onBlur={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node | null))
+                setOpenMenu(null)
+            }}
           >
-            <span className="flex size-10 shrink-0 items-center justify-center border border-black/10 bg-[#f7f7f5] text-[#111]">
-              {platformLogo(platform.icon, 'size-6')}
-            </span>
-            <span className="min-w-0 flex-1">
-              <b className="block text-sm font-semibold text-[#111] md:text-base">
-                {platform.label}
-              </b>
-              <span className="block whitespace-nowrap text-[10px] text-[#aaa] sm:hidden md:block">
-                {platform.label === 'Windows' ? 'x64' : 'x64 · .deb'}
+            <button
+              type="button"
+              aria-label={`Download ${menu.label}`}
+              aria-expanded={open}
+              aria-controls={menu.menuElementId}
+              onClick={() => {
+                clearCloseTimer()
+                setOpenMenu(menu.id)
+              }}
+              className={`flex min-h-[72px] w-full flex-row items-center justify-center gap-3 border border-black/10 px-3 text-left transition-[background-color,box-shadow,transform] duration-200 hover:-translate-y-px hover:bg-[#f4f4f1] hover:shadow-[0_12px_28px_rgba(17,17,17,.10)] md:min-h-[86px] ${open ? '-translate-y-px bg-[#f4f4f1] shadow-[0_12px_28px_rgba(17,17,17,.10)]' : 'bg-white'}`}
+            >
+              <span className="flex size-10 shrink-0 items-center justify-center border border-black/10 bg-[#f7f7f5] text-[#111]">
+                {platformLogo(menu.icon, 'size-6')}
               </span>
-            </span>
-            <span className="flex items-center gap-1.5 text-[9px] font-medium tracking-[0.03em] text-[#aaa] sm:hidden md:flex">
-              DOWNLOAD <Download className="size-3.5 text-[#aaa]" />
-            </span>
-          </a>
+              <span className="min-w-0 flex-1">
+                <b className="block text-sm font-semibold text-[#111] md:text-base">{menu.label}</b>
+                <span className="block whitespace-nowrap text-[10px] text-[#aaa] sm:hidden md:block">
+                  {menu.subtitle}
+                </span>
+              </span>
+              <span className="flex items-center gap-1.5 text-[9px] font-medium tracking-[0.03em] text-[#aaa] sm:hidden md:flex">
+                DOWNLOAD
+                <ChevronDown
+                  className={`size-3.5 text-[#777] transition ${open ? 'rotate-180' : ''}`}
+                />
+              </span>
+            </button>
+            {open ? (
+              <div
+                id={menu.menuElementId}
+                className="absolute inset-x-0 top-[calc(100%+10px)] z-40 w-full border border-black/10 bg-white p-2 text-left shadow-[0_18px_45px_rgba(0,0,0,.14)]"
+              >
+                {menu.options.map((option) => (
+                  <a
+                    key={option.key}
+                    href={resolveHomepageDownloadHref(manifest, option.key)}
+                    onClick={() => setOpenMenu(null)}
+                    className="group flex items-center justify-between px-4 py-3 transition hover:bg-[#f2f2ef]"
+                  >
+                    <span>
+                      <b className="block text-base text-[#111]">{option.title}</b>
+                      <small className="text-xs text-[#999]">{option.description}</small>
+                    </span>
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#f2f2ef] text-[#111] transition group-hover:bg-[#111] group-hover:text-white">
+                      <Download className="size-4" />
+                    </span>
+                  </a>
+                ))}
+              </div>
+            ) : null}
+          </fieldset>
         )
       })}
     </div>

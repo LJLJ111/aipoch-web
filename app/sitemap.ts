@@ -1,6 +1,9 @@
 import type { MetadataRoute } from 'next'
 import { HOMEPAGE_LAST_MODIFIED } from '@/app/(commonLayout)/home/home-structured-data'
-import { toSchemaDate } from '@/app/(commonLayout)/open-science/open-science-structured-data'
+import {
+  resolveOpenScienceDownloadPageLastModified,
+  resolveOpenSciencePageLastModified
+} from '@/app/(commonLayout)/open-science/open-science-structured-data'
 import { INTERNAL_API_URL, SITE_DOMAIN } from '@/lib/config'
 import { getAllGuides } from '@/lib/guides'
 import { fetchBlogSitemap } from '@/service/blog'
@@ -62,9 +65,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     getAllGuides(),
     fetchOpenScienceDownloadManifest().catch(() => null)
   ])
-  const openScienceLastModified = releaseManifest?.releaseDate
-    ? toSchemaDate(releaseManifest.releaseDate, '')
-    : undefined
+  // Local page edits count alongside the published release date for each Open-Science URL.
+  const openSciencePageLastModified = resolveOpenSciencePageLastModified(
+    releaseManifest?.releaseDate
+  )
+  const openScienceDownloadPageLastModified = resolveOpenScienceDownloadPageLastModified(
+    releaseManifest?.releaseDate
+  )
 
   // Static routes: only final 200 URLs; lastmod only when content/version date is known.
   const staticRoutes: MetadataRoute.Sitemap = [
@@ -76,13 +83,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }),
     withReliableLastModified({
       url: `${SITE_DOMAIN}/open-science`,
-      lastModified: openScienceLastModified,
+      lastModified: openSciencePageLastModified,
       changeFrequency: 'weekly',
       priority: 0.8
     }),
     withReliableLastModified({
       url: `${SITE_DOMAIN}/open-science/download`,
-      lastModified: openScienceLastModified,
+      lastModified: openScienceDownloadPageLastModified,
       changeFrequency: 'weekly',
       priority: 0.8
     }),

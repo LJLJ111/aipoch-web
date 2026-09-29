@@ -14,7 +14,8 @@ const OPEN_SCIENCE_E2E_MANIFEST = JSON.stringify({
     'win-x64': { url: 'https://cdn.example.com/open-science.exe' },
     'mac-arm64': { url: 'https://cdn.example.com/open-science-arm.dmg' },
     'mac-x64': { url: 'https://cdn.example.com/open-science-intel.dmg' },
-    'linux-x64-deb': { url: 'https://cdn.example.com/open-science.deb' }
+    'linux-x64-deb': { url: 'https://cdn.example.com/open-science.deb' },
+    'linux-arm64-deb': { url: 'https://cdn.example.com/open-science-arm64.deb' }
   }
 })
 

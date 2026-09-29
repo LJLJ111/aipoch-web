@@ -78,11 +78,12 @@ test('renders every section and installer from the supplied download design', as
       name: 'Published releases and older installers are available on GitHub.'
     })
   ).toBeVisible()
-  await expect(page.locator('#downloads article')).toHaveCount(4)
+  await expect(page.locator('#downloads article')).toHaveCount(5)
   await expect(page.getByRole('heading', { level: 3, name: 'Apple Silicon' })).toBeVisible()
   await expect(page.getByRole('heading', { level: 3, name: 'Intel' })).toBeVisible()
   await expect(page.getByRole('heading', { level: 3, name: 'Windows x64' })).toBeVisible()
-  await expect(page.getByRole('heading', { level: 3, name: 'Linux' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 3, name: 'Linux x64' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 3, name: 'Linux ARM64' })).toBeVisible()
   await expect(page.getByText('Which Mac download should I choose?')).toBeVisible()
 })
 
@@ -90,17 +91,22 @@ const platformOrders = [
   {
     name: 'macOS',
     userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-    expected: ['mac-arm64', 'mac-x64', 'win-x64', 'linux-x64-deb']
+    expected: ['mac-arm64', 'mac-x64', 'win-x64', 'linux-x64-deb', 'linux-arm64-deb']
   },
   {
     name: 'Windows',
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-    expected: ['win-x64', 'mac-arm64', 'mac-x64', 'linux-x64-deb']
+    expected: ['win-x64', 'mac-arm64', 'mac-x64', 'linux-x64-deb', 'linux-arm64-deb']
   },
   {
     name: 'Linux',
     userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
-    expected: ['linux-x64-deb', 'mac-arm64', 'mac-x64', 'win-x64']
+    expected: ['linux-x64-deb', 'linux-arm64-deb', 'mac-arm64', 'mac-x64', 'win-x64']
+  },
+  {
+    name: 'Linux ARM64',
+    userAgent: 'Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36',
+    expected: ['linux-arm64-deb', 'linux-x64-deb', 'mac-arm64', 'mac-x64', 'win-x64']
   }
 ] as const
 
@@ -114,7 +120,7 @@ for (const platform of platformOrders) {
     try {
       await page.goto('/open-science/download')
 
-      await expect(page.locator('#downloads article')).toHaveCount(4)
+      await expect(page.locator('#downloads article')).toHaveCount(5)
       expect(
         await page
           .locator('#downloads article')
