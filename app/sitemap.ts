@@ -12,6 +12,7 @@ import { fetchOpenScienceWikiSitemap } from '@/service/wiki-sitemap'
 const AGENT_SKILLS_LAST_MODIFIED = '2026-09-11'
 const OPEN_SCIENCE_DOWNLOAD_LAST_MODIFIED = '2026-09-11'
 const BLOG_PAGE_LAST_MODIFIED = '2026-09-18'
+const HOMEPAGE_PAGE_LAST_MODIFIED = '2026-09-29'
 
 // Disable cache, regenerate on every request
 export const dynamic = 'force-dynamic'
@@ -87,7 +88,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes: MetadataRoute.Sitemap = [
     withReliableLastModified({
       url: SITE_DOMAIN,
-      lastModified: SEO_PAGE_LAST_MODIFIED,
+      lastModified: latestPageDate(SEO_PAGE_LAST_MODIFIED, HOMEPAGE_PAGE_LAST_MODIFIED),
       changeFrequency: 'weekly',
       priority: 1.0
     }),

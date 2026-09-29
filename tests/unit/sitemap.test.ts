@@ -107,7 +107,7 @@ describe('sitemap', () => {
       (route) => route.url === `${siteDomain}/guides/openclaw-local-deployment`
     )
 
-    expect((homepageRoute?.lastModified as Date).toISOString()).toBe('2026-09-17T00:00:00.000Z')
+    expect((homepageRoute?.lastModified as Date).toISOString()).toBe('2026-09-29T00:00:00.000Z')
 
     expect(openScienceRoute).toMatchObject({
       changeFrequency: 'weekly',
