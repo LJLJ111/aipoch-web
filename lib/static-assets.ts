@@ -40,6 +40,8 @@ export const aipochStaticAssets = [
       { fileName: 'scientist3-d7ec1289.webp' },
       { fileName: 'scientist4-a7f7f8ce.webp' },
       // Intrinsic image sizes share the same registry as their CDN filenames.
+      { fileName: 'agent-skills-hero-3854ac8d.webp', width: 1672, height: 941 },
+      { fileName: 'blog-hero-background-ef51ee4b.webp', width: 1672, height: 941 },
       { fileName: 'open-science-execution-22cf5be9.webp', width: 598, height: 559 },
       { fileName: 'open-science-specialists-495d54a2.webp', width: 606, height: 559 },
       { fileName: 'open-science-traceability-19cb72cd.webp', width: 601, height: 559 },
@@ -68,6 +70,8 @@ export const aipochStaticAssets = [
       { fileName: 'open-science-community-background-bb262071.webp', width: 1672, height: 941 },
       { fileName: 'aipoch-system-map-7511f128.png', width: 1672, height: 941 },
       { fileName: 'og-open-science-download-56121c38.png', width: 1065, height: 558 },
+      { fileName: 'og-science-open-to-all-ab128c94.png', width: 1280, height: 672 },
+      { fileName: 'medskillaudit-social-card-bcc353ec.png', width: 1280, height: 720 },
       { fileName: 'open-science-github-9c5574e6.svg', width: 14, height: 14 },
       { fileName: 'open-science-discord-10feb19d.svg', width: 14, height: 14 },
       { fileName: 'open-science-check-6530ff26.svg', width: 14, height: 10 }

@@ -105,8 +105,12 @@ describe('Open-Science page', () => {
     expect(canonicalUrl).toStartWith('https://aipoch.com')
     expect(openGraphUrl).toEndWith('/open-science')
     expect(openGraphUrl).toStartWith('https://aipoch.com')
-    expect(ogImageUrl).toContain('/open-science/og-science-open-to-all.jpg')
-    expect(twitterImageUrl).toContain('/open-science/og-science-open-to-all.jpg')
+    expect(ogImageUrl).toBe(
+      'https://statics.aipoch.com/public/f/image/og-science-open-to-all-ab128c94.png'
+    )
+    expect(twitterImageUrl).toBe(
+      'https://statics.aipoch.com/public/f/image/og-science-open-to-all-ab128c94.png'
+    )
   })
 
   test('renders one visible product heading from the Figma design', async () => {
@@ -150,7 +154,7 @@ describe('Open-Science page', () => {
     const webpage = schemas.find((item) => item['@type'] === 'WebPage')
     const softwareApplication = schemas.find((item) => item['@type'] === 'SoftwareApplication')
 
-    expect(webpage?.dateModified).toBe('2026-09-29')
+    expect(webpage?.dateModified).toBe('2026-09-17')
     expect(softwareApplication).toMatchObject({
       softwareVersion: 'v1.2.3',
       dateModified: '2026-09-07',

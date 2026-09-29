@@ -40,7 +40,7 @@ describe('homepage GEO contracts', () => {
     const { buildHomepageStructuredData } = await import(
       '../../app/(commonLayout)/home/home-structured-data'
     )
-    const { schemas } = buildHomepageStructuredData({})
+    const { lastUpdated, schemas } = buildHomepageStructuredData({})
     const organization = schemas.find((schema) => schema['@type'] === 'Organization')
     const softwareApplication = schemas.find((schema) => schema['@type'] === 'SoftwareApplication')
 
@@ -48,8 +48,12 @@ describe('homepage GEO contracts', () => {
       'AIPOCH builds the open-source harness for scientific research. Open-Science is a model-agnostic AI workbench with audited medical research agent skills.'
     )
     expect(softwareApplication?.softwareVersion).toBe('v0.16.0')
+    expect(lastUpdated).toEqual({
+      dateTime: '2026-08-18',
+      label: 'Aug 18, 2026'
+    })
     expect(softwareApplication).toMatchObject({
-      dateModified: '2026-09-29',
+      dateModified: '2026-08-18',
       mainEntityOfPage: { '@id': 'https://aipoch.com/open-science#webpage' },
       sameAs: ['https://github.com/aipoch/open-science']
     })
@@ -109,7 +113,7 @@ describe('homepage GEO contracts', () => {
       dateTime: 'Aug 4, 2026',
       label: 'Aug 4, 2026'
     })
-    expect(webpage?.dateModified).toBe('Aug 4, 2026')
+    expect(webpage?.dateModified).toBe('2026-09-17')
     expect(softwareApplication).toMatchObject({
       softwareVersion: 'v0.20.4',
       dateModified: '2026-08-04',
@@ -234,7 +238,7 @@ console.log(renderToStaticMarkup(await Home()))`
     expect(schemas.find((schema) => schema['@type'] === 'WebPage')).toMatchObject({
       '@id': 'https://aipoch.com/#webpage',
       url: 'https://aipoch.com',
-      dateModified: 'Aug 16, 2026',
+      dateModified: '2026-09-17',
       speakable: {
         '@type': 'SpeakableSpecification',
         cssSelector: ['[data-testid="spotlight-title"]', '[data-homepage-summary]']

@@ -1,11 +1,14 @@
-import type { Metadata } from 'next'
 import { PolicyDocumentPage } from '@/app/(commonLayout)/components/policy-document-page'
+import { SITE_DOMAIN } from '@/lib/config'
+import { createPageMetadata } from '@/lib/page-metadata'
 import { getPolicyDocument } from '@/lib/policy'
 
-export const metadata: Metadata = {
+export const metadata = createPageMetadata({
   title: 'Terms of Service | AIPOCH',
-  description: 'Please read these Terms of Service carefully before using AIPOCH products and services.'
-}
+  description:
+    'Please read these Terms of Service carefully before using AIPOCH products and services.',
+  canonical: `${SITE_DOMAIN}/terms-of-service`
+})
 
 export default async function TermsOfServicePage() {
   const policy = await getPolicyDocument({

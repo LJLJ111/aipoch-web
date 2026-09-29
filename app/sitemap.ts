@@ -1,17 +1,22 @@
 import type { MetadataRoute } from 'next'
-import { HOMEPAGE_LAST_MODIFIED } from '@/app/(commonLayout)/home/home-structured-data'
-import {
-  resolveOpenSciencePageLastModified,
-  toSchemaDate
-} from '@/app/(commonLayout)/open-science/open-science-structured-data'
+import { MEDFLOW_PAGE_LAST_MODIFIED } from '@/app/(commonLayout)/medflow/medflow-metadata'
+import { OPEN_SCIENCE_PAGE_LAST_MODIFIED } from '@/app/(commonLayout)/open-science/open-science-metadata'
+import { toSchemaDate } from '@/app/(commonLayout)/open-science/open-science-structured-data'
+import { commonLayoutLastModified } from '@/lib/common-layout-metadata'
 import { INTERNAL_API_URL, SITE_DOMAIN } from '@/lib/config'
 import { getAllGuides } from '@/lib/guides'
 import { fetchBlogSitemap } from '@/service/blog'
 import { fetchOpenScienceDownloadManifest } from '@/service/open-science-download'
 import { fetchOpenScienceWikiSitemap } from '@/service/wiki-sitemap'
 
+const AGENT_SKILLS_LAST_MODIFIED = '2026-09-11'
+const OPEN_SCIENCE_DOWNLOAD_LAST_MODIFIED = '2026-09-11'
+const BLOG_PAGE_LAST_MODIFIED = '2026-09-18'
+
 // Disable cache, regenerate on every request
 export const dynamic = 'force-dynamic'
+
+const SEO_PAGE_LAST_MODIFIED = '2026-09-10'
 
 interface SitemapItem {
   url: string
@@ -45,16 +50,21 @@ async function fetchSkillsSitemap(): Promise<SitemapItem[]> {
   }
 }
 
-/** Emit lastmod only when a reliable content update time exists; never use deployment-time new Date(). */
+/** All local sitemap routes share the navigation; Wiki entries retain their own dates. */
 const withReliableLastModified = (
   route: Omit<MetadataRoute.Sitemap[number], 'lastModified'> & {
     lastModified?: string | Date
   }
 ): MetadataRoute.Sitemap[number] => {
   const { lastModified, ...rest } = route
-  if (!lastModified) return rest
-  return { ...rest, lastModified: new Date(lastModified) }
+  return { ...rest, lastModified: new Date(commonLayoutLastModified(lastModified)) }
 }
+
+const latestPageDate = (...values: Array<string | undefined>): string | undefined =>
+  values
+    .filter((value): value is string => Boolean(value))
+    .sort()
+    .at(-1)
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Let dynamic sources fail independently; do not invent an Open-Science update time when the manifest is unavailable.
@@ -65,56 +75,61 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     getAllGuides(),
     fetchOpenScienceDownloadManifest().catch(() => null)
   ])
-  const openScienceLastModified = releaseManifest?.releaseDate
+  const openScienceReleaseDate = releaseManifest?.releaseDate
     ? toSchemaDate(releaseManifest.releaseDate, '')
     : undefined
-  // The /open-science page itself also changes locally; keep /open-science/download on the release date only.
-  const openSciencePageLastModified = resolveOpenSciencePageLastModified(
-    releaseManifest?.releaseDate
+  const openScienceLastModified = latestPageDate(
+    openScienceReleaseDate,
+    OPEN_SCIENCE_PAGE_LAST_MODIFIED
   )
 
   // Static routes: only final 200 URLs; lastmod only when content/version date is known.
   const staticRoutes: MetadataRoute.Sitemap = [
     withReliableLastModified({
       url: SITE_DOMAIN,
-      lastModified: HOMEPAGE_LAST_MODIFIED,
+      lastModified: SEO_PAGE_LAST_MODIFIED,
       changeFrequency: 'weekly',
       priority: 1.0
     }),
     withReliableLastModified({
       url: `${SITE_DOMAIN}/open-science`,
-      lastModified: openSciencePageLastModified,
-      changeFrequency: 'weekly',
-      priority: 0.8
-    }),
-    withReliableLastModified({
-      url: `${SITE_DOMAIN}/open-science/download`,
       lastModified: openScienceLastModified,
       changeFrequency: 'weekly',
       priority: 0.8
     }),
     withReliableLastModified({
+      url: `${SITE_DOMAIN}/open-science/download`,
+      lastModified: latestPageDate(openScienceReleaseDate, OPEN_SCIENCE_DOWNLOAD_LAST_MODIFIED),
+      changeFrequency: 'weekly',
+      priority: 0.8
+    }),
+    withReliableLastModified({
       url: `${SITE_DOMAIN}/medflow`,
+      lastModified: MEDFLOW_PAGE_LAST_MODIFIED,
       changeFrequency: 'monthly',
       priority: 0.8
     }),
     withReliableLastModified({
       url: `${SITE_DOMAIN}/agent-skills`,
+      lastModified: AGENT_SKILLS_LAST_MODIFIED,
       changeFrequency: 'weekly',
       priority: 0.8
     }),
     withReliableLastModified({
       url: `${SITE_DOMAIN}/agent-skills/list`,
+      lastModified: SEO_PAGE_LAST_MODIFIED,
       changeFrequency: 'weekly',
       priority: 0.8
     }),
     withReliableLastModified({
       url: `${SITE_DOMAIN}/medskillaudit`,
+      lastModified: SEO_PAGE_LAST_MODIFIED,
       changeFrequency: 'monthly',
       priority: 0.8
     }),
     withReliableLastModified({
       url: `${SITE_DOMAIN}/blog`,
+      lastModified: BLOG_PAGE_LAST_MODIFIED,
       changeFrequency: 'weekly',
       priority: 0.8
     })
@@ -123,17 +138,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const dynamicRoutes: MetadataRoute.Sitemap = skillsSitemap.map((item) =>
     withReliableLastModified({
       url: item.url,
-      lastModified: item.last_modified,
+      lastModified: latestPageDate(item.last_modified, SEO_PAGE_LAST_MODIFIED),
       changeFrequency: item.change_frequency || 'weekly',
       priority: item.priority ?? 0.8
     })
   )
 
-  // Fetch blog posts from the API; omit lastmod when updatedAt is missing.
+  // Preserve newer API content dates alongside the persistent shared-layout date.
   const blogRoutes: MetadataRoute.Sitemap = blogSitemap.map((item) =>
     withReliableLastModified({
       url: item.url,
-      lastModified: item.last_modified,
+      lastModified: latestPageDate(item.last_modified, BLOG_PAGE_LAST_MODIFIED),
       changeFrequency: (item.change_frequency as 'weekly' | 'monthly') || 'monthly',
       priority: item.priority ?? 0.7
     })
@@ -143,6 +158,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const guideRoutes: MetadataRoute.Sitemap = guides.map((guide) =>
     withReliableLastModified({
       url: `${SITE_DOMAIN}/guides/${guide.slug}`,
+      lastModified: SEO_PAGE_LAST_MODIFIED,
       changeFrequency: 'weekly',
       priority: 0.7
     })

@@ -1,12 +1,14 @@
-import type { Metadata } from 'next'
 import { PolicyDocumentPage } from '@/app/(commonLayout)/components/policy-document-page'
+import { SITE_DOMAIN } from '@/lib/config'
+import { createPageMetadata } from '@/lib/page-metadata'
 import { getPolicyDocument } from '@/lib/policy'
 
-export const metadata: Metadata = {
+export const metadata = createPageMetadata({
   title: 'Privacy Policy | AIPOCH',
   description:
-    'Learn how AIPOCH collects, uses, shares, protects, and retains personal data when you use our Services.'
-}
+    'Learn how AIPOCH collects, uses, shares, protects, and retains personal data when you use our Services.',
+  canonical: `${SITE_DOMAIN}/privacy-policy`
+})
 
 export default async function PrivacyPolicyPage() {
   const policy = await getPolicyDocument({

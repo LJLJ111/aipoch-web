@@ -2,20 +2,25 @@ import { ArrowLeft, ArrowRight, Clock } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { JsonLd } from '@/components/json-ld'
 import { HighlightedText } from '@/components/highlighted-text'
+import { JsonLd } from '@/components/json-ld'
 import { MarkdownRenderer } from '@/components/markdown'
 import { TableOfContents } from '@/components/markdown/toc'
-import { getAdjacentGuides, getAllGuides, getGuide } from '@/lib/guides'
-import { extractToc } from '@/lib/toc'
 import { SITE_DOMAIN } from '@/lib/config'
+import { getAdjacentGuides, getAllGuides, getGuide } from '@/lib/guides'
+import { createPageMetadata } from '@/lib/page-metadata'
 import { staticAsset } from '@/lib/staticAsset'
+import { extractToc } from '@/lib/toc'
 
 interface GuidePageProps {
   params: Promise<{ slug: string }>
 }
 
 const GUIDE_SEO: Record<string, { title: string; description: string }> = {
+  'get-started-with-skills': {
+    title: 'Get Started with Skills | AIPOCH',
+    description: 'Installation takes less than a minute and requires no technical expertise.'
+  },
   'what-is-a-skill': {
     title: 'What Are Agent Skills? Reusable AI Packages Explained',
     description:
@@ -45,10 +50,19 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params
   const seo = GUIDE_SEO[slug]
-  return {
-    ...(seo ? { title: seo.title, description: seo.description } : {}),
-    alternates: { canonical: `${SITE_DOMAIN}/guides/${slug}` }
-  }
+  const guide = seo ? null : await getGuide(slug)
+  const title = seo?.title ?? `${guide?.frontmatter.title ?? 'Guide'} | AIPOCH`
+  const description =
+    seo?.description ??
+    guide?.frontmatter.description ??
+    'Explore practical AIPOCH guides for scientific research workflows.'
+
+  return createPageMetadata({
+    title,
+    description,
+    canonical: `${SITE_DOMAIN}/guides/${slug}`,
+    type: 'article'
+  })
 }
 
 export default async function GuidePage({ params }: GuidePageProps) {

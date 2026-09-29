@@ -4,6 +4,7 @@ import {
   AIPOCH_WEBSITE_ID,
   buildAipochOrganizationSchema
 } from '@/lib/aipoch-organization'
+import { commonLayoutLastModified } from '@/lib/common-layout-metadata'
 import { SITE_DOMAIN } from '@/lib/config'
 import { openScienceScreenshotUrls } from '@/lib/open-science-media-assets'
 import { resolveSkillLibraryCount } from './home-data'
@@ -12,7 +13,8 @@ export const HOMEPAGE_TITLE = 'AIPOCH | The Open-Source Harness for Scientific R
 export const HOMEPAGE_DESCRIPTION =
   'AIPOCH builds the open-source harness for scientific research: a model-agnostic Open-Science workbench and a growing library of audited medical research agent skills.'
 
-export const HOMEPAGE_LAST_MODIFIED = '2026-09-29'
+// Keep this fallback tied to the visible product snapshot, not deployment or SEO edit dates.
+export const HOMEPAGE_LAST_MODIFIED = '2026-08-18'
 const HOMEPAGE_VIDEO_ASSET_HOST = 'statics.aipoch.com'
 const OPEN_SCIENCE_VIDEO_DURATION = 'PT1M0.48S'
 const DEFAULT_HOMEPAGE_VIDEO_NAME = 'AIPOCH Open-Science product tour'
@@ -24,7 +26,7 @@ export interface HomepageLastUpdated {
 
 export const DEFAULT_HOMEPAGE_LAST_UPDATED: HomepageLastUpdated = {
   dateTime: HOMEPAGE_LAST_MODIFIED,
-  label: 'Sep 29, 2026'
+  label: 'Aug 18, 2026'
 }
 
 interface HomepageVideoFacts {
@@ -157,7 +159,7 @@ export const buildHomepageStructuredData = ({
     description: entityDescription,
     isPartOf: { '@id': AIPOCH_WEBSITE_ID },
     about: { '@id': AIPOCH_ORGANIZATION_ID },
-    dateModified: lastUpdated.dateTime,
+    dateModified: commonLayoutLastModified(lastUpdated.dateTime),
     speakable: {
       '@type': 'SpeakableSpecification',
       cssSelector: ['[data-testid="spotlight-title"]', '[data-homepage-summary]']
