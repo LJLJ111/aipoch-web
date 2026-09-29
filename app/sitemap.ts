@@ -4,12 +4,14 @@ import { toSchemaDate } from '@/app/(commonLayout)/open-science/open-science-str
 import { commonLayoutLastModified } from '@/lib/common-layout-metadata'
 import { INTERNAL_API_URL, SITE_DOMAIN } from '@/lib/config'
 import { getAllGuides } from '@/lib/guides'
+import { listUseCasesFromDisk } from '@/lib/use-cases'
 import { fetchBlogSitemap } from '@/service/blog'
 import { fetchOpenScienceDownloadManifest } from '@/service/open-science-download'
 import { fetchOpenScienceWikiSitemap } from '@/service/wiki-sitemap'
 
 const AGENT_SKILLS_LAST_MODIFIED = '2026-09-11'
 const OPEN_SCIENCE_DOWNLOAD_LAST_MODIFIED = '2026-09-11'
+const OPEN_SCIENCE_USE_CASES_LAST_MODIFIED = '2026-09-23'
 
 // Disable cache, regenerate on every request
 export const dynamic = 'force-dynamic'
@@ -102,6 +104,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8
     }),
     withReliableLastModified({
+      url: `${SITE_DOMAIN}/open-science/use-cases`,
+      lastModified: OPEN_SCIENCE_USE_CASES_LAST_MODIFIED,
+      changeFrequency: 'weekly',
+      priority: 0.8
+    }),
+    withReliableLastModified({
       url: `${SITE_DOMAIN}/medflow`,
       changeFrequency: 'monthly',
       priority: 0.8
@@ -161,5 +169,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })
   )
 
-  return [...staticRoutes, ...dynamicRoutes, ...blogRoutes, ...guideRoutes, ...wikiRoutes]
+  // Use-case showcase pages come from the static data directory, not an API.
+  const useCaseRoutes: MetadataRoute.Sitemap = listUseCasesFromDisk().flatMap((useCase) => [
+    withReliableLastModified({
+      url: `${SITE_DOMAIN}/open-science/use-cases/${useCase.slug}`,
+      lastModified: OPEN_SCIENCE_USE_CASES_LAST_MODIFIED,
+      changeFrequency: 'monthly',
+      priority: 0.7
+    }),
+    withReliableLastModified({
+      url: `${SITE_DOMAIN}/open-science/use-cases/${useCase.slug}/replay`,
+      lastModified: OPEN_SCIENCE_USE_CASES_LAST_MODIFIED,
+      changeFrequency: 'monthly',
+      priority: 0.6
+    })
+  ])
+
+  return [
+    ...staticRoutes,
+    ...dynamicRoutes,
+    ...blogRoutes,
+    ...guideRoutes,
+    ...wikiRoutes,
+    ...useCaseRoutes
+  ]
 }

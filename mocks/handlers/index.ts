@@ -4,6 +4,7 @@ import { leaderboardHandlers } from './leaderboards'
 import { json, missing } from './shared'
 import { skillHandlers } from './skills'
 import { stateHandlers } from './state'
+import { useCaseHandlers } from './use-cases'
 
 const fallbackHandlers = (origin: string) => [
   http.all(`${origin}/api/*`, ({ request }) =>
@@ -15,6 +16,7 @@ export const interceptionHandlers = (origin: string) => [
   ...skillHandlers(origin),
   ...contentHandlers(origin),
   ...leaderboardHandlers(origin),
+  ...useCaseHandlers(origin),
   http.all(`${origin}/api/v1/members`, () => passthrough()),
   http.all(`${origin}/api/v1/agent/:action`, () => passthrough()),
   ...fallbackHandlers(origin)
