@@ -91,7 +91,7 @@ describe('sitemap', () => {
       priority: 0.8
     })
     expect((openScienceDownloadRoute?.lastModified as Date).toISOString()).toBe(
-      '2026-09-29T00:00:00.000Z'
+      '2026-09-07T00:00:00.000Z'
     )
 
     expect(medFlowRoute).toMatchObject({

@@ -1,8 +1,8 @@
 import type { MetadataRoute } from 'next'
 import { HOMEPAGE_LAST_MODIFIED } from '@/app/(commonLayout)/home/home-structured-data'
 import {
-  resolveOpenScienceDownloadPageLastModified,
-  resolveOpenSciencePageLastModified
+  resolveOpenSciencePageLastModified,
+  toSchemaDate
 } from '@/app/(commonLayout)/open-science/open-science-structured-data'
 import { INTERNAL_API_URL, SITE_DOMAIN } from '@/lib/config'
 import { getAllGuides } from '@/lib/guides'
@@ -65,11 +65,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     getAllGuides(),
     fetchOpenScienceDownloadManifest().catch(() => null)
   ])
-  // Local page edits count alongside the published release date for each Open-Science URL.
+  const openScienceLastModified = releaseManifest?.releaseDate
+    ? toSchemaDate(releaseManifest.releaseDate, '')
+    : undefined
+  // The /open-science page itself also changes locally; keep /open-science/download on the release date only.
   const openSciencePageLastModified = resolveOpenSciencePageLastModified(
-    releaseManifest?.releaseDate
-  )
-  const openScienceDownloadPageLastModified = resolveOpenScienceDownloadPageLastModified(
     releaseManifest?.releaseDate
   )
 
@@ -89,7 +89,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }),
     withReliableLastModified({
       url: `${SITE_DOMAIN}/open-science/download`,
-      lastModified: openScienceDownloadPageLastModified,
+      lastModified: openScienceLastModified,
       changeFrequency: 'weekly',
       priority: 0.8
     }),

@@ -25,10 +25,6 @@ const defaultManifestDownloads: DownloadManifest['downloads'] = {
   'linux-x64-deb': {
     url: 'https://cdn.example.com/aipoch-open-science_1.2.3_amd64.deb',
     size: 192_099_123
-  },
-  'linux-arm64-deb': {
-    url: 'https://cdn.example.com/aipoch-open-science_1.2.3_arm64.deb',
-    size: 188_099_123
   }
 }
 let manifestDownloads = defaultManifestDownloads
@@ -112,8 +108,7 @@ describe('Open-Science download page', () => {
       'https://cdn.example.com/aipoch-open-science-1.2.3-mac-x64.dmg',
       'https://cdn.example.com/aipoch-open-science-1.2.3-mac-arm64.dmg',
       'https://cdn.example.com/aipoch-open-science-1.2.3-win-x64-setup.exe',
-      'https://cdn.example.com/aipoch-open-science_1.2.3_amd64.deb',
-      'https://cdn.example.com/aipoch-open-science_1.2.3_arm64.deb'
+      'https://cdn.example.com/aipoch-open-science_1.2.3_amd64.deb'
     ])
     expect((faq?.mainEntity as unknown[]).length).toBe(5)
   })
@@ -132,30 +127,8 @@ describe('Open-Science download page', () => {
     const html = renderToStaticMarkup(await OpenScienceDownloadPage())
     const renderedKeys = [...html.matchAll(/data-download-key="([^"]+)"/g)].map(([, key]) => key)
 
-    expect(renderedKeys).toEqual([
-      'win-x64',
-      'mac-arm64',
-      'mac-x64',
-      'linux-x64-deb',
-      'linux-arm64-deb'
-    ])
+    expect(renderedKeys).toEqual(['win-x64', 'mac-arm64', 'mac-x64', 'linux-x64-deb'])
     expect(html).toContain('data-download-key="win-x64" data-recommended="true"')
-  })
-
-  test('orders Linux ARM64 first for an aarch64 request', async () => {
-    requestUserAgent = 'Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36'
-    const html = renderToStaticMarkup(await OpenScienceDownloadPage())
-    const renderedKeys = [...html.matchAll(/data-download-key="([^"]+)"/g)].map(([, key]) => key)
-
-    expect(renderedKeys).toEqual([
-      'linux-arm64-deb',
-      'linux-x64-deb',
-      'mac-arm64',
-      'mac-x64',
-      'win-x64'
-    ])
-    expect(html).toContain('data-download-key="linux-arm64-deb" data-recommended="true"')
-    expect(html).toContain('https://cdn.example.com/aipoch-open-science_1.2.3_arm64.deb')
   })
 
   test('keeps installers available when the release date is invalid', async () => {

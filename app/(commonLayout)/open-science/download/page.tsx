@@ -17,8 +17,7 @@ const downloadPageKeys = [
   'mac-x64',
   'mac-arm64',
   'win-x64',
-  'linux-x64-deb',
-  'linux-arm64-deb'
+  'linux-x64-deb'
 ] as const satisfies readonly DownloadKey[]
 
 const faqItems = [
@@ -128,7 +127,7 @@ export default async function OpenScienceDownloadPage() {
       '@type': 'SoftwareApplication',
       name: 'AIPOCH Open-Science',
       applicationCategory: 'ScienceApplication',
-      operatingSystem: 'macOS 12+, Windows 10/11 x64, Linux x64/ARM64',
+      operatingSystem: 'macOS 12+, Windows 10/11 x64, Linux x64',
       ...(manifest ? { softwareVersion: manifest.version } : {}),
       ...(releaseDate && manifest?.releaseDate ? { datePublished: manifest.releaseDate } : {}),
       ...(downloadAssets.length
@@ -291,9 +290,7 @@ export default async function OpenScienceDownloadPage() {
               </tr>
               <tr>
                 <th className="border-b border-[#dfdfda] px-4 py-5 font-semibold">Linux</th>
-                <td className="border-b border-[#dfdfda] px-4 py-5">
-                  64-bit Debian or Ubuntu · x64 or ARM64
-                </td>
+                <td className="border-b border-[#dfdfda] px-4 py-5">64-bit Debian or Ubuntu</td>
                 <td className="border-b border-[#dfdfda] px-4 py-5">Debian package (.deb)</td>
                 <td className="border-b border-[#dfdfda] px-4 py-5 font-mono text-xs">
                   sudo apt install ./{linuxFilename ?? 'aipoch-open-science_amd64.deb'}

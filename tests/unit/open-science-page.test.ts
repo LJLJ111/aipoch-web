@@ -359,29 +359,6 @@ describe('Open-Science page', () => {
     expect(getHomepageManifestPlatformLinks(manifest, 'linux-x64-deb').map(({ id }) => id)).toEqual(
       ['linux-x64-deb', 'linux-x64-appimage', 'mac-arm64', 'mac-x64', 'win-x64']
     )
-    expect(
-      getHomepageManifestPlatformLinks(
-        {
-          ...manifest,
-          downloads: {
-            ...manifest.downloads,
-            'linux-arm64-deb': { url: 'https://cdn.example.com/open-science-linux-arm64.deb' },
-            'linux-arm64-appimage': {
-              url: 'https://cdn.example.com/open-science-linux-arm64.AppImage'
-            }
-          }
-        },
-        'linux-arm64-deb'
-      ).map(({ id }) => id)
-    ).toEqual([
-      'linux-arm64-deb',
-      'linux-arm64-appimage',
-      'linux-x64-deb',
-      'linux-x64-appimage',
-      'mac-arm64',
-      'mac-x64',
-      'win-x64'
-    ])
   })
 
   test('keeps relative platform priority when a recommended asset is unavailable', () => {

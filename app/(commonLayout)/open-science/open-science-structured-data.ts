@@ -19,8 +19,6 @@ export const OPEN_SCIENCE_CURRENT_RELEASE_DATE = '2026-08-16'
 export const OPEN_SCIENCE_CURRENT_RELEASE_LABEL = 'Aug 16, 2026'
 /** Last local edit to the /open-science page itself, independent of app release dates. */
 export const OPEN_SCIENCE_PAGE_LAST_MODIFIED = '2026-09-29'
-/** Last local edit to the /open-science/download page itself, independent of app release dates. */
-export const OPEN_SCIENCE_DOWNLOAD_PAGE_LAST_MODIFIED = '2026-09-29'
 export const OPEN_SCIENCE_GITHUB_URL = 'https://github.com/aipoch/open-science'
 export const OPEN_SCIENCE_WEBPAGE_ID = `${SITE_DOMAIN}/open-science#webpage`
 export const OPEN_SCIENCE_PRODUCT_ID = `${SITE_DOMAIN}/#open-science`
@@ -67,14 +65,6 @@ export const toSchemaDate = (
 export const resolveOpenSciencePageLastModified = (releaseDate?: string | null): string => {
   const release = releaseDate ? toSchemaDate(releaseDate, '') : ''
   return release > OPEN_SCIENCE_PAGE_LAST_MODIFIED ? release : OPEN_SCIENCE_PAGE_LAST_MODIFIED
-}
-
-/** Same rule for /open-science/download local edits versus the published release date. */
-export const resolveOpenScienceDownloadPageLastModified = (releaseDate?: string | null): string => {
-  const release = releaseDate ? toSchemaDate(releaseDate, '') : ''
-  return release > OPEN_SCIENCE_DOWNLOAD_PAGE_LAST_MODIFIED
-    ? release
-    : OPEN_SCIENCE_DOWNLOAD_PAGE_LAST_MODIFIED
 }
 
 export const buildOpenScienceSoftwareApplicationSchema = ({

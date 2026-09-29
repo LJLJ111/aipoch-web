@@ -188,49 +188,13 @@ export type HomepageManifestPlatformLink = {
 }
 
 const homepagePlatformOrders = {
-  mac: [
-    'mac-arm64',
-    'mac-x64',
-    'win-x64',
-    'linux-x64-deb',
-    'linux-arm64-deb',
-    'linux-x64-appimage',
-    'linux-arm64-appimage'
-  ],
-  windows: [
-    'win-x64',
-    'mac-arm64',
-    'mac-x64',
-    'linux-x64-deb',
-    'linux-arm64-deb',
-    'linux-x64-appimage',
-    'linux-arm64-appimage'
-  ],
-  linux: [
-    'linux-x64-deb',
-    'linux-x64-appimage',
-    'linux-arm64-deb',
-    'linux-arm64-appimage',
-    'mac-arm64',
-    'mac-x64',
-    'win-x64'
-  ],
-  linuxArm64: [
-    'linux-arm64-deb',
-    'linux-arm64-appimage',
-    'linux-x64-deb',
-    'linux-x64-appimage',
-    'mac-arm64',
-    'mac-x64',
-    'win-x64'
-  ]
+  mac: ['mac-arm64', 'mac-x64', 'win-x64', 'linux-x64-deb', 'linux-x64-appimage'],
+  windows: ['win-x64', 'mac-arm64', 'mac-x64', 'linux-x64-deb', 'linux-x64-appimage'],
+  linux: ['linux-x64-deb', 'linux-x64-appimage', 'mac-arm64', 'mac-x64', 'win-x64']
 } as const satisfies Record<string, readonly DownloadKey[]>
 
 const getHomepagePlatformOrder = (recommendedId: DownloadKey): readonly DownloadKey[] => {
   if (recommendedId === 'win-x64') return homepagePlatformOrders.windows
-  if (recommendedId === 'linux-arm64-deb' || recommendedId === 'linux-arm64-appimage') {
-    return homepagePlatformOrders.linuxArm64
-  }
   if (recommendedId.startsWith('linux-')) return homepagePlatformOrders.linux
   return homepagePlatformOrders.mac
 }
