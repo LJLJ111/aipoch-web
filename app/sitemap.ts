@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next'
+import { MEDFLOW_PAGE_LAST_MODIFIED } from '@/app/(commonLayout)/medflow/medflow-metadata'
 import { OPEN_SCIENCE_PAGE_LAST_MODIFIED } from '@/app/(commonLayout)/open-science/open-science-metadata'
 import { toSchemaDate } from '@/app/(commonLayout)/open-science/open-science-structured-data'
 import { commonLayoutLastModified } from '@/lib/common-layout-metadata'
@@ -12,6 +13,8 @@ import { fetchOpenScienceWikiSitemap } from '@/service/wiki-sitemap'
 const AGENT_SKILLS_LAST_MODIFIED = '2026-09-11'
 const OPEN_SCIENCE_DOWNLOAD_LAST_MODIFIED = '2026-09-11'
 const OPEN_SCIENCE_USE_CASES_LAST_MODIFIED = '2026-09-30'
+const BLOG_PAGE_LAST_MODIFIED = '2026-09-18'
+const HOMEPAGE_PAGE_LAST_MODIFIED = '2026-09-29'
 
 // Disable cache, regenerate on every request
 export const dynamic = 'force-dynamic'
@@ -87,7 +90,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes: MetadataRoute.Sitemap = [
     withReliableLastModified({
       url: SITE_DOMAIN,
-      lastModified: SEO_PAGE_LAST_MODIFIED,
+      lastModified: latestPageDate(SEO_PAGE_LAST_MODIFIED, HOMEPAGE_PAGE_LAST_MODIFIED),
       changeFrequency: 'weekly',
       priority: 1.0
     }),
@@ -111,6 +114,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }),
     withReliableLastModified({
       url: `${SITE_DOMAIN}/medflow`,
+      lastModified: MEDFLOW_PAGE_LAST_MODIFIED,
       changeFrequency: 'monthly',
       priority: 0.8
     }),
@@ -134,7 +138,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }),
     withReliableLastModified({
       url: `${SITE_DOMAIN}/blog`,
-      lastModified: SEO_PAGE_LAST_MODIFIED,
+      lastModified: BLOG_PAGE_LAST_MODIFIED,
       changeFrequency: 'weekly',
       priority: 0.8
     })
@@ -153,7 +157,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const blogRoutes: MetadataRoute.Sitemap = blogSitemap.map((item) =>
     withReliableLastModified({
       url: item.url,
-      lastModified: item.last_modified,
+      lastModified: latestPageDate(item.last_modified, BLOG_PAGE_LAST_MODIFIED),
       changeFrequency: (item.change_frequency as 'weekly' | 'monthly') || 'monthly',
       priority: item.priority ?? 0.7
     })
@@ -163,7 +167,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const guideRoutes: MetadataRoute.Sitemap = guides.map((guide) =>
     withReliableLastModified({
       url: `${SITE_DOMAIN}/guides/${guide.slug}`,
-      lastModified: SEO_PAGE_LAST_MODIFIED,
+      lastModified: guide.frontmatter.lastModified ?? SEO_PAGE_LAST_MODIFIED,
       changeFrequency: 'weekly',
       priority: 0.7
     })

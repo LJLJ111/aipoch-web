@@ -9,6 +9,8 @@ export type DownloadKey =
   | 'win-x64'
   | 'linux-x64-appimage'
   | 'linux-x64-deb'
+  | 'linux-arm64-appimage'
+  | 'linux-arm64-deb'
 
 export type DownloadAsset = {
   url: string
@@ -28,7 +30,9 @@ export const OPEN_SCIENCE_DOWNLOAD_KEYS = [
   'mac-arm64',
   'win-x64',
   'linux-x64-appimage',
-  'linux-x64-deb'
+  'linux-x64-deb',
+  'linux-arm64-appimage',
+  'linux-arm64-deb'
 ] as const satisfies readonly DownloadKey[]
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
@@ -109,7 +113,9 @@ export function formatDownloadVersionLabel(manifest: Pick<DownloadManifest, 'ver
 
 export function detectRecommendedDownloadKey(userAgent: string): DownloadKey | null {
   if (/windows/i.test(userAgent)) return 'win-x64'
-  if (/linux/i.test(userAgent) && !/android/i.test(userAgent)) return 'linux-x64-deb'
+  if (/linux/i.test(userAgent) && !/android/i.test(userAgent)) {
+    return /aarch64|arm64/i.test(userAgent) ? 'linux-arm64-deb' : 'linux-x64-deb'
+  }
   return null
 }
 
@@ -130,8 +136,9 @@ export function getOpenScienceRecommendedDownloadKeys(
 
   const detectedKey = detectRecommendedDownloadKey(userAgent)
   let candidates: DownloadKey[] = []
-  if (detectedKey === 'linux-x64-deb') {
-    candidates = [manifest.downloads['linux-x64-appimage'] ? 'linux-x64-appimage' : 'linux-x64-deb']
+  if (detectedKey === 'linux-x64-deb' || detectedKey === 'linux-arm64-deb') {
+    const appImageKey = detectedKey.replace('-deb', '-appimage') as DownloadKey
+    candidates = [manifest.downloads[appImageKey] ? appImageKey : detectedKey]
   } else if (detectedKey) {
     candidates = [detectedKey]
   } else if (isMac) {
@@ -157,7 +164,9 @@ const homepageDownloadPrimaryLabels: Record<DownloadKey, string> = {
   'mac-x64': 'Download for macOS',
   'win-x64': 'Download for Windows',
   'linux-x64-appimage': 'Download for Linux',
-  'linux-x64-deb': 'Download for Linux'
+  'linux-x64-deb': 'Download for Linux',
+  'linux-arm64-appimage': 'Download for Linux',
+  'linux-arm64-deb': 'Download for Linux'
 }
 
 export function getHomepageDownloadPrimaryLabel(key: DownloadKey): string {

@@ -309,6 +309,7 @@ describe('Open-Science page', () => {
       detectRecommendedDownloadKey('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)')
     ).toBeNull()
     expect(detectRecommendedDownloadKey('Mozilla/5.0 (X11; Linux x86_64)')).toBe('linux-x64-deb')
+    expect(detectRecommendedDownloadKey('Mozilla/5.0 (X11; Linux aarch64)')).toBe('linux-arm64-deb')
     expect(detectRecommendedDownloadKey('Mozilla/5.0 (Linux; Android 14)')).toBeNull()
   })
 

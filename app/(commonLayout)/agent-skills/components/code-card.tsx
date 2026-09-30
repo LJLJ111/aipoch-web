@@ -145,11 +145,11 @@ const OpenClawInteractionCard = () => {
       {/* Footer */}
       <div className="bg-gray-50 border-t border-black py-4 px-6">
         <Link
-          href="/guides/openclaw-local-deployment"
+          href="/guides/get-started-with-skills"
           type="button"
           className="flex items-center justify-center gap-2 text-[10px] uppercase tracking-wider text-black/50 hover:text-black transition-colors cursor-pointer"
         >
-          <span>Don't have an OpenClaw agent?</span>
+          <span>New to research skills?</span>
           <span className="underline underline-offset-2">Get started</span>
           <span>→</span>
         </Link>
