@@ -197,15 +197,15 @@ export default async function OpenScienceUseCasesPage({ searchParams }: PageProp
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Link
             href="/open-science"
-            className="inline-flex min-h-11 items-center bg-[#10110f] px-5 text-[13px] font-semibold text-white transition-colors hover:bg-[#f2bd2f] hover:text-[#10110f]"
+            className="inline-flex min-h-11 items-center bg-[#10110f] px-5 text-[13px] font-semibold text-white transition-colors hover:bg-[#4a4b46] active:bg-black"
           >
-            Get Started for Free
+            Explore Open-Science
           </Link>
           <Link
             href="https://aipoch.com/docs/guides/research-packages/"
             className="inline-flex min-h-11 items-center border border-[#10110f] bg-white px-5 text-[13px] font-semibold text-[#10110f] transition-colors hover:bg-[#10110f] hover:text-white"
           >
-            Watch Demo Video
+            Read the .science Guide
           </Link>
         </div>
       </section>

@@ -1,4 +1,3 @@
-import { FileText } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -18,6 +17,24 @@ const headingClass = 'font-[Georgia,serif] font-normal tracking-normal'
 const shellClass = 'mx-auto w-full px-5 sm:px-10 lg:px-[max(5vw,calc((100vw-1120px)/2))]'
 /** Shared surface for related research and the bottom CTA. */
 const surfaceClass = 'bg-[#f7f7f5]'
+
+// PDF glyph from the design handoff: document outline with a folded corner
+// and the Acrobat-style swirl. Lucide has no such icon, so it stays inline.
+const PdfGlyph = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 16 16" fill="none" aria-hidden="true" {...props}>
+    <g clipPath="url(#pdf-glyph-clip)">
+      <path
+        d="M13.5594 3.05933L10.9375 0.437451C10.6562 0.156201 10.275 -0.00317383 9.87813 -0.00317383H3.5C2.67188 -4.88281e-05 2 0.671826 2 1.49995V14.5C2 15.3281 2.67188 16 3.5 16H12.5C13.3281 16 14 15.3281 14 14.5V4.12183C14 3.72495 13.8406 3.34058 13.5594 3.05933ZM12.3781 3.99995H10V1.62183L12.3781 3.99995ZM3.5 14.5V1.49995H8.5V4.74995C8.5 5.16558 8.83437 5.49995 9.25 5.49995H12.5V14.5H3.5ZM11.3188 10.0093C10.9375 9.63433 9.85 9.73745 9.30625 9.8062C8.76875 9.47808 8.40938 9.02495 8.15625 8.35933C8.27812 7.8562 8.47187 7.09058 8.325 6.60933C8.19375 5.79058 7.14375 5.87183 6.99375 6.42495C6.85625 6.92808 6.98125 7.62808 7.2125 8.52183C6.9 9.2687 6.43437 10.2718 6.10625 10.8468C5.48125 11.1687 4.6375 11.6656 4.5125 12.2906C4.40937 12.7843 5.325 14.0156 6.89062 11.3156C7.59062 11.0843 8.35312 10.8 9.02812 10.6875C9.61875 11.0062 10.3094 11.2187 10.7719 11.2187C11.5688 11.2187 11.6469 10.3375 11.3188 10.0093ZM5.12812 12.4406C5.2875 12.0125 5.89375 11.5187 6.07812 11.3468C5.48438 12.2937 5.12812 12.4625 5.12812 12.4406ZM7.67812 6.48433C7.90937 6.48433 7.8875 7.48745 7.73438 7.75933C7.59688 7.32495 7.6 6.48433 7.67812 6.48433ZM6.91563 10.7531C7.21875 10.225 7.47813 9.59683 7.6875 9.0437C7.94688 9.51558 8.27813 9.8937 8.62813 10.1531C7.97813 10.2875 7.4125 10.5625 6.91563 10.7531ZM11.0281 10.5968C11.0281 10.5968 10.8719 10.7843 9.8625 10.3531C10.9594 10.2718 11.1406 10.5218 11.0281 10.5968Z"
+        fill="currentColor"
+      />
+    </g>
+    <defs>
+      <clipPath id="pdf-glyph-clip">
+        <rect width="16" height="16" fill="white" />
+      </clipPath>
+    </defs>
+  </svg>
+)
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
   day: 'numeric',
@@ -164,15 +181,15 @@ export default async function OpenScienceUseCaseIntroPage({ params }: PageProps)
                 href={reportUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex min-h-11 items-center gap-2 bg-[#10110f] px-5 text-[13px] font-semibold text-white transition-colors hover:bg-[#f2bd2f] hover:text-[#10110f]"
+                className="inline-flex min-h-11 items-center gap-2 bg-[#10110f] px-5 text-[13px] font-semibold text-white transition-colors hover:bg-[#4a4b46] active:bg-black"
               >
-                <FileText className="size-4" aria-hidden="true" />
+                <PdfGlyph className="size-4" />
                 Read the full report
               </a>
             ) : null}
             <Link
               href={`/open-science/use-cases/${useCase.slug}/replay`}
-              className="inline-flex min-h-11 items-center border border-[#10110f] bg-white px-5 text-[13px] font-semibold text-[#10110f] transition-colors hover:bg-[#10110f] hover:text-white"
+              className="inline-flex min-h-11 items-center border border-[#10110f] bg-white px-5 text-[13px] font-semibold text-[#10110f] transition-colors hover:bg-[#10110f] hover:text-white active:bg-white active:text-[#10110f]"
             >
               View the research session
             </Link>
@@ -278,7 +295,7 @@ export default async function OpenScienceUseCaseIntroPage({ params }: PageProps)
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Link
             href="/open-science"
-            className="inline-flex min-h-11 items-center bg-[#10110f] px-5 text-[13px] font-semibold text-white transition-colors hover:bg-[#f2bd2f] hover:text-[#10110f]"
+            className="inline-flex min-h-11 items-center bg-[#10110f] px-5 text-[13px] font-semibold text-white transition-colors hover:bg-[#4a4b46] active:bg-black"
           >
             Try AIPOCH Web
           </Link>
