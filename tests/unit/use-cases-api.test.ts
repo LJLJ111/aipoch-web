@@ -1,6 +1,14 @@
 import { describe, expect, test } from 'bun:test'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { getResponse } from 'msw'
 import { createHandlers } from '../../mocks/handlers'
+
+// These contract tests exercise the MSW handlers against the generated tier
+// files. public/use-cases/ is gitignored, so on a fresh checkout (CI) there
+// is nothing to serve — skip there instead of failing on the missing data.
+const hasGeneratedData = existsSync(join(process.cwd(), 'public', 'use-cases', 'index.json'))
+const testWithData = test.skipIf(!hasGeneratedData)
 
 const handle = async (path: string) => {
   const handlers = createHandlers('http://127.0.0.1:3203')
@@ -11,7 +19,7 @@ const handle = async (path: string) => {
 }
 
 describe('open-science use-case mock contracts', () => {
-  test('serves the index plus essential and full transcript tiers', async () => {
+  testWithData('serves the index plus essential and full transcript tiers', async () => {
     const listResponse = await handle('/api/v1/open-science/use-cases')
     expect(listResponse.status).toBe(200)
     const listBody = await listResponse.json()
@@ -43,7 +51,7 @@ describe('open-science use-case mock contracts', () => {
     )
   })
 
-  test('returns the 404 envelope for unknown slugs', async () => {
+  testWithData('returns the 404 envelope for unknown slugs', async () => {
     const response = await handle('/api/v1/open-science/use-cases/no-such-case/transcript')
     expect(response.status).toBe(404)
     const body = await response.json()
