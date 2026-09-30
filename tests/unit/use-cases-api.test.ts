@@ -20,6 +20,13 @@ describe('open-science use-case mock contracts', () => {
     expect(listBody.data.length).toBeGreaterThan(0)
 
     const slug = listBody.data[0].slug
+    const detailResponse = await handle(`/api/v1/open-science/use-cases/${slug}`)
+    expect(detailResponse.status).toBe(200)
+    const detail = await detailResponse.json()
+    expect(detail.data.slug).toBe(slug)
+    expect(typeof detail.data.title).toBe('string')
+    expect(typeof detail.data.figureCount).toBe('number')
+
     const essentialResponse = await handle(`/api/v1/open-science/use-cases/${slug}/transcript`)
     expect(essentialResponse.status).toBe(200)
     const essential = await essentialResponse.json()
@@ -41,5 +48,10 @@ describe('open-science use-case mock contracts', () => {
     expect(response.status).toBe(404)
     const body = await response.json()
     expect(body.data).toBeNull()
+
+    const detailResponse = await handle('/api/v1/open-science/use-cases/no-such-case')
+    expect(detailResponse.status).toBe(404)
+    const detailBody = await detailResponse.json()
+    expect(detailBody.data).toBeNull()
   })
 })

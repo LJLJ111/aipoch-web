@@ -9,10 +9,12 @@
  *     Import a single package from an arbitrary path.
  *
  * Outputs:
- *   public/use-cases/index.json            list-page index (upserted, hasFull/fullSizeBytes)
+ *   public/use-cases/index.json            list-page index (upserted in place, hasFull/fullSizeBytes)
+ *   public/use-cases/<slug>/detail.json    detail-page metadata: cover, figure count, report
+ *                                          (markdown content + original file)
  *   public/use-cases/<slug>/essential.json SSR tier: full conversation, shortened payloads,
  *                                          small assets only
- *   public/use-cases/<slug>/full.json      on-demand tier: everything
+ *   public/use-cases/<slug>/full.json      on-demand tier: everything (replay page only)
  *   public/use-cases/<slug>/objects/<sha>  referenced file blobs (both tiers share these)
  *   public/use-cases/<slug>/figures/*.png  notebook figure outputs
  *
@@ -32,6 +34,7 @@ import type {
   NormalizedRun,
   TranscriptItem,
   UseCaseAsset,
+  UseCaseDetail,
   UseCaseIndexEntry,
   UseCaseSession
 } from '../lib/use-case-types'
@@ -477,7 +480,9 @@ const importOne = (archivePath: string, slug: string): void => {
       const bytes = readFileSync(join(extraDir, filename))
       const ext = filename.includes('.') ? filename.split('.').pop()?.toLowerCase() : undefined
       const objectName =
-        ext && SAFE_OBJECT_EXTENSIONS.has(ext) ? `${sha256hex(filename)}.${ext}` : sha256hex(filename)
+        ext && SAFE_OBJECT_EXTENSIONS.has(ext)
+          ? `${sha256hex(filename)}.${ext}`
+          : sha256hex(filename)
       writeFileSync(join(outObjectsDir, objectName), bytes)
       const url = `/use-cases/${slug}/objects/${objectName}`
       assets[`extra/${filename}`] = { url, filename, sizeBytes: bytes.byteLength, kind: 'file' }
@@ -633,7 +638,7 @@ const importOne = (archivePath: string, slug: string): void => {
   const index: UseCaseIndexEntry[] = existsSync(indexPath)
     ? (JSON.parse(readFileSync(indexPath, 'utf8')) as UseCaseIndexEntry[])
     : []
-  // Curated fields (category / preview / impact / report) are edited by hand in
+  // Curated fields (category / preview.image / report) are edited by hand in
   // index.json; re-importing a package must refresh computed fields without
   // dropping them.
   const existing = index.find((e) => e.slug === slug)
@@ -642,20 +647,56 @@ const importOne = (archivePath: string, slug: string): void => {
     title: model.title,
     description: model.description,
     exportedAt: model.exportedAt,
-    messageCount: messageItems.length,
-    activityCount: graphActivities.length,
     hasFull,
     fullSizeBytes,
     ...(existing?.category ? { category: existing.category } : {}),
-    ...(existing?.preview ? { preview: existing.preview } : {}),
-    ...(existing?.impact ? { impact: existing.impact } : {}),
+    ...(existing?.preview?.image ? { preview: { image: existing.preview.image } } : {}),
     ...(existing?.report ? { report: existing.report } : {})
   }
-  const next = [...index.filter((e) => e.slug !== slug), entry].sort((a, b) =>
-    a.slug.localeCompare(b.slug)
-  )
+  // Upsert in place: the index order is curated by hand, so re-importing a
+  // package must not reshuffle it; new slugs append at the end.
+  const next = existing ? index.map((e) => (e.slug === slug ? entry : e)) : [...index, entry]
   mkdirSync(join('public', 'use-cases'), { recursive: true })
   writeFileSync(indexPath, `${JSON.stringify(next, null, 2)}\n`)
+
+  // --- detail-page payload ---------------------------------------------------
+  // Split at import time (the CDN pipeline does the same ahead of upload): the
+  // cover image and the report — rendered markdown content plus the original
+  // file — are dedicated fields, so the frontend never picks files out of the
+  // artifact list itself.
+  const producedArtifacts = [...sessionArtifacts, ...extraArtifacts]
+  const imageCount = producedArtifacts.filter((artifact) =>
+    artifact.mimeType?.startsWith('image/')
+  ).length
+  const largestMarkdown = producedArtifacts
+    .filter((artifact) => artifact.url && artifact.name.toLowerCase().endsWith('.md'))
+    .sort((a, b) => (b.size ?? 0) - (a.size ?? 0))[0]
+  const coverImage =
+    existing?.preview?.image ??
+    (figureIndex > 0 ? `/use-cases/${slug}/figures/figure-01.png` : undefined) ??
+    producedArtifacts.find((artifact) => artifact.mimeType?.startsWith('image/') && artifact.url)
+      ?.url
+  const reportContentUrl = existing?.report?.contentUrl ?? largestMarkdown?.url
+  const reportUrl = existing?.report?.url ?? largestMarkdown?.url
+  const detail: UseCaseDetail = {
+    slug,
+    title: model.title,
+    description: model.description,
+    exportedAt: model.exportedAt,
+    ...(existing?.category ? { category: existing.category } : {}),
+    ...(coverImage ? { coverImage } : {}),
+    figureCount: imageCount,
+    ...(reportContentUrl || reportUrl
+      ? {
+          report: {
+            ...(reportContentUrl ? { contentUrl: reportContentUrl } : {}),
+            ...(reportUrl ? { url: reportUrl } : {}),
+            ...(existing?.report?.pageCount ? { pageCount: existing.report.pageCount } : {})
+          }
+        }
+      : {})
+  }
+  writeFileSync(join(outPublicDir, 'detail.json'), JSON.stringify(detail))
 
   const groupCount = items.filter((i) => i.type === 'activity-group').length
   const elicitationCount = items.filter((i) => i.type === 'elicitation').length

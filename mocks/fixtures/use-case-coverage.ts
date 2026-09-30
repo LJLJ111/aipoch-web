@@ -411,11 +411,6 @@ export const coverageFixtureIndexEntry = {
   title: coverageFixtureSession.title,
   description: coverageFixtureSession.description,
   exportedAt: coverageFixtureSession.exportedAt,
-  messageCount: coverageFixtureSession.items.filter((item) => item.type === 'message').length,
-  activityCount: coverageFixtureSession.items.reduce(
-    (total, item) => (item.type === 'activity-group' ? total + item.activities.length : total),
-    0
-  ),
   hasFull: false,
   fullSizeBytes: 0
 }

@@ -40,5 +40,10 @@ export const useCaseHandlers = (origin: string) => [
     withRequest(({ params }) =>
       transcriptFixture(params.slug, 'essential').then((data) => (data ? json(data) : missing()))
     )
+  ),
+  http.get(`${origin}/api/v1/open-science/use-cases/:slug`, ({ params }) =>
+    readPublicFixture(`/use-cases/${String(params.slug)}/detail.json`).then((data) =>
+      data ? json(data) : missing()
+    )
   )
 ]
