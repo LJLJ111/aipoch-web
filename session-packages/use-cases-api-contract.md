@@ -30,9 +30,30 @@ S3/CDN 地址(或预签名 URL)即可,前端不需要改动。
   "messageCount": 46,
   "activityCount": 72,
   "hasFull": true,                       // 是否有完整版;false 时前端隐藏切换按钮
-  "fullSizeBytes": 53246876              // 完整层体积估计(按钮文案 + 进度条总量)
+  "fullSizeBytes": 53246876,             // 完整层体积估计(按钮文案 + 进度条总量)
+
+  // —— 以下为发布者策展字段(可选,缺失时前端自动降级)——
+  "category": "Metabolism",              // 分类标签:详情页头部黄色高亮 + Related 卡片 pill
+  "preview": {                           // 列表页画廊卡片素材
+    "image": "/use-cases/<slug>/figures/figure-01.png", // 卡片主图 URL
+    "files": ["report.md", "cohort.csv"],// 产出的代表文件名(最多 4 个)
+    "steps": "34 notebook runs · 2 skills · 27 files"   // 一行工作量摘要
+  },
+  "impact": {                            // Related 卡片上的黄色收益条
+    "timeBefore": "3.7 weeks",           // 不用 agent 需要的时长
+    "timeAfter": "90 min",               // 用 agent 的时长
+    "costNote": "518× cheaper than doing it alone"      // 可选,成本话术
+  },
+  "report": {                            // 指定的"完整报告"文件;缺失时前端回退为最大的 md 产物
+    "url": "/use-cases/<slug>/objects/<sha256>.pdf",
+    "pageCount": 19                      // 可选;有则在详情页头部显示 "19-page report"
+  }
 }
 ```
+
+**降级行为**:`category` / `impact` / `report` / `preview` 全部可选。`impact` 缺失时
+Related 卡片不渲染黄色收益条;`report` 缺失时详情页 "Read the full report" 按钮指向
+会话产物中最大的 markdown 文件,Related 卡片不显示 PDF 链接。
 
 ## 对话内容 `UseCaseSession`(精简版/完整版同一结构)
 

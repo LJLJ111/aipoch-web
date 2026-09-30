@@ -110,4 +110,37 @@ export interface UseCaseIndexEntry {
   hasFull?: boolean
   /** Approximate download size of the full tier (json + full-only assets). */
   fullSizeBytes?: number
+  /** Optional taxonomy label shown as a pill (e.g. "Agriculture"). */
+  category?: string
+  /** Collage material for the gallery card on the list page. */
+  preview?: UseCasePreview
+  /** Publisher-curated headline gain; renders as the yellow bar on cards. */
+  impact?: UseCaseImpact
+  /** Publisher-designated report file; falls back to the largest markdown artifact. */
+  report?: UseCaseReportRef
+}
+
+export interface UseCasePreview {
+  /** Card visual: first notebook figure, else first image artifact. */
+  image?: string
+  /** Up to four produced file names shown in the collage. */
+  files: string[]
+  /** One-line summary of the agent's work (e.g. "10 notebook runs · 2 skills · 27 files"). */
+  steps?: string
+}
+
+export interface UseCaseImpact {
+  /** How long the work took without the agent (e.g. "3.7 weeks"). */
+  timeBefore: string
+  /** How long it took with the agent (e.g. "90 min"). */
+  timeAfter: string
+  /** Cost framing line (e.g. "518× cheaper than doing it alone"). */
+  costNote?: string
+}
+
+export interface UseCaseReportRef {
+  /** Direct URL to the report file (PDF or markdown). */
+  url: string
+  /** Printed page count, shown as "19-page report" in the detail meta line. */
+  pageCount?: number
 }

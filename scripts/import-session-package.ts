@@ -633,6 +633,10 @@ const importOne = (archivePath: string, slug: string): void => {
   const index: UseCaseIndexEntry[] = existsSync(indexPath)
     ? (JSON.parse(readFileSync(indexPath, 'utf8')) as UseCaseIndexEntry[])
     : []
+  // Curated fields (category / preview / impact / report) are edited by hand in
+  // index.json; re-importing a package must refresh computed fields without
+  // dropping them.
+  const existing = index.find((e) => e.slug === slug)
   const entry: UseCaseIndexEntry = {
     slug,
     title: model.title,
@@ -641,7 +645,11 @@ const importOne = (archivePath: string, slug: string): void => {
     messageCount: messageItems.length,
     activityCount: graphActivities.length,
     hasFull,
-    fullSizeBytes
+    fullSizeBytes,
+    ...(existing?.category ? { category: existing.category } : {}),
+    ...(existing?.preview ? { preview: existing.preview } : {}),
+    ...(existing?.impact ? { impact: existing.impact } : {}),
+    ...(existing?.report ? { report: existing.report } : {})
   }
   const next = [...index.filter((e) => e.slug !== slug), entry].sort((a, b) =>
     a.slug.localeCompare(b.slug)

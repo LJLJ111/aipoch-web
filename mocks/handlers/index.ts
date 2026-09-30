@@ -26,6 +26,9 @@ export const adapterHandlers = (origin: string) => [
   http.get(`${origin}/health`, () => json({ service: 'aipoch-mock-state' })),
   ...stateHandlers(origin),
   ...downloadHandlers(origin),
+  // Read-only use-case fixtures also live on the adapter so SSR fetches that
+  // reach the mock port still resolve when MSW interception is skipped.
+  ...useCaseHandlers(origin),
   ...fallbackHandlers(origin)
 ]
 /** Complete contract used by isolated handler tests. */
