@@ -441,7 +441,7 @@ const SectionBody = ({ section }: { section: DetailSection }) => {
       return (
         <button
           type="button"
-          onClick={() => openPreview({ name: section.label, url: section.url })}
+          onClick={() => openPreview?.({ name: section.label, url: section.url })}
           className="block w-fit cursor-pointer overflow-hidden rounded-md border border-border-200 bg-bg-000"
           title={`Preview ${section.label}`}
         >

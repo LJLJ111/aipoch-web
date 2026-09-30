@@ -7,9 +7,9 @@ import { useCallback, useEffect, useState } from 'react'
 import type { UseCaseIndexEntry, UseCaseSession } from '@/lib/use-case-types'
 import { apiClient } from '@/service'
 import {
-  useCaseFullTranscriptPath,
-  useCaseListPath,
-  useCaseTranscriptPath
+  getUseCaseFullTranscriptUrl,
+  getUseCaseTranscriptUrl,
+  USE_CASE_LIST_URL
 } from '@/service/open-science-use-cases'
 import { SessionTranscript } from './session-transcript'
 
@@ -84,10 +84,7 @@ export const ReplayView = ({ slug }: { slug: string }) => {
     let cancelled = false
     const load = async () => {
       try {
-        const [transcriptResponse, listResponse] = await Promise.all([
-          apiClient.get(useCaseTranscriptPath(slug)),
-          apiClient.get(useCaseListPath)
-        ])
+        const transcriptResponse = await apiClient.get(getUseCaseTranscriptUrl(slug))
         if (cancelled) return
         const transcriptBody = transcriptResponse.data as {
           code: number
@@ -97,18 +94,29 @@ export const ReplayView = ({ slug }: { slug: string }) => {
           setLoadError(true)
           return
         }
+        setEssential(transcriptBody.data)
+      } catch {
+        if (!cancelled) setLoadError(true)
+      }
+    }
+    const loadIndexEntry = async () => {
+      // The list only powers the full-tier affordance (size label); its
+      // failure must not take down the transcript itself.
+      try {
+        const listResponse = await apiClient.get(USE_CASE_LIST_URL)
+        if (cancelled) return
         const listBody = listResponse.data as { code: number; data: UseCaseIndexEntry[] }
         setIndexEntry(
           listBody.code === SUCCESS_CODE
             ? listBody.data.find((entry) => entry.slug === slug)
             : undefined
         )
-        setEssential(transcriptBody.data)
       } catch {
-        if (!cancelled) setLoadError(true)
+        // indexEntry stays undefined; the full-tier button degrades gracefully
       }
     }
     void load()
+    void loadIndexEntry()
     return () => {
       cancelled = true
     }
@@ -191,7 +199,7 @@ const ReplayViewLoaded = ({
       }
     }
     try {
-      const response = await apiClient.get(useCaseFullTranscriptPath(essential.slug), {
+      const response = await apiClient.get(getUseCaseFullTranscriptUrl(essential.slug), {
         onDownloadProgress: (event) => track('transcript', event.loaded, event.total)
       })
       const body = response.data as { code: number; data: UseCaseSession }
@@ -241,12 +249,6 @@ const ReplayViewLoaded = ({
                 if (!fullSession && status !== 'loading') void loadFull()
               }
             }}
-            role={status === 'loading' && !showingFull ? 'progressbar' : undefined}
-            aria-valuemin={status === 'loading' && !showingFull ? 0 : undefined}
-            aria-valuemax={status === 'loading' && !showingFull ? 100 : undefined}
-            aria-valuenow={
-              status === 'loading' && !showingFull ? (progressPercent ?? undefined) : undefined
-            }
             className={`relative grid shrink-0 overflow-hidden whitespace-nowrap rounded-full border px-3 py-1 text-[12px] font-medium transition-colors ${
               showingFull
                 ? 'border-[#10110f] text-[#10110f] hover:bg-[#10110f] hover:text-white'
@@ -266,7 +268,11 @@ const ReplayViewLoaded = ({
             </span>
             {status === 'loading' && !showingFull ? (
               <span
-                aria-hidden="true"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={progressPercent ?? undefined}
+                aria-label="Loading full version"
                 className={`absolute inset-y-0 left-0 bg-white/25 transition-[width] duration-200 ${progressPercent === null ? 'animate-pulse' : ''}`}
                 style={{ width: `${progressPercent ?? 100}%` }}
               />

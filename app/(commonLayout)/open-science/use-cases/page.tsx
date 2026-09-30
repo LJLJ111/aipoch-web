@@ -12,7 +12,7 @@ const surfaceClass = 'bg-[#f7f7f5]'
 
 const pageTitle = 'Open-Science Use Cases | AIPOCH'
 const pageDescription =
-  'Explore selected science research packages and see how research questions become inspectable outputs through connected workflows of data, code, evidence, and conversation.'
+  'Explore selected .science research packages and see how research questions become inspectable outputs through connected workflows of data, code, evidence, and conversation.'
 
 export const metadata: Metadata = createPageMetadata({
   title: pageTitle,
@@ -30,9 +30,9 @@ type PageProps = {
 const GalleryCard = ({ useCase }: { useCase: UseCaseIndexEntry }) => (
   <Link
     href={`/open-science/use-cases/${useCase.slug}`}
-    className="group flex flex-col overflow-hidden border border-[#e4e4df] bg-white transition-colors hover:border-[#10110f]"
+    className="group flex flex-col overflow-hidden border border-[#e4e4df] bg-white shadow-[0_1px_2px_rgba(16,17,15,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-12px_rgba(16,17,15,0.22)]"
   >
-    <div className="relative aspect-[16/10] overflow-hidden bg-[#e8e8e4]">
+    <div className="relative aspect-[626/292] overflow-hidden bg-[#e8e8e4]">
       {useCase.preview?.image ? (
         // biome-ignore lint/performance/noImgElement: local static preview asset, no Next image rewriting needed.
         <img
@@ -45,7 +45,7 @@ const GalleryCard = ({ useCase }: { useCase: UseCaseIndexEntry }) => (
         />
       ) : null}
     </div>
-    <div className="flex flex-1 flex-col gap-3 bg-white px-6 py-5">
+    <div className="flex min-h-[114px] flex-1 flex-col gap-3 bg-white px-6 py-5">
       <h2 className={`${headingClass} line-clamp-2 text-[18px] leading-[1.35] text-[#10110f]`}>
         {useCase.title}
       </h2>
@@ -59,14 +59,37 @@ const GalleryCard = ({ useCase }: { useCase: UseCaseIndexEntry }) => (
 const pageHref = (page: number) =>
   page <= 1 ? '/open-science/use-cases' : `/open-science/use-cases?page=${page}`
 
+// Standard sliding-window pagination (cf. MUI/Ant Design): first/last page
+// pinned, current page and its siblings always visible, gaps as ellipses.
+// Near the edges the window widens to four pages, matching the design chrome.
+const paginationWindow = (current: number, pageCount: number): (number | 'ellipsis')[] => {
+  if (pageCount <= 5) return Array.from({ length: pageCount }, (_, index) => index + 1)
+  const pages = new Set<number>([1, pageCount])
+  if (current <= 4) {
+    for (let page = 2; page <= 4; page += 1) pages.add(page)
+  } else if (current >= pageCount - 3) {
+    for (let page = pageCount - 3; page < pageCount; page += 1) pages.add(page)
+  } else {
+    pages.add(current - 1)
+    pages.add(current)
+    pages.add(current + 1)
+  }
+  const sorted = [...pages].sort((a, b) => a - b)
+  const window: (number | 'ellipsis')[] = []
+  let previous = 0
+  for (const page of sorted) {
+    if (page - previous > 1) window.push('ellipsis')
+    window.push(page)
+    previous = page
+  }
+  return window
+}
+
 const Pagination = ({ current, total }: { current: number; total: number }) => {
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
   if (pageCount <= 1) return null
 
-  // Show first pages, ellipsis, and the last page — enough to demo the design chrome.
-  const head = Array.from({ length: Math.min(pageCount, 4) }, (_, index) => index + 1)
-  const showTail = pageCount > 5
-  const showEllipsis = pageCount > 4
+  const pages = paginationWindow(current, pageCount)
 
   const boxClass =
     'inline-flex min-h-10 min-w-10 items-center justify-center border border-[#e4e4df] bg-white px-3 text-[13px] text-[#10110f]'
@@ -87,8 +110,12 @@ const Pagination = ({ current, total }: { current: number; total: number }) => {
           Previous
         </Link>
       )}
-      {head.map((page) =>
-        page === current ? (
+      {pages.map((page, index) =>
+        page === 'ellipsis' ? (
+          <span key={`ellipsis-${index}`} className={boxClass}>
+            …
+          </span>
+        ) : page === current ? (
           <span key={page} className={activeClass} aria-current="page">
             {page}
           </span>
@@ -98,18 +125,6 @@ const Pagination = ({ current, total }: { current: number; total: number }) => {
           </Link>
         )
       )}
-      {showEllipsis ? <span className={boxClass}>…</span> : null}
-      {showTail ? (
-        current === pageCount ? (
-          <span className={activeClass} aria-current="page">
-            {pageCount}
-          </span>
-        ) : (
-          <Link href={pageHref(pageCount)} className={boxClass}>
-            {pageCount}
-          </Link>
-        )
-      ) : null}
       {current >= pageCount ? (
         <span className={mutedClass}>Next</span>
       ) : (
@@ -133,14 +148,18 @@ export default async function OpenScienceUseCasesPage({ searchParams }: PageProp
   return (
     <main id="top" className={`-mt-[var(--nav-h)] flex-1 ${surfaceClass} text-[#10110f]`}>
       <section className="pt-[var(--nav-h)]">
-        <div className="mx-auto flex max-w-[760px] flex-col items-center px-5 py-16 text-center sm:px-10 lg:py-[88px]">
+        <div className="mx-auto flex max-w-[1000px] flex-col items-center px-5 py-16 text-center sm:px-10 lg:py-[88px]">
           <h1 className={`${headingClass} text-[clamp(40px,5vw,56px)] leading-[1.08]`}>
             Use Case Gallery
           </h1>
-          <p className="mt-5 max-w-[640px] text-[15px] leading-[1.65] text-[#73746e] sm:text-[16px]">
-            Explore selected science research packages and see how research questions become
-            inspectable outputs through connected workflows of data, code, evidence, and
-            conversation.
+          <p className="mt-5 text-[15px] leading-[1.65] text-[#73746e] sm:text-[16px]">
+            <span className="block">
+              Explore selected .science research packages and see how research questions become
+              inspectable outputs
+            </span>
+            <span className="block">
+              through connected workflows of data, code, evidence, and conversation.
+            </span>
           </p>
         </div>
       </section>
@@ -177,13 +196,13 @@ export default async function OpenScienceUseCasesPage({ searchParams }: PageProp
         </h2>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Link
-            href="/open-science/download"
+            href="/open-science"
             className="inline-flex min-h-11 items-center bg-[#10110f] px-5 text-[13px] font-semibold text-white transition-colors hover:bg-[#f2bd2f] hover:text-[#10110f]"
           >
             Get Started for Free
           </Link>
           <Link
-            href="/open-science"
+            href="https://aipoch.com/docs/guides/research-packages/"
             className="inline-flex min-h-11 items-center border border-[#10110f] bg-white px-5 text-[13px] font-semibold text-[#10110f] transition-colors hover:bg-[#10110f] hover:text-white"
           >
             Watch Demo Video

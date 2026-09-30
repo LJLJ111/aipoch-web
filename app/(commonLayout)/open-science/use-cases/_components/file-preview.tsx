@@ -449,9 +449,14 @@ const FilePreviewDialog = ({ file, onClose }: { file: PreviewFile; onClose: () =
   )
 }
 
-const PreviewContext = createContext<(file: PreviewFile) => void>(() => {})
+const PreviewContext = createContext<((file: PreviewFile) => void) | null>(null)
 
-export const useFilePreview = (): ((file: PreviewFile) => void) => useContext(PreviewContext)
+/**
+ * Preview opener, or null when no FilePreviewProvider is mounted (e.g. the
+ * detail page renders SessionMarkdown without one). Callers outside the
+ * transcript must degrade to plain links instead of intercepting clicks.
+ */
+export const useFilePreview = (): ((file: PreviewFile) => void) | null => useContext(PreviewContext)
 
 export const FilePreviewProvider = ({ children }: { children: ReactNode }) => {
   const [file, setFile] = useState<PreviewFile | null>(null)

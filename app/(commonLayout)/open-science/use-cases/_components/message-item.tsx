@@ -91,7 +91,7 @@ const ArtifactCard = ({ artifact }: { artifact: MessageArtifact }) => {
       <button
         type="button"
         onClick={() =>
-          openPreview({
+          openPreview?.({
             name: artifact.name,
             url: artifact.url as string,
             mimeType: artifact.mimeType

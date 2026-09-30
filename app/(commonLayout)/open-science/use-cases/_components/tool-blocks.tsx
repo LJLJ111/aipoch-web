@@ -173,7 +173,7 @@ export const ToolSummaryCard = ({
                 {field.href && previewKindFor(field.value) ? (
                   <button
                     type="button"
-                    onClick={() => openPreview({ name: field.value, url: field.href as string })}
+                    onClick={() => openPreview?.({ name: field.value, url: field.href as string })}
                     className="underline underline-offset-2 hover:text-text-000"
                   >
                     {field.value}

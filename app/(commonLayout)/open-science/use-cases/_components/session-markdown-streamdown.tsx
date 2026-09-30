@@ -35,7 +35,10 @@ const controls = {
 
 const linkComponent: Components['a'] = ({ node: _node, href, children, ...props }) => {
   const openPreview = useFilePreview()
-  if (href?.startsWith('/use-cases/')) {
+  // Intercept internal asset links only when a preview provider is mounted
+  // (the transcript); without one, fall through to a plain link so the click
+  // still opens the file instead of dying on preventDefault + no-op.
+  if (href?.startsWith('/use-cases/') && openPreview) {
     const name = typeof children === 'string' ? children : (href.split('/').pop() ?? href)
     return (
       <a

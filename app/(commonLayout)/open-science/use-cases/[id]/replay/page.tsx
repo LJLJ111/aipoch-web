@@ -23,7 +23,7 @@ export const generateMetadata = async ({ params }: PageProps): Promise<Metadata>
     description:
       useCase.description ??
       `Read-only replay of the exported Open-Science session "${useCase.title}".`,
-    canonical: `${SITE_DOMAIN}/open-science/use-cases/${id}/replay`
+    canonical: `${SITE_DOMAIN}/open-science/use-cases/${encodeURIComponent(useCase.slug)}/replay`
   })
 }
 

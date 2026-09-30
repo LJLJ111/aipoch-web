@@ -1,12 +1,12 @@
-import type { Metadata } from 'next'
 import { FileText } from 'lucide-react'
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { SITE_DOMAIN } from '@/lib/config'
 import { createPageMetadata } from '@/lib/page-metadata'
-import type { MessageArtifact, UseCaseIndexEntry } from '@/lib/use-case-types'
+import type { UseCaseIndexEntry } from '@/lib/use-case-types'
 import { fetchUseCaseAssetText } from '@/service/open-science-use-case-assets'
-import { fetchUseCaseList, fetchUseCaseTranscript } from '@/service/open-science-use-cases'
+import { fetchUseCaseDetail, fetchUseCaseList } from '@/service/open-science-use-cases'
 import { SessionMarkdown } from '../_components/session-markdown'
 import { ShareRow } from '../_components/share-row'
 
@@ -26,13 +26,6 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', {
   year: 'numeric'
 })
 
-/** Compact "Dec 2025" label for related-card meta rows. */
-const shortDateFormatter = new Intl.DateTimeFormat('en-US', {
-  month: 'short',
-  timeZone: 'UTC',
-  year: 'numeric'
-})
-
 type PageProps = {
   params: Promise<{ id: string }>
 }
@@ -41,21 +34,21 @@ export const dynamic = 'force-dynamic'
 
 export const generateMetadata = async ({ params }: PageProps): Promise<Metadata> => {
   const { id } = await params
-  const [useCase, index] = await Promise.all([fetchUseCaseTranscript(id), fetchUseCaseList()])
+  const useCase = await fetchUseCaseDetail(id)
   if (!useCase) return {}
   const title = `${useCase.title} | Open-Science Use Cases`
   // Social share cards need an absolute image URL; relative mock paths only
   // work locally, which is fine for development.
-  const previewImage = index?.find((entry) => entry.slug === id)?.preview?.image
+  const coverImage = useCase.coverImage
   return createPageMetadata({
     title,
     description:
       useCase.description ?? `Read-only replay of the Open-Science session "${useCase.title}".`,
-    canonical: `${SITE_DOMAIN}/open-science/use-cases/${id}`,
-    ...(previewImage
+    canonical: `${SITE_DOMAIN}/open-science/use-cases/${encodeURIComponent(useCase.slug)}`,
+    ...(coverImage
       ? {
           image: {
-            url: previewImage.startsWith('http') ? previewImage : `${SITE_DOMAIN}${previewImage}`,
+            url: coverImage.startsWith('http') ? coverImage : `${SITE_DOMAIN}${coverImage}`,
             width: 1200,
             height: 630,
             alt: useCase.title
@@ -65,13 +58,16 @@ export const generateMetadata = async ({ params }: PageProps): Promise<Metadata>
   })
 }
 
-/** Related card per the V2 design: image, category + date meta, title,
- *  description, optional impact bar, and write-up / report / session links. */
+/** Related card: same simple anatomy as the gallery card (image, serif title,
+ *  "View use case in AIPOCH Lab" link). */
 const RelatedCard = ({ useCase }: { useCase: UseCaseIndexEntry }) => {
   const detailHref = `/open-science/use-cases/${useCase.slug}`
   return (
-    <div className="group flex flex-col overflow-hidden border border-[#e4e4df] bg-white transition-colors hover:border-[#10110f]">
-      <Link href={detailHref} className="block aspect-[16/10] overflow-hidden bg-[#e8e8e4]">
+    <Link
+      href={detailHref}
+      className="group flex flex-col overflow-hidden border border-[#e4e4df] bg-white shadow-[0_1px_2px_rgba(16,17,15,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-12px_rgba(16,17,15,0.22)]"
+    >
+      <div className="aspect-[626/292] overflow-hidden bg-[#e8e8e4]">
         {useCase.preview?.image ? (
           // biome-ignore lint/performance/noImgElement: local static preview asset, no Next image rewriting needed.
           <img
@@ -83,87 +79,38 @@ const RelatedCard = ({ useCase }: { useCase: UseCaseIndexEntry }) => {
             decoding="async"
           />
         ) : null}
-      </Link>
-      <div className="flex flex-1 flex-col gap-3 bg-white px-4 py-4">
-        {useCase.category ? (
-          <div className="flex items-center justify-between gap-2 text-[13px] text-[#575853]">
-            <span className="bg-[#eceae4] px-1.5 py-0.5">{useCase.category}</span>
-            <span>{shortDateFormatter.format(new Date(useCase.exportedAt))}</span>
-          </div>
-        ) : null}
-        <h3 className={`${headingClass} line-clamp-2 text-[16px] leading-[1.35] text-[#10110f]`}>
-          <Link href={detailHref} className="transition-colors hover:text-[#575853]">
-            {useCase.title}
-          </Link>
-        </h3>
-        {useCase.description ? (
-          <p className="line-clamp-3 text-[13px] leading-[1.6] text-[#73746e]">
-            {useCase.description}
-          </p>
-        ) : null}
-        {useCase.impact ? (
-          <div className="bg-[#fdf3d7] px-3 py-2">
-            <p className="font-mono text-[13px] font-semibold text-[#10110f]">
-              {useCase.impact.timeBefore} → {useCase.impact.timeAfter}
-            </p>
-            {useCase.impact.costNote ? (
-              <p className="mt-0.5 text-[12px] text-[#575853]">{useCase.impact.costNote}</p>
-            ) : null}
-          </div>
-        ) : null}
-        <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-[13px] font-medium text-[#10110f]">
-          <Link href={detailHref} className="transition-colors hover:text-[#575853]">
-            Read the write-up →
-          </Link>
-          {useCase.report?.url ? (
-            <a
-              href={useCase.report.url}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 transition-colors hover:text-[#575853]"
-            >
-              <FileText className="size-3.5" aria-hidden="true" />
-              PDF
-            </a>
-          ) : null}
-          <Link
-            href={`${detailHref}/replay`}
-            className="transition-colors hover:text-[#575853]"
-          >
-            Session
-          </Link>
-        </div>
       </div>
-    </div>
+      <div className="flex min-h-[114px] flex-1 flex-col gap-3 bg-white px-4 py-4">
+        <h3 className={`${headingClass} line-clamp-2 text-[16px] leading-[1.35] text-[#10110f]`}>
+          {useCase.title}
+        </h3>
+        <span className="mt-auto text-[13px] font-medium text-[#10110f]">
+          View use case in AIPOCH Lab →
+        </span>
+      </div>
+    </Link>
   )
 }
 
 export default async function OpenScienceUseCaseIntroPage({ params }: PageProps) {
   const { id } = await params
-  // Intro only needs the essential tier (artifacts + metadata); the full
-  // conversation payload is reserved for the replay page.
-  const [useCase, index] = await Promise.all([fetchUseCaseTranscript(id), fetchUseCaseList()])
+  // The detail payload is its own tier, split from the session package at
+  // publish time; the transcript tiers are only fetched by the replay page.
+  const [useCase, index] = await Promise.all([fetchUseCaseDetail(id), fetchUseCaseList()])
   if (!useCase) notFound()
 
-  const artifacts: MessageArtifact[] = useCase.items.flatMap((item) =>
-    item.type === 'message' ? (item.artifacts ?? []) : []
-  )
-  // Article body = largest markdown deliverable from the exported session.
-  const report = artifacts
-    .filter((artifact) => artifact.url && artifact.name.toLowerCase().endsWith('.md'))
-    .sort((a, b) => (b.size ?? 0) - (a.size ?? 0))[0]
-  const figureCount = artifacts.filter((artifact) => artifact.mimeType?.startsWith('image/')).length
-  const heroImage = artifacts.find(
-    (artifact) => artifact.mimeType?.startsWith('image/') && artifact.url
-  )
-  const indexEntry = index?.find((entry) => entry.slug === useCase.slug)
-  const category = indexEntry?.category
+  const category = useCase.category
+  const figureCount = useCase.figureCount
+  const heroImageUrl = useCase.coverImage
   const related =
     index?.filter((entry) => entry.slug !== useCase.slug).slice(0, 3) ?? ([] as UseCaseIndexEntry[])
-  // Publisher-designated report wins; otherwise the largest markdown artifact.
-  const reportUrl = indexEntry?.report?.url ?? report?.url
-  const reportPageCount = indexEntry?.report?.pageCount
-  const reportMarkdown = report?.url ? await fetchUseCaseAssetText(report.url) : null
+  // Report is data-side designated: the rendered markdown content and the
+  // original file behind the button are separate fields, no frontend guessing.
+  const reportUrl = useCase.report?.url
+  const reportPageCount = useCase.report?.pageCount
+  const reportMarkdown = useCase.report?.contentUrl
+    ? await fetchUseCaseAssetText(useCase.report.contentUrl)
+    : null
 
   return (
     // One continuous surface (#f7f7f5) for header, article, related, and CTA.
@@ -180,7 +127,7 @@ export default async function OpenScienceUseCaseIntroPage({ params }: PageProps)
           <div className="mt-8 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-[#90908a]">
             {category ? (
               <>
-                <span className="bg-[#f2bd2f]/30 px-1.5 py-0.5 text-[#10110f]">{category}</span>
+                <span className="bg-[#e8e2d6] px-1.5 py-0.5 text-[#10110f]">{category}</span>
                 <span aria-hidden="true">·</span>
               </>
             ) : null}
@@ -231,12 +178,12 @@ export default async function OpenScienceUseCaseIntroPage({ params }: PageProps)
             </Link>
           </div>
 
-          {heroImage?.url ? (
-            <div className="mt-10 overflow-hidden border border-[#e4e4df] bg-white">
+          {heroImageUrl ? (
+            <div className="mt-[130px] overflow-hidden border border-[#e4e4df] bg-white">
               {/* biome-ignore lint/performance/noImgElement: exported artifact asset, no Next image rewriting needed. */}
               <img
-                src={heroImage.url}
-                alt={heroImage.name}
+                src={heroImageUrl}
+                alt={useCase.title}
                 className="mx-auto max-h-[420px] w-auto max-w-full object-contain"
                 loading="lazy"
                 decoding="async"
@@ -302,7 +249,10 @@ export default async function OpenScienceUseCaseIntroPage({ params }: PageProps)
               View all →
             </Link>
           </div>
-          {related.length === 0 ? (
+          {index === null ? (
+            // List fetch failed: say so instead of claiming there is no content.
+            <p className="text-sm text-[#777872]">Related research could not be loaded.</p>
+          ) : related.length === 0 ? (
             <p className="text-sm text-[#777872]">No other published use cases yet.</p>
           ) : (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -318,9 +268,12 @@ export default async function OpenScienceUseCaseIntroPage({ params }: PageProps)
         <h2 className={`${headingClass} text-[clamp(24px,2.8vw,36px)] leading-[1.2]`}>
           Run this kind of analysis on your own question
         </h2>
-        <p className="mx-auto mt-3 max-w-[520px] text-[14px] leading-[1.6] text-[#73746e]">
-          Start a session and see how an AI co-scientist accelerates your research. Pay-as-you-go,
-          no subscription required.
+        <p className="mx-auto mt-3 max-w-[720px] text-[14px] leading-[1.6] text-[#73746e]">
+          <span className="block">
+            Start a session and see how an AI co-scientist accelerates your research. Pay-as-you-go,
+            no
+          </span>
+          <span className="block">subscription required.</span>
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Link
