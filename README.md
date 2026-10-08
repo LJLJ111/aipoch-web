@@ -116,61 +116,6 @@ download API call; the API itself returns a local Markdown sample. Open-Science
 mock downloads are text samples, not installers. No real email reservations,
 account claims, or downloadable releases are created.
 
-### Use-case manifest development
-
-`/open-science/use-cases` can read the published case manifest on the server.
-The public S3 address is intentionally unset in
-`service/open-science-use-cases.server.ts` (`USE_CASE_MANIFEST_URL`). Until the
-publishing location is approved, normal runs retain the existing API source.
-No storage credentials or environment-variable changes are required for the
-placeholder. Set the public manifest URL at that integration point when known;
-resource paths resolve relative to the manifest's directory.
-
-The manifest is an array of `title`, unique kebab-case `name`, `cover`, `case`,
-and optional `introduction`. Resources contain `file_name`, `bytes`, `sha256`,
-and a raw relative `path`; `case.release_url` is either an HTTP(S) URL or an empty
-string. A nonempty release URL takes precedence for the package download.
-Missing dates and replay metadata are not fabricated. Raw `.science` packages
-provide downloads and optional introductions, not normalized online replays.
-
-Each server runtime retains a parsed snapshot without a TTL. Cold requests
-share one blocking GET. Later requests use the snapshot and register a Next.js
-`after()` callback for a conditional GET with the exact cached ETag. HTTP 304
-retains the snapshot; HTTP 200 replaces it only after full validation. Concurrent
-checks coalesce, failures keep the last good data, and the next request retries.
-Without ETag, checks use unconditional GET. Restarting a runtime loses its cache;
-separate processes do not share it. Cover images are URLs loaded by the browser,
-never image bytes embedded into page props. Diagnostics use only the server
-console with the `[use-case-manifest]` prefix.
-
-`bun run dev:mock` enables the supplied nine-case fixture automatically. Its
-local HTTP adapter serves manifest versions, small image/Markdown/download
-samples, and the development-only `/__mock/use-case-manifest` endpoint. GET that
-endpoint for counters; PUT a JSON object with `mode` (`normal`, `empty`, `error`,
-or `invalid`), optional `titleSuffix`, and optional `delayMs` (0–5000) to publish a
-new mock revision. An empty object restores the original fixture. A page refresh
-first displays its old snapshot; subsequent navigation sees the completed update.
-Mock downloads are text samples, not usable `.science` archives.
-
-The list/detail template modification date is `2026-10-08`, persisted in
-`app/sitemap.ts`; cache checks never advance it. Existing replay dates remain
-`2026-09-30`. The supplied mock manifest verifies these canonical URLs (this
-does not mean the placeholder has been connected or the pages deployed):
-
-- https://aipoch.com/open-science/use-cases
-- https://aipoch.com/open-science/use-cases/can-a-simple-algorithm-beat-ai-at-wordle
-- https://aipoch.com/open-science/use-cases/can-ai-spot-the-errors-in-a-spreadsheet
-- https://aipoch.com/open-science/use-cases/can-glp-1-drugs-really-help-us-live-longer
-- https://aipoch.com/open-science/use-cases/first-flight-vs-evening-flight-which-is-more-reliable
-- https://aipoch.com/open-science/use-cases/hotter-years-hotter-days
-- https://aipoch.com/open-science/use-cases/how-many-homes-could-ai-data-centers-power
-- https://aipoch.com/open-science/use-cases/our-nearest-exoplanet-how-long-is-the-trip
-- https://aipoch.com/open-science/use-cases/which-planet-is-most-like-earth-and-who-decides
-- https://aipoch.com/open-science/use-cases/why-do-coffee-and-sleep-studies-disagree
-
-The sample does not publish normalized replay resources, so these cases have
-no replay sitemap entries. Unaffected routes keep their existing dates.
-
 ### Validation
 
 ```sh
