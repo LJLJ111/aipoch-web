@@ -34,3 +34,6 @@ session-packages/*.science
 
 # Generated use-case mock data (regenerate locally via scripts/import-session-package.ts)
 public/use-cases/
+
+# Local handoff docs for the use-case pipeline (kept off the repo)
+session-packages/*.md
