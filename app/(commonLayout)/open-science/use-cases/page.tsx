@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { SITE_DOMAIN } from '@/lib/config'
 import { createPageMetadata } from '@/lib/page-metadata'
 import type { UseCaseIndexEntry } from '@/lib/use-case-types'
-import { fetchUseCaseList } from '@/service/open-science-use-cases'
+import { fetchUseCaseList } from '@/service/open-science-use-cases.server'
 
 const headingClass = 'font-[Georgia,serif] font-normal tracking-normal'
 const PAGE_SIZE = 6

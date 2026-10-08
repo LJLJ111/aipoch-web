@@ -4,6 +4,7 @@ import { leaderboardHandlers } from './leaderboards'
 import { json, missing } from './shared'
 import { skillHandlers } from './skills'
 import { stateHandlers } from './state'
+import { useCaseManifestHandlers } from './use-case-manifest'
 import { useCaseHandlers } from './use-cases'
 
 const fallbackHandlers = (origin: string) => [
@@ -17,6 +18,8 @@ export const interceptionHandlers = (origin: string) => [
   ...contentHandlers(origin),
   ...leaderboardHandlers(origin),
   ...useCaseHandlers(origin),
+  // A single adapter owns manifest revisions and navigational image requests.
+  http.all(`${origin}/use-case-manifest/*`, () => passthrough()),
   http.all(`${origin}/api/v1/members`, () => passthrough()),
   http.all(`${origin}/api/v1/agent/:action`, () => passthrough()),
   ...fallbackHandlers(origin)
@@ -26,6 +29,7 @@ export const adapterHandlers = (origin: string) => [
   http.get(`${origin}/health`, () => json({ service: 'aipoch-mock-state' })),
   ...stateHandlers(origin),
   ...downloadHandlers(origin),
+  ...useCaseManifestHandlers(origin),
   // Read-only use-case fixtures also live on the adapter so SSR fetches that
   // reach the mock port still resolve when MSW interception is skipped.
   ...useCaseHandlers(origin),

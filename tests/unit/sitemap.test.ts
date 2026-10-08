@@ -7,6 +7,13 @@ const siteDomain = 'https://aipoch.com'
 const wikiSitemapUrlPrefix = 'http://openscience-wiki/'
 const wikiSitemapUrl = 'http://openscience-wiki/sitemap'
 
+mock.module('@/service/open-science-use-cases.server', () => ({
+  fetchUseCaseSitemapEntries: async () => [
+    { slug: 'manifest-case', title: 'Manifest case', hasReplay: false },
+    { slug: 'existing-replay', title: 'Existing replay' }
+  ]
+}))
+
 mock.module('@/lib/config', () => ({
   AIPOCH_DESIGN_SYSTEM_URL: 'https://design-system.aipoch.com/',
   AIPOCH_GITHUB_URL: 'https://github.com/aipoch/medical-research-skills',
@@ -72,6 +79,23 @@ globalThis.fetch = mock(async (input) => {
 }) as unknown as typeof fetch
 
 describe('sitemap', () => {
+  test('includes manifest cases without inventing replay routes or changing replay dates', async () => {
+    const { default: sitemap } = await import('../../app/sitemap')
+    const routes = await sitemap()
+    for (const path of [
+      '/open-science/use-cases',
+      '/open-science/use-cases/manifest-case',
+      '/open-science/use-cases/existing-replay'
+    ]) {
+      expect(routes.find((route) => route.url === `${siteDomain}${path}`)?.lastModified).toEqual(
+        new Date('2026-10-08')
+      )
+    }
+    expect(routes.some((route) => route.url.endsWith('/manifest-case/replay'))).toBe(false)
+    expect(
+      routes.find((route) => route.url.endsWith('/existing-replay/replay'))?.lastModified
+    ).toEqual(new Date('2026-09-30'))
+  })
   test('merges Wiki entries under the canonical non-www origin', async () => {
     const { default: sitemap } = await import('../../app/sitemap')
 

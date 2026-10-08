@@ -1,12 +1,13 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { SITE_DOMAIN } from '@/lib/config'
 import { createPageMetadata } from '@/lib/page-metadata'
 import type { UseCaseIndexEntry } from '@/lib/use-case-types'
 import { fetchUseCaseAssetText } from '@/service/open-science-use-case-assets'
-import { fetchUseCaseDetail, fetchUseCaseList } from '@/service/open-science-use-cases'
-import { SessionMarkdown } from '../_components/session-markdown'
+import { fetchUseCaseDetail, fetchUseCaseList } from '@/service/open-science-use-cases.server'
 import { ShareRow } from '../_components/share-row'
 
 // Markdown styles come from app/globals.css → session-transcript.css; do not
@@ -43,6 +44,13 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', {
   year: 'numeric'
 })
 
+/** Catalog introductions do not need the transcript's client-side tool plugins. */
+const renderCaseMarkdown = async (content: string, introduction: boolean) => {
+  if (introduction) return <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+  const { SessionMarkdown } = await import('../_components/session-markdown')
+  return <SessionMarkdown content={content} />
+}
+
 type PageProps = {
   params: Promise<{ id: string }>
 }
@@ -60,7 +68,10 @@ export const generateMetadata = async ({ params }: PageProps): Promise<Metadata>
   return createPageMetadata({
     title,
     description:
-      useCase.description ?? `Read-only replay of the Open-Science session "${useCase.title}".`,
+      useCase.description ??
+      (useCase.hasReplay === false
+        ? `Explore "${useCase.title}" and download its Open-Science research package.`
+        : `Read-only replay of the Open-Science session "${useCase.title}".`),
     canonical: `${SITE_DOMAIN}/open-science/use-cases/${encodeURIComponent(useCase.slug)}`,
     ...(coverImage
       ? {
@@ -117,7 +128,7 @@ export default async function OpenScienceUseCaseIntroPage({ params }: PageProps)
   if (!useCase) notFound()
 
   const category = useCase.category
-  const figureCount = useCase.figureCount
+  const figureCount = useCase.figureCount ?? 0
   const heroImageUrl = useCase.coverImage
   const related =
     index?.filter((entry) => entry.slug !== useCase.slug).slice(0, 3) ?? ([] as UseCaseIndexEntry[])
@@ -125,8 +136,10 @@ export default async function OpenScienceUseCaseIntroPage({ params }: PageProps)
   // original file behind the button are separate fields, no frontend guessing.
   const reportUrl = useCase.report?.url
   const reportPageCount = useCase.report?.pageCount
-  const reportMarkdown = useCase.report?.contentUrl
-    ? await fetchUseCaseAssetText(useCase.report.contentUrl)
+  const contentUrl = useCase.introductionUrl ?? useCase.report?.contentUrl
+  const reportMarkdown = contentUrl ? await fetchUseCaseAssetText(contentUrl) : null
+  const markdownBody = reportMarkdown
+    ? await renderCaseMarkdown(reportMarkdown, Boolean(useCase.introductionUrl))
     : null
 
   return (
@@ -148,7 +161,9 @@ export default async function OpenScienceUseCaseIntroPage({ params }: PageProps)
                 <span aria-hidden="true">·</span>
               </>
             ) : null}
-            <span>{dateFormatter.format(new Date(useCase.exportedAt))}</span>
+            {useCase.exportedAt !== undefined ? (
+              <span>{dateFormatter.format(new Date(useCase.exportedAt))}</span>
+            ) : null}
             {reportPageCount ? (
               <>
                 <span aria-hidden="true">·</span>
@@ -187,12 +202,22 @@ export default async function OpenScienceUseCaseIntroPage({ params }: PageProps)
                 Read the full report
               </a>
             ) : null}
-            <Link
-              href={`/open-science/use-cases/${useCase.slug}/replay`}
-              className="inline-flex min-h-11 items-center border border-[#10110f] bg-white px-5 text-[13px] font-semibold text-[#10110f] transition-colors hover:bg-[#10110f] hover:text-white active:bg-white active:text-[#10110f]"
-            >
-              View the research session
-            </Link>
+            {useCase.package ? (
+              <a
+                href={useCase.package.url}
+                className="inline-flex min-h-11 items-center border border-[#10110f] bg-white px-5 text-[13px] font-semibold text-[#10110f] transition-colors hover:bg-[#10110f] hover:text-white"
+              >
+                Download research package
+              </a>
+            ) : null}
+            {useCase.hasReplay !== false ? (
+              <Link
+                href={`/open-science/use-cases/${useCase.slug}/replay`}
+                className="inline-flex min-h-11 items-center border border-[#10110f] bg-white px-5 text-[13px] font-semibold text-[#10110f] transition-colors hover:bg-[#10110f] hover:text-white active:bg-white active:text-[#10110f]"
+              >
+                View the research session
+              </Link>
+            ) : null}
           </div>
 
           {heroImageUrl ? (
@@ -218,7 +243,7 @@ export default async function OpenScienceUseCaseIntroPage({ params }: PageProps)
             <h2 className={`${headingClass} mb-6 text-[28px] leading-[1.2]`}>
               What this research found
             </h2>
-            <SessionMarkdown content={reportMarkdown} />
+            {markdownBody}
           </div>
         </section>
       ) : useCase.description ? (
@@ -243,8 +268,10 @@ export default async function OpenScienceUseCaseIntroPage({ params }: PageProps)
           <p className="mt-3 max-w-[720px] text-[15px] leading-[1.7] text-[#5c5d57]">
             AIPOCH planned and ran this
             {category ? ` ${category.toLowerCase()}` : ''} investigation end to end — searching the
-            literature, producing the figures, and drafting the report. The full session transcript
-            is available to inspect.
+            literature, producing the figures, and drafting the report.
+            {useCase.hasReplay === false
+              ? ' The research package is available to download and open in Open-Science.'
+              : ' The full session transcript is available to inspect.'}
           </p>
           <div className="mt-5">
             <ShareRow

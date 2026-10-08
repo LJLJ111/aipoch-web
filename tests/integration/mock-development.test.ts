@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { createServer } from 'node:net'
 import { chromium, devices } from '@playwright/test'
 import { COMMON_LAYOUT_LAST_MODIFIED } from '../../lib/common-layout-metadata'
+import manifestSample from '../../mocks/fixtures/use-case-manifest.json'
 
 // Exercise the real launcher and browser/SSR consumers with ephemeral loopback ports.
 const availablePort = async (): Promise<number> => {
@@ -58,6 +59,97 @@ afterAll(async () => {
 }, 15000)
 
 describe('mock development end to end', () => {
+  test('serves cached manifest data before conditional refresh and retains it through failures', async () => {
+    const pageUrl = `${web}/open-science/use-cases`
+    const controlUrl = `${api}/__mock/use-case-manifest`
+    const stats = async () => (await fetch(controlUrl)).json()
+    const update = async (value: object) => {
+      expect((await fetch(controlUrl, { method: 'PUT', body: JSON.stringify(value) })).status).toBe(
+        200
+      )
+    }
+    const eventually = async (check: () => Promise<boolean>) => {
+      for (let i = 0; i < 60; i++) {
+        if (await check()) return
+        await Bun.sleep(100)
+      }
+      throw new Error('Manifest background refresh did not complete')
+    }
+    const first = await fetch(pageUrl)
+    expect(first.status).toBe(200)
+    const html = await first.text()
+    expect(html).toContain(manifestSample[0].title)
+    expect(html).toContain('Can%20a%20Simple%20Algorithm')
+    expect(html).not.toContain(manifestSample[0].cover.sha256)
+    await (await fetch(pageUrl)).text()
+    await eventually(async () => (await stats()).notModified > 0)
+    expect((await stats()).lastValidator).toMatch(/^"use-case-manifest-/)
+
+    // The response uses its old snapshot even when S3 needs time to return a new body.
+    await update({ titleSuffix: ' Updated', delayMs: 1000 })
+    const stale = await (await fetch(pageUrl)).text()
+    expect(stale).not.toContain(`${manifestSample[0].title} Updated`)
+    await eventually(async () =>
+      (await (await fetch(pageUrl)).text()).includes(`${manifestSample[0].title} Updated`)
+    )
+
+    await update({ mode: 'error' })
+    const beforeFailure = (await stats()).requests
+    await (await fetch(pageUrl)).text()
+    await eventually(async () => (await stats()).requests > beforeFailure)
+    expect(await (await fetch(pageUrl)).text()).toContain(`${manifestSample[0].title} Updated`)
+
+    await update({ mode: 'empty' })
+    await eventually(async () =>
+      (await (await fetch(pageUrl)).text()).includes('No published use cases yet.')
+    )
+    await update({})
+    await eventually(async () =>
+      (await (await fetch(pageUrl)).text()).includes(manifestSample[0].title)
+    )
+  }, 120000)
+
+  test('manifest covers, pagination and introductions work without client JavaScript', async () => {
+    const browser = await chromium.launch()
+    try {
+      const context = await browser.newContext({ javaScriptEnabled: false })
+      const page = await context.newPage()
+      await page.goto(`${web}/open-science/use-cases`)
+      await page.getByRole('heading', { name: manifestSample[0].title, exact: true }).waitFor()
+      expect(await page.locator('main img').count()).toBe(6)
+      expect(
+        await page
+          .locator('main img')
+          .first()
+          .evaluate((image) => (image as HTMLImageElement).naturalWidth)
+      ).toBeGreaterThan(0)
+      await page.getByRole('link', { name: 'Next', exact: true }).click()
+      expect(await page.locator('main img').count()).toBe(3)
+      await page.goto(`${web}/open-science/use-cases/${manifestSample[0].name}`)
+      await page.getByText('Local sample introduction.', { exact: true }).waitFor()
+      expect(await page.locator('meta[name="description"]').getAttribute('content')).toContain(
+        'download its Open-Science research package'
+      )
+      expect(await page.getByRole('link', { name: 'Download research package' }).count()).toBe(1)
+      expect(await page.getByRole('link', { name: 'View the research session' }).count()).toBe(0)
+      expect(await page.locator('main').innerText()).not.toContain('1970')
+      await page.goto(`${web}/open-science/use-cases/${manifestSample[3].name}`)
+      expect(
+        await page.getByRole('heading', { name: manifestSample[3].title, exact: true }).count()
+      ).toBe(1)
+      expect(await page.getByRole('link', { name: 'Download research package' }).count()).toBe(1)
+      const sitemap = (await (await fetch(`${web}/sitemap.xml`)).text()).replace(/>\s+</g, '><')
+      for (const item of manifestSample) {
+        expect(sitemap).toContain(
+          `/open-science/use-cases/${item.name}</loc><lastmod>2026-10-08T00:00:00.000Z</lastmod>`
+        )
+        expect(sitemap).not.toContain(`/open-science/use-cases/${item.name}/replay</loc>`)
+      }
+    } finally {
+      await browser.close()
+    }
+  }, 120000)
+
   test('renders server data, linked details and sitemap without a business backend', async () => {
     // The state adapter intentionally cannot serve read-only business fixtures.
     expect((await fetch(`${api}/api/v1/skills`)).status).toBe(404)
@@ -84,6 +176,25 @@ describe('mock development end to end', () => {
     expect(sitemap).not.toContain('/claim/')
     expect(sitemap).not.toContain('/open-science/overview</loc>')
   }, 120000)
+
+  test('mobile navigation renders manifest cards without downloading the manifest in the browser', async () => {
+    const browser = await chromium.launch()
+    try {
+      const context = await browser.newContext(devices['Pixel 5'])
+      const page = await context.newPage()
+      const requests: string[] = []
+      page.on('request', (request) => requests.push(request.url()))
+      await page.goto(`${web}/open-science/use-cases`)
+      await page.getByRole('heading', { name: manifestSample[0].title, exact: true }).waitFor()
+      await page.getByRole('link', { name: 'Next', exact: true }).click()
+      await page.waitForURL('**/open-science/use-cases?page=2')
+      await page.getByRole('heading', { name: manifestSample[6].title, exact: true }).waitFor()
+      expect(await page.locator('main img').count()).toBe(3)
+      expect(requests.some((url) => url.includes('/use-case-manifest/manifest.json'))).toBe(false)
+    } finally {
+      await browser.close()
+    }
+  }, 60000)
 
   test('SSR content remains visible with JavaScript disabled', async () => {
     const browser = await chromium.launch()

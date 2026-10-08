@@ -1,8 +1,13 @@
 import type { LeaderboardEvaluationPayload } from '../app/(commonLayout)/leaderboard/items/[slug]/components/leaderboard-evaluation'
+import type { UseCaseManifestItem } from '../lib/use-case-types'
 import type { BlogPostDetail } from '../service/blog'
 import type { CommentItem, PostDetail } from '../service/community'
 import type { OverallLeaderboardItem } from '../service/leaderboard-overall'
 import type { SkillDetail } from '../service/skills'
+import manifestSample from './fixtures/use-case-manifest.json'
+
+// Supplied publishing schema; resource bodies in mock development are small samples.
+export const useCaseManifest: UseCaseManifestItem[] = manifestSample
 
 // Fixed sample dates describe fixtures, never live product releases or page edits.
 export const fixtureDate = '2026-09-01T00:00:00.000Z'
