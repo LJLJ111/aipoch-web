@@ -116,18 +116,9 @@ const ArtifactCard = ({ artifact }: { artifact: MessageArtifact }) => {
   ) : (
     <div
       className={`relative ${artifactCardClassName} cursor-default`}
-      title={
-        artifact.fullOnly
-          ? `${artifact.name} ships in the full version — load it to preview or download`
-          : `${artifact.name} was not bundled with this export`
-      }
+      title={`${artifact.name} was not bundled with this export`}
     >
       {card}
-      {artifact.fullOnly ? (
-        <span className="absolute bottom-6 left-1 rounded bg-bg-000/85 px-1 py-px text-[9px] font-medium uppercase tracking-wide text-text-300">
-          Full only
-        </span>
-      ) : null}
     </div>
   )
 }

@@ -1,11 +1,11 @@
 import { waitForBrowserMock } from '../../mocks/ready'
-import type { UseCasePackage } from '../use-case-types'
+import type { UseCasePackage, UseCaseSession } from '../use-case-types'
 import type { PackageProgress } from './archive'
-import type { ReplayData, WorkerReply } from './protocol'
+import type { WorkerReply } from './protocol'
 
 export type ReplayState =
   | { status: 'loading'; progress: PackageProgress | { stage: 'metadata' } }
-  | { status: 'ready'; data: ReplayData }
+  | { status: 'ready'; data: UseCaseSession }
   | { status: 'error'; message: string }
 
 export function loadReplay(slug: string, update: (state: ReplayState) => void) {

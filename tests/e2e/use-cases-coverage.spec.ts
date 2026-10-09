@@ -40,7 +40,7 @@ test('replay renders every component type in the coverage fixture', async ({ pag
 
   // Wait for the real worker (including first-use compilation) before checking renderers.
   await page
-    .getByRole('button', { name: 'View full version', exact: true })
+    .getByText('Run the renderer coverage scenario.', { exact: true })
     .waitFor({ timeout: 30000 })
 
   // -- user bubble -------------------------------------------------------------
@@ -143,7 +143,8 @@ test('replay renders every component type in the coverage fixture', async ({ pag
   await expect(page.getByRole('button', { name: 'Declined tool' })).toBeVisible()
 
   await expandRow('Truncated tool')
-  await expect(page.getByText(/Long payloads are shortened in the essential view/)).toBeVisible()
+  await expect(page.getByText(/Long payloads are shortened in the essential view/)).toHaveCount(0)
+  await expect(page.locator('pre').filter({ hasText: 'x'.repeat(30000) })).toBeVisible()
 
   // A tool with no payload renders as a one-line row with expansion disabled.
   await expect(page.getByRole('button', { name: 'Empty tool' })).toBeDisabled()
@@ -155,7 +156,8 @@ test('replay renders every component type in the coverage fixture', async ({ pag
   await expect(page.getByTitle('Preview coverage_chart.png')).toBeVisible()
   await expect(page.getByTitle('Preview coverage_report.md')).toBeVisible()
   await expect(page.getByTitle(/Download coverage_dataset\.zip/)).toBeVisible()
-  await expect(page.getByText('Full only')).toBeVisible()
+  await expect(page.getByText('Full only', { exact: true })).toHaveCount(0)
+  await expect(page.getByTitle(/Download coverage_huge.bin/)).toHaveAttribute('href', /^blob:/)
 
   // -- inline asset link in message content ---------------------------------------------
   await expect(page.getByRole('link', { name: 'coverage_report.md' }).first()).toHaveAttribute(
@@ -168,9 +170,9 @@ test('replay renders every component type in the coverage fixture', async ({ pag
   await expect(preview.getByText('Sample coverage_report.md', { exact: true })).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(preview).not.toBeVisible()
-  await page.getByRole('button', { name: 'View full version', exact: true }).click()
-  await expect(page.getByTitle(/Download coverage_huge.bin/)).toHaveAttribute('href', /^blob:/)
-  await page.getByRole('button', { name: 'Back to essential', exact: true }).click()
+  await expect(
+    page.getByRole('button', { name: /View full version|Back to essential/ })
+  ).toHaveCount(0)
   expect(downloads).toBe(1)
 
   // -- global hygiene ----------------------------------------------------------------------

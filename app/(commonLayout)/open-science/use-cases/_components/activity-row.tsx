@@ -521,12 +521,6 @@ export const ActivityRow = ({
             className="overflow-hidden"
           >
             <div id={detailsDomId} className="mx-1 mb-1.5 space-y-2.5 md:ml-[30px]">
-              {activity.essentialTruncated ? (
-                <p className="rounded-md bg-bg-200/70 px-2.5 py-1.5 text-[11px] text-text-200">
-                  Long payloads are shortened in the essential view — load the full version for the
-                  complete output.
-                </p>
-              ) : null}
               {details.sections.map((section, index) =>
                 section.kind === 'summary' ? (
                   <SectionBody key={`summary-${index}`} section={section} />

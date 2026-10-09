@@ -1,9 +1,10 @@
+import type { UseCaseSession } from '../use-case-types'
 import { downloadPackage } from './archive'
 import { parsePackage } from './parse'
-import type { ReplayData, WorkerReply, WorkerRequest } from './protocol'
+import type { WorkerReply, WorkerRequest } from './protocol'
 
 const send = (message: WorkerReply) => self.postMessage(message)
-let parsed: ReplayData | undefined
+let parsed: UseCaseSession | undefined
 self.onmessage = async ({ data }: MessageEvent<WorkerRequest>) => {
   try {
     if (data.type === 'load') {
@@ -12,7 +13,7 @@ self.onmessage = async ({ data }: MessageEvent<WorkerRequest>) => {
       )
       send({ type: 'progress', progress: { stage: 'parsing' } })
       const result = await parsePackage(archive, data.slug)
-      parsed = { essential: result.essential, full: result.full }
+      parsed = result.session
       send({ type: 'resources', resources: result.resources })
     } else if (parsed) {
       // Blob URLs are owned by the page so they survive worker termination.
@@ -26,7 +27,7 @@ self.onmessage = async ({ data }: MessageEvent<WorkerRequest>) => {
           )
         return value
       }
-      send({ type: 'ready', data: resolve(parsed) as ReplayData })
+      send({ type: 'ready', data: resolve(parsed) as UseCaseSession })
       parsed = undefined
     }
   } catch (error) {

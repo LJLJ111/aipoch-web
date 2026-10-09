@@ -21,7 +21,7 @@ test('every manifest sample downloads a real package with matching size and SHA-
     expect(bytes.length).toBe(item.case.bytes)
     expect(digest(bytes)).toBe(item.case.sha256)
     const parsed = await parsePackage(new Blob([bytes]), item.name)
-    expect(parsed.full.title).toBe(item.title)
+    expect(parsed.session.title).toBe(item.title)
   }
 })
 

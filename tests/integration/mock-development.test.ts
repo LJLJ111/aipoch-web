@@ -195,7 +195,7 @@ describe('mock development end to end', () => {
     }
   }, 120000)
 
-  test('replay downloads and parses one package, switches locally, and retries failures', async () => {
+  test('replay renders the complete package by default and retries failures', async () => {
     const browser = await chromium.launch()
     try {
       const context = await browser.newContext()
@@ -225,11 +225,10 @@ describe('mock development end to end', () => {
       expect(await page.title()).toBe(`Replay: ${item.title} | Open-Science Use Cases`)
       const packageRequests = () => requests.filter((url) => url === info.url).length
       expect(packageRequests()).toBe(1)
-      await page.getByRole('button', { name: 'View full version', exact: true }).click()
-      await page.waitForURL('**?view=full')
-      await page.getByRole('button', { name: 'Back to essential', exact: true }).click()
-      await page.waitForURL(`**/open-science/use-cases/${item.name}/replay`)
-      expect(packageRequests()).toBe(1)
+      expect(
+        await page.getByRole('button', { name: /View full version|Back to essential/ }).count()
+      ).toBe(0)
+      expect(await page.getByText('Full only', { exact: true }).count()).toBe(0)
       expect(requests.some((url) => url.includes('/api/v1/open-science/use-cases'))).toBe(false)
       const states = await page.evaluate(
         () => (window as typeof window & { replayStates: string[] }).replayStates

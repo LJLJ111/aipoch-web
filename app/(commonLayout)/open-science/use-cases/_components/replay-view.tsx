@@ -1,20 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { loadReplay, type ReplayState } from '@/lib/science-package/load'
 import { SessionTranscript } from './session-transcript'
 
-const TopBar = ({
-  slug,
-  title,
-  children
-}: {
-  slug: string
-  title?: string
-  children?: React.ReactNode
-}) => (
+const TopBar = ({ slug }: { slug: string }) => (
   <div className="sticky top-[var(--nav-h)] z-10 border-b border-[#dfdfda] bg-[#fafaf8]/90 backdrop-blur-sm">
     <div className="mx-auto flex min-h-[47px] w-full max-w-4xl items-center gap-3 px-4 py-2.5 md:px-6">
       <Link
@@ -23,13 +14,9 @@ const TopBar = ({
       >
         ← Back to overview
       </Link>
-      <span
-        className="ml-auto hidden truncate text-right text-[11px] uppercase tracking-[0.04em] text-[#90908a] sm:inline"
-        title={title}
-      >
+      <span className="ml-auto hidden truncate text-right text-[11px] uppercase tracking-[0.04em] text-[#90908a] sm:inline">
         Read-only replay of an exported Open-Science session
       </span>
-      {children}
     </div>
   </div>
 )
@@ -47,20 +34,10 @@ export const ReplayView = ({ slug }: { slug: string }) => {
     status: 'loading',
     progress: { stage: 'metadata' }
   })
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const showingFull = searchParams.get('view') === 'full'
   useEffect(() => {
     void attempt
     return loadReplay(slug, setState)
   }, [slug, attempt])
-  const toggle = () => {
-    const params = new URLSearchParams(searchParams.toString())
-    if (showingFull) params.delete('view')
-    else params.set('view', 'full')
-    const query = params.toString()
-    window.history.pushState(null, '', query ? `${pathname}?${query}` : pathname)
-  }
   const progress = state.status === 'loading' ? state.progress : undefined
   const percent =
     progress?.stage === 'downloading' && progress.total && progress.loaded !== undefined
@@ -68,19 +45,9 @@ export const ReplayView = ({ slug }: { slug: string }) => {
       : undefined
   return (
     <main id="top" className="-mt-[var(--nav-h)] flex-1 bg-[#fafaf8] pt-[var(--nav-h)]">
-      <TopBar slug={slug}>
-        {state.status === 'ready' && (
-          <button
-            type="button"
-            onClick={toggle}
-            className="shrink-0 rounded-full border border-[#10110f] px-3 py-1 text-xs font-medium"
-          >
-            {showingFull ? 'Back to essential' : 'View full version'}
-          </button>
-        )}
-      </TopBar>
+      <TopBar slug={slug} />
       {state.status === 'ready' ? (
-        <SessionTranscript session={showingFull ? state.data.full : state.data.essential} />
+        <SessionTranscript session={state.data} />
       ) : state.status === 'error' ? (
         <div className="mx-auto max-w-4xl px-4 py-16 text-center">
           <div role="alert">

@@ -100,41 +100,6 @@ const SKIP_BLOB = [
   /^execution-file-evidence\//
 ]
 
-// Extensions the static server can serve with a displayable Content-Type.
-// Essential-tier limits: blobs larger than this ship only in the full tier, and
-// any single string longer than this is shortened with a visible marker.
-const ESSENTIAL_ASSET_MAX_BYTES = 2 * 1024 ** 2
-const ESSENTIAL_TEXT_MAX_CHARS = 24 * 1024
-const ESSENTIAL_TRUNCATION_MARK =
-  '\n… [shortened in the essential view — load the full version for the complete payload]'
-
-const hasOversizedString = (value: unknown): boolean => {
-  if (typeof value === 'string') return value.length > ESSENTIAL_TEXT_MAX_CHARS
-  if (Array.isArray(value)) return value.some(hasOversizedString)
-  if (value && typeof value === 'object') {
-    return Object.values(value as JsonObject).some(hasOversizedString)
-  }
-  return false
-}
-
-const truncateOversizedStrings = (value: unknown): unknown => {
-  if (typeof value === 'string') {
-    return value.length > ESSENTIAL_TEXT_MAX_CHARS
-      ? value.slice(0, ESSENTIAL_TEXT_MAX_CHARS) + ESSENTIAL_TRUNCATION_MARK
-      : value
-  }
-  if (Array.isArray(value)) return value.map(truncateOversizedStrings)
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value as JsonObject).map(([key, entry]) => [
-        key,
-        truncateOversizedStrings(entry)
-      ])
-    )
-  }
-  return value
-}
-
 export async function parsePackage(archive: Blob, slug: string) {
   const objects = await readArchive(archive)
   const manifest = await readJson<Manifest>(objects.get('manifest.json'), 'manifest.json')
@@ -401,79 +366,5 @@ export async function parsePackage(archive: Blob, slug: string) {
     excludedFiles: manifest.excludedFiles ?? []
   }
 
-  // Both views are derived from the same parsed package.
-  // The essential tier keeps the whole conversation but shortens oversized tool
-  // payloads and drops large file blobs, so the default transcript stays readable.
-  const essentialAssetUrls = new Set(
-    Object.values(assets)
-      .filter((asset) => asset.sizeBytes <= ESSENTIAL_ASSET_MAX_BYTES)
-      .map((asset) => asset.url)
-  )
-  const fullOnlyAssetBytes = Object.values(assets)
-    .filter((asset) => asset.sizeBytes > ESSENTIAL_ASSET_MAX_BYTES)
-    .reduce((sum, asset) => sum + asset.sizeBytes, 0)
-
-  let truncatedActivityCount = 0
-  const essentialItems: TranscriptItem[] = items.map((item) => {
-    if (item.type === 'message') {
-      if (!item.artifacts?.length) return item
-      return {
-        ...item,
-        artifacts: item.artifacts.map((artifact) => {
-          const inEssential = Boolean(
-            artifact.url && essentialAssetUrls.has(artifact.url as string)
-          )
-          return {
-            ...artifact,
-            url: inEssential ? artifact.url : undefined,
-            // A file that exists in the full tier but exceeds the essential
-            // asset budget is "full only"; files missing from both tiers
-            // (excluded at export time) get no marker.
-            fullOnly: Boolean(artifact.url) && !inEssential ? true : undefined
-          }
-        })
-      }
-    }
-    if (item.type !== 'activity-group') return item
-    return {
-      ...item,
-      activities: item.activities.map((activity) => {
-        const truncated = hasOversizedString([
-          activity.input,
-          activity.output,
-          activity.contentBlocks,
-          activity.run
-        ])
-        if (!truncated) return activity
-        truncatedActivityCount += 1
-        return {
-          ...activity,
-          input: truncateOversizedStrings(activity.input) as NormalizedActivity['input'],
-          output: truncateOversizedStrings(activity.output) as NormalizedActivity['output'],
-          contentBlocks: truncateOversizedStrings(
-            activity.contentBlocks
-          ) as NormalizedActivity['contentBlocks'],
-          run: truncateOversizedStrings(activity.run) as NormalizedActivity['run'],
-          essentialTruncated: true
-        }
-      })
-    }
-  })
-  const essentialAssets = Object.fromEntries(
-    Object.entries(assets).filter(([, asset]) => essentialAssetUrls.has(asset.url))
-  )
-  const essentialModel: UseCaseSession = {
-    ...model,
-    items: essentialItems,
-    assets: essentialAssets,
-    omissions:
-      truncatedActivityCount > 0 || fullOnlyAssetBytes > 0
-        ? [
-            ...model.omissions,
-            'Large tool payloads and files over 2 MiB are shortened in the essential view; load the full version for everything.'
-          ]
-        : model.omissions
-  }
-
-  return { essential: essentialModel, full: model, resources }
+  return { session: model, resources }
 }

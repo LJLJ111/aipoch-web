@@ -22,16 +22,16 @@ afterEach(() => {
   globalThis.fetch = originalFetch
 })
 
-test('parses a verified package once into essential and full models', async () => {
+test('parses one complete session without shortening payloads or generating alternate views', async () => {
   const sample = buildSciencePackage('Test science')
   const result = await parsePackage(new Blob([sample.bytes as BlobPart]), 'test-science')
-  expect(result.full.title).toBe('Test science')
-  const essential = result.essential.items.find((item) => item.type === 'activity-group')
-  const full = result.full.items.find((item) => item.type === 'activity-group')
-  expect(essential?.type === 'activity-group' && essential.activities[0].essentialTruncated).toBe(
-    true
+  expect(result.session.title).toBe('Test science')
+  expect(Object.keys(result).sort()).toEqual(['resources', 'session'])
+  const group = result.session.items.find((item) => item.type === 'activity-group')
+  expect(group?.type === 'activity-group' && group.activities[0].output).toBe(
+    'sample '.repeat(5000)
   )
-  expect(full?.type === 'activity-group' && String(full.activities[0].output).length).toBe(35000)
+  expect(result.session.omissions).toEqual([])
 })
 
 for (const measurable of [true, false]) {
@@ -101,7 +101,7 @@ test('rejects invalid archives and corrupt internal inventory', async () => {
   )
 })
 
-test('large assets remain blobs and are reused by the full view', async () => {
+test('large assets are available in the default session without another download', async () => {
   const bytes = new Uint8Array(32 * 1024 ** 2).fill(97)
   const path = `objects/${digest(bytes)}`
   const sample = buildSciencePackage(
@@ -122,9 +122,10 @@ test('large assets remain blobs and are reused by the full view', async () => {
   )
   const result = await parsePackage(new Blob([sample.bytes as BlobPart]), 'large')
   expect(result.resources[0].blob.size).toBe(bytes.length)
-  expect(Object.keys(result.essential.assets)).toHaveLength(0)
-  expect(Object.keys(result.full.assets)).toHaveLength(1)
-  expect(result.full.items[0].type === 'message' && result.full.items[0].content).toContain(
+  const message = result.session.items[0]
+  expect(message.type === 'message' && message.artifacts?.[0].url).toBe('science-asset:0')
+  expect(Object.keys(result.session.assets)).toHaveLength(1)
+  expect(result.session.items[0].type === 'message' && result.session.items[0].content).toContain(
     'science-asset:0'
   )
 })
