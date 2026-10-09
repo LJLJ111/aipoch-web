@@ -16,6 +16,17 @@ const availablePort = async (): Promise<number> => {
   )
   return address.port
 }
+// Next development embeds server console logs in scripts; inspect rendered markup separately.
+const renderedHtml = async (response: Response) =>
+  new HTMLRewriter()
+    .on('script', {
+      element: (element) => {
+        element.remove()
+      }
+    })
+    .transform(response)
+    .text()
+
 let launcher: ReturnType<typeof Bun.spawn>
 let web: string
 let api: string
@@ -78,7 +89,7 @@ describe('mock development end to end', () => {
     }
     const first = await fetch(pageUrl)
     expect(first.status).toBe(200)
-    const html = await first.text()
+    const html = await renderedHtml(first)
     expect(html).toContain(manifestSample[0].title)
     expect(html).toContain('Can%20a%20Simple%20Algorithm')
     expect(html).not.toContain(manifestSample[0].cover.sha256)
@@ -90,25 +101,25 @@ describe('mock development end to end', () => {
 
     // The response uses its old snapshot even when S3 needs time to return a new body.
     await update({ titleSuffix: ' Updated', delayMs: 1000 })
-    const stale = await (await fetch(pageUrl)).text()
+    const stale = await renderedHtml(await fetch(pageUrl))
     expect(stale).not.toContain(`${manifestSample[0].title} Updated`)
     await eventually(async () =>
-      (await (await fetch(pageUrl)).text()).includes(`${manifestSample[0].title} Updated`)
+      (await renderedHtml(await fetch(pageUrl))).includes(`${manifestSample[0].title} Updated`)
     )
 
     await update({ mode: 'error' })
     const beforeFailure = (await stats()).requests
     await (await fetch(pageUrl)).text()
     await eventually(async () => (await stats()).requests > beforeFailure)
-    expect(await (await fetch(pageUrl)).text()).toContain(`${manifestSample[0].title} Updated`)
+    expect(await renderedHtml(await fetch(pageUrl))).toContain(`${manifestSample[0].title} Updated`)
 
     await update({ mode: 'empty' })
     await eventually(async () =>
-      (await (await fetch(pageUrl)).text()).includes('No published use cases yet.')
+      (await renderedHtml(await fetch(pageUrl))).includes('No published use cases yet.')
     )
     await update({})
     await eventually(async () =>
-      (await (await fetch(pageUrl)).text()).includes(manifestSample[0].title)
+      (await renderedHtml(await fetch(pageUrl))).includes(manifestSample[0].title)
     )
   }, 120000)
 
@@ -276,7 +287,8 @@ describe('mock development end to end', () => {
       fetch(controlUrl, { method: 'PUT', body: JSON.stringify({ mode }) })
     const waitForCatalog = async (text: string) => {
       for (let attempt = 0; attempt < 60; attempt++) {
-        if ((await (await fetch(`${web}/open-science/use-cases`)).text()).includes(text)) return
+        if ((await renderedHtml(await fetch(`${web}/open-science/use-cases`))).includes(text))
+          return
         await Bun.sleep(100)
       }
       throw new Error('Manifest refresh did not finish')

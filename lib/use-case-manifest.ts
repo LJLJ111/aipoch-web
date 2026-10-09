@@ -87,6 +87,25 @@ export const parseUseCaseManifest = (
   })
 }
 
+// Log public resource identities without dumping archive contents or signed URLs.
+const resourceFilename = (url: string | undefined) =>
+  url ? decodeURIComponent(new URL(url).pathname.split('/').at(-1) ?? '') : null
+
+const snapshotDetails = (snapshot: Snapshot | undefined) => ({
+  etag: snapshot?.etag ?? null,
+  count: snapshot?.entries.length ?? 0,
+  entries:
+    snapshot?.entries.map((entry) => ({
+      slug: entry.slug,
+      title: entry.title,
+      resources: {
+        cover: resourceFilename(entry.preview?.image),
+        introduction: resourceFilename(entry.introductionUrl),
+        package: { filename: entry.package.filename, sizeBytes: entry.package.sizeBytes }
+      }
+    })) ?? []
+})
+
 /** One cache per manifest source in a server runtime; no TTL or eviction timer. */
 export const createUseCaseManifestCache = (url: string) => {
   httpUrl(url)
@@ -99,7 +118,15 @@ export const createUseCaseManifestCache = (url: string) => {
     let httpStatus: number | undefined
     const headers: Record<string, string> = snapshot?.etag ? { 'If-None-Match': snapshot.etag } : {}
     // biome-ignore lint/suspicious/noConsole: Manifest diagnostics are intentionally console-only.
-    console.info(LOG_PREFIX, 'fetch.start', { conditional: Boolean(snapshot?.etag) })
+    console.info(
+      LOG_PREFIX,
+      'fetch.start',
+      JSON.stringify({
+        cacheStatus: snapshot ? 'hit' : 'miss',
+        etag: snapshot?.etag ?? null,
+        conditional: Boolean(snapshot?.etag)
+      })
+    )
     try {
       const response = await fetch(url, {
         cache: 'no-store',
@@ -110,11 +137,16 @@ export const createUseCaseManifestCache = (url: string) => {
       if (response.status === 304) {
         if (!snapshot?.etag) throw new Error('Unexpected 304 without a cached validator')
         // biome-ignore lint/suspicious/noConsole: Manifest diagnostics are intentionally console-only.
-        console.info(LOG_PREFIX, 'cache.unchanged', {
-          etag: snapshot.etag,
-          count: snapshot.entries.length,
-          durationMs: Date.now() - startedAt
-        })
+        console.info(
+          LOG_PREFIX,
+          'cache.unchanged',
+          JSON.stringify({
+            cacheStatus: 'unchanged',
+            ...snapshotDetails(snapshot),
+            httpStatus,
+            durationMs: Date.now() - startedAt
+          })
+        )
         return snapshot
       }
       if (response.status !== 200) throw new Error(`Manifest HTTP ${response.status}`)
@@ -123,23 +155,34 @@ export const createUseCaseManifestCache = (url: string) => {
       // Publish only a fully validated snapshot with the validator from this GET.
       snapshot = { entries, etag: response.headers.get('etag') }
       // biome-ignore lint/suspicious/noConsole: Manifest diagnostics are intentionally console-only.
-      console.info(LOG_PREFIX, 'cache.updated', {
-        reason: previous ? 'refresh' : 'initial-load',
-        previousEtag: previous?.etag ?? null,
-        etag: snapshot.etag,
-        count: entries.length,
-        durationMs: Date.now() - startedAt
-      })
+      console.info(
+        LOG_PREFIX,
+        'cache.updated',
+        JSON.stringify({
+          cacheStatus: 'updated',
+          reason: previous ? 'refresh' : 'initial-load',
+          previousEtag: previous?.etag ?? null,
+          ...snapshotDetails(snapshot),
+          httpStatus,
+          durationMs: Date.now() - startedAt
+        })
+      )
       return snapshot
     } catch (error) {
       // Do not log source URLs, response bodies, or signed credentials.
       // biome-ignore lint/suspicious/noConsole: Manifest diagnostics are intentionally console-only.
-      console.error(LOG_PREFIX, 'fetch.failed', {
-        httpStatus,
-        retainedCache: Boolean(snapshot),
-        errorType: error instanceof Error ? error.name : 'UnknownError',
-        durationMs: Date.now() - startedAt
-      })
+      console.error(
+        LOG_PREFIX,
+        'fetch.failed',
+        JSON.stringify({
+          cacheStatus: snapshot ? 'retained' : 'miss',
+          ...snapshotDetails(snapshot),
+          httpStatus,
+          retainedCache: Boolean(snapshot),
+          errorType: error instanceof Error ? error.name : 'UnknownError',
+          durationMs: Date.now() - startedAt
+        })
+      )
       throw error
     }
   }
@@ -157,11 +200,19 @@ export const createUseCaseManifestCache = (url: string) => {
     const current = snapshot
     if (!current) {
       // biome-ignore lint/suspicious/noConsole: Manifest diagnostics are intentionally console-only.
-      console.info(LOG_PREFIX, 'cache.miss')
+      console.info(
+        LOG_PREFIX,
+        'cache.miss',
+        JSON.stringify({ cacheStatus: 'miss', ...snapshotDetails(undefined) })
+      )
       return (await refresh()).entries
     }
     // biome-ignore lint/suspicious/noConsole: Manifest diagnostics are intentionally console-only.
-    console.info(LOG_PREFIX, 'cache.hit', { etag: current.etag, count: current.entries.length })
+    console.info(
+      LOG_PREFIX,
+      'cache.hit',
+      JSON.stringify({ cacheStatus: 'hit', ...snapshotDetails(current) })
+    )
     const observedChecks = completedChecks
     schedule(async () => {
       // Delayed callbacks from the same request wave need not check twice.

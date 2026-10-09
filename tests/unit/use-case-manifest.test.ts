@@ -168,7 +168,7 @@ describe('use-case manifest cache', () => {
     expect(fetcher.mock.calls[2][1].headers).toEqual({})
   })
 
-  test('logs cache misses, every hit, unchanged checks and successful snapshot updates', async () => {
+  test('logs resource entries and explicit cache states as complete JSON records', async () => {
     const info = spyOn(console, 'info').mockImplementation(() => {})
     const error = spyOn(console, 'error').mockImplementation(() => {})
     globalThis.fetch = mock()
@@ -176,59 +176,89 @@ describe('use-case manifest cache', () => {
       .mockResolvedValueOnce(new Response(null, { status: 304 }))
       .mockResolvedValueOnce(body('"v2"', [manifest[0]]))
       .mockResolvedValueOnce(body('"invalid"', {})) as unknown as typeof fetch
-    const cache = createUseCaseManifestCache(url)
+    const cache = createUseCaseManifestCache(`${url}?signature=secret`)
     const tasks: Array<() => Promise<void>> = []
     const schedule = (task: () => Promise<void>) => tasks.push(task)
+    const records = (event: string) =>
+      [...info.mock.calls, ...error.mock.calls]
+        .filter((call) => call[0] === '[use-case-manifest]' && call[1] === event)
+        .map((call) => JSON.parse(call[2]))
+    const firstEntry = {
+      slug: manifest[0].name,
+      title: manifest[0].title,
+      resources: {
+        cover: manifest[0].cover.file_name,
+        introduction: manifest[0].introduction?.file_name ?? null,
+        package: { filename: manifest[0].case.file_name, sizeBytes: manifest[0].case.bytes }
+      }
+    }
 
     await cache.read(schedule)
-    expect(info).toHaveBeenCalledWith('[use-case-manifest]', 'cache.miss')
-    expect(info).toHaveBeenCalledWith('[use-case-manifest]', 'cache.updated', {
+    expect(records('cache.miss')).toEqual([
+      { cacheStatus: 'miss', etag: null, count: 0, entries: [] }
+    ])
+    expect(records('fetch.start')[0]).toMatchObject({ cacheStatus: 'miss', conditional: false })
+    expect(records('cache.updated')[0]).toMatchObject({
+      cacheStatus: 'updated',
       reason: 'initial-load',
       previousEtag: null,
       etag: '"v1"',
       count: 9,
+      httpStatus: 200,
       durationMs: expect.any(Number)
     })
+    expect(records('cache.updated')[0].entries).toHaveLength(9)
+    expect(records('cache.updated')[0].entries[0]).toEqual(firstEntry)
+    expect(records('cache.updated')[0].entries[3].resources.introduction).toBeNull()
 
     await cache.read(schedule)
-    expect(info).toHaveBeenCalledWith('[use-case-manifest]', 'cache.hit', {
-      etag: '"v1"',
-      count: 9
-    })
+    expect(records('cache.hit')[0]).toMatchObject({ cacheStatus: 'hit', etag: '"v1"', count: 9 })
+    expect(records('cache.hit')[0].entries[0]).toEqual(firstEntry)
     await tasks.shift()?.()
-    expect(info).toHaveBeenCalledWith('[use-case-manifest]', 'cache.unchanged', {
+    expect(records('fetch.start')[1]).toMatchObject({ cacheStatus: 'hit', conditional: true })
+    expect(records('cache.unchanged')[0]).toMatchObject({
+      cacheStatus: 'unchanged',
       etag: '"v1"',
       count: 9,
+      httpStatus: 304,
       durationMs: expect.any(Number)
     })
     await cache.read(schedule)
     await tasks.shift()?.()
-    expect(info).toHaveBeenCalledWith('[use-case-manifest]', 'cache.updated', {
+    expect(records('cache.updated')[1]).toMatchObject({
+      cacheStatus: 'updated',
       reason: 'refresh',
       previousEtag: '"v1"',
       etag: '"v2"',
       count: 1,
+      entries: [firstEntry],
+      httpStatus: 200,
       durationMs: expect.any(Number)
     })
 
     await cache.read(schedule)
     await tasks.shift()?.()
-    // Rejected data must not announce a cache update or change the version in hit logs.
-    expect(error).toHaveBeenCalledWith(
-      '[use-case-manifest]',
-      'fetch.failed',
-      expect.objectContaining({ retainedCache: true })
-    )
-    await cache.read(schedule)
-    expect(info).toHaveBeenLastCalledWith('[use-case-manifest]', 'cache.hit', {
+    // Rejected data must retain the previous entries and validator in subsequent logs.
+    expect(records('fetch.failed')[0]).toMatchObject({
+      cacheStatus: 'retained',
+      retainedCache: true,
       etag: '"v2"',
-      count: 1
+      count: 1,
+      entries: [firstEntry]
     })
-    expect(info.mock.calls.filter((call) => call[1] === 'cache.updated')).toHaveLength(2)
-    expect(info.mock.calls.filter((call) => call[1] === 'cache.hit')).toHaveLength(4)
+    await cache.read(schedule)
+    expect(records('cache.hit').at(-1)).toMatchObject({
+      cacheStatus: 'hit',
+      etag: '"v2"',
+      count: 1,
+      entries: [firstEntry]
+    })
+    expect(records('cache.updated')).toHaveLength(2)
+    expect(records('cache.hit')).toHaveLength(4)
     const logs = JSON.stringify([...info.mock.calls, ...error.mock.calls])
     expect(logs).not.toContain(url)
-    expect(logs).not.toContain(manifest[0].title)
+    expect(logs).not.toContain('signature=secret')
+    expect(logs).not.toContain('[Object]')
   })
 
   test('rejects an unsolicited 304 and logs cache events only through console', async () => {
@@ -240,6 +270,13 @@ describe('use-case manifest cache', () => {
     await expect(createUseCaseManifestCache(url).read(() => {})).rejects.toThrow()
     expect(info).toHaveBeenCalled()
     expect(error).toHaveBeenCalled()
+    expect(JSON.parse(error.mock.calls[0][2])).toMatchObject({
+      cacheStatus: 'miss',
+      retainedCache: false,
+      count: 0,
+      entries: [],
+      httpStatus: 304
+    })
     expect(JSON.stringify(error.mock.calls)).not.toContain(url)
   })
 })
