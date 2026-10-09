@@ -246,3 +246,23 @@ test('degrades non-base64 notebook figure values instead of aborting the parse',
   expect(run?.outputs[1].data?.['image/png']).toBe('science-asset:0')
   expect(result.resources).toHaveLength(1)
 })
+
+test('degrades multi-line array image payloads instead of throwing', async () => {
+  // nbformat allows image payloads as string[]; a bare replace() on the array
+  // would throw TypeError and abort the whole package parse.
+  const sample = buildRunPackage([
+    {
+      executionInvocationId: 'inv-1',
+      outputs: [
+        { type: 'execute_result', data: { 'image/png': [PNG_BASE64, PNG_BASE64] } },
+        { type: 'execute_result', data: { 'image/png': PNG_BASE64 } }
+      ]
+    }
+  ])
+  const result = await parsePackage(new Blob([sample.bytes as BlobPart]), 'array-figure')
+  const group = result.session.items.find((item) => item.type === 'activity-group')
+  const run = group?.type === 'activity-group' ? group.activities[0].run : undefined
+  expect(Array.isArray(run?.outputs[0].data?.['image/png'])).toBe(true)
+  expect(run?.outputs[1].data?.['image/png']).toBe('science-asset:0')
+  expect(result.resources).toHaveLength(1)
+})

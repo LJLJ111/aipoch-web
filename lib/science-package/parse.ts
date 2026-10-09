@@ -227,7 +227,9 @@ export async function parsePackage(archive: Blob, slug: string) {
       const normalized = { ...(deep(output) as NormalizedOutput) }
       for (const [mime, extension] of Object.entries(NOTEBOOK_IMAGE_EXTENSIONS)) {
         const image = normalized.data?.[mime]
-        if (!image) continue
+        // nbformat allows image payloads as string[] (multi-line base64); only
+        // plain strings reach the decoder, anything else stays untouched.
+        if (typeof image !== 'string' || !image) continue
         // Only decode values that are actually base64: absolute paths, sanitized
         // $DATA/… values, and anything malformed stay untouched. A throw from
         // atob would abort the whole package parse, so a bad figure degrades

@@ -55,13 +55,8 @@ const controls = {
   }
 } as const
 
-/**
- * Resolve an internal asset link to a preview target, or null when no in-site
- * preview exists for the type. The package parser appends `#<filename>` to
- * blob asset URLs (img/fetch ignore the fragment) so the real name survives
- * even when the link label has no extension; strip it before fetching.
- */
-export const resolveAssetLinkTarget = (href: string, label: string): PreviewFile | null => {
+/** Real file name carried in the blob URL fragment, else the label/URL tail. */
+const assetLinkFileName = (href: string, label: string): { name: string; url: string } => {
   const hashIndex = href.indexOf('#')
   const url = hashIndex === -1 ? href : href.slice(0, hashIndex)
   let fragmentName = ''
@@ -74,7 +69,18 @@ export const resolveAssetLinkTarget = (href: string, label: string): PreviewFile
     }
   }
   const urlName = url.split('/').pop() ?? ''
-  const name = fragmentName || label || urlName || href
+  return { name: fragmentName || label || urlName || href, url }
+}
+
+/**
+ * Resolve an internal asset link to a preview target, or null when no in-site
+ * preview exists for the type. The package parser appends `#<filename>` to
+ * blob asset URLs (img/fetch ignore the fragment) so the real name survives
+ * even when the link label has no extension; strip it before fetching.
+ */
+export const resolveAssetLinkTarget = (href: string, label: string): PreviewFile | null => {
+  const { name, url } = assetLinkFileName(href, label)
+  const urlName = url.split('/').pop() ?? ''
   if (previewKindFor(name)) return { name, url }
   if (urlName && urlName !== name && previewKindFor(urlName)) return { name: urlName, url }
   return null
@@ -102,6 +108,17 @@ const linkComponent: Components['a'] = ({ node: _node, href, children, ...props 
         </a>
       )
     }
+  }
+  if (href?.startsWith('blob:')) {
+    // A blob's served type is whatever the file really is — an svg would run
+    // scripts if opened as a top-level document — so non-previewable package
+    // links download instead of navigating.
+    const { name } = assetLinkFileName(href, typeof children === 'string' ? children : '')
+    return (
+      <a {...props} href={href} download={name || true}>
+        {children}
+      </a>
+    )
   }
   return (
     <a {...props} href={href} target="_blank" rel="noreferrer">

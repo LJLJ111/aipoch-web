@@ -19,7 +19,7 @@ type DetailSection =
   | { kind: 'summary'; summary: ToolSummary; file?: boolean }
   | { kind: 'markdown'; label: string; text: string }
   | { kind: 'packages'; label: string; packages: string[] }
-  | { kind: 'image'; label: string; url: string }
+  | { kind: 'image'; label: string; url: string; mimeType: string }
 
 type ActivityDetails = {
   displayName: string
@@ -210,7 +210,7 @@ const notebookOutputSections = (output: NormalizedOutput): DetailSection[] => {
     for (const mime of ['image/png', 'image/jpeg'] as const) {
       const image = data[mime]
       if (typeof image === 'string' && (image.startsWith('/') || image.startsWith('blob:'))) {
-        sections.push({ kind: 'image', label: 'Figure', url: image })
+        sections.push({ kind: 'image', label: 'Figure', url: image, mimeType: mime })
       }
     }
   }
@@ -444,7 +444,9 @@ const SectionBody = ({ section }: { section: DetailSection }) => {
       return (
         <button
           type="button"
-          onClick={() => openPreview?.({ name: section.label, url: section.url })}
+          onClick={() =>
+            openPreview?.({ name: section.label, url: section.url, mimeType: section.mimeType })
+          }
           className="block w-fit cursor-pointer overflow-hidden rounded-md border border-border-200 bg-bg-000"
           title={`Preview ${section.label}`}
         >
