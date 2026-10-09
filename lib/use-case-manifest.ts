@@ -111,17 +111,24 @@ export const createUseCaseManifestCache = (url: string) => {
       if (response.status === 304) {
         if (!snapshot?.etag) throw new Error('Unexpected 304 without a cached validator')
         // biome-ignore lint/suspicious/noConsole: Manifest diagnostics are intentionally console-only.
-        console.info(LOG_PREFIX, 'fetch.not-modified', { durationMs: Date.now() - startedAt })
+        console.info(LOG_PREFIX, 'cache.unchanged', {
+          etag: snapshot.etag,
+          count: snapshot.entries.length,
+          durationMs: Date.now() - startedAt
+        })
         return snapshot
       }
       if (response.status !== 200) throw new Error(`Manifest HTTP ${response.status}`)
       const entries = parseUseCaseManifest(await response.json(), url)
+      const previous = snapshot
       // Publish only a fully validated snapshot with the validator from this GET.
       snapshot = { entries, etag: response.headers.get('etag') }
       // biome-ignore lint/suspicious/noConsole: Manifest diagnostics are intentionally console-only.
-      console.info(LOG_PREFIX, 'fetch.updated', {
+      console.info(LOG_PREFIX, 'cache.updated', {
+        reason: previous ? 'refresh' : 'initial-load',
+        previousEtag: previous?.etag ?? null,
+        etag: snapshot.etag,
         count: entries.length,
-        hasEtag: Boolean(snapshot.etag),
         durationMs: Date.now() - startedAt
       })
       return snapshot
@@ -149,9 +156,13 @@ export const createUseCaseManifestCache = (url: string) => {
 
   const read = async (schedule: ScheduleAfterResponse): Promise<UseCaseManifestEntry[]> => {
     const current = snapshot
-    if (!current) return (await refresh()).entries
+    if (!current) {
+      // biome-ignore lint/suspicious/noConsole: Manifest diagnostics are intentionally console-only.
+      console.info(LOG_PREFIX, 'cache.miss')
+      return (await refresh()).entries
+    }
     // biome-ignore lint/suspicious/noConsole: Manifest diagnostics are intentionally console-only.
-    console.info(LOG_PREFIX, 'cache.hit', { count: current.entries.length })
+    console.info(LOG_PREFIX, 'cache.hit', { etag: current.etag, count: current.entries.length })
     const observedChecks = completedChecks
     schedule(async () => {
       // Delayed callbacks from the same request wave need not check twice.

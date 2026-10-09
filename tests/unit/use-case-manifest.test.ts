@@ -169,6 +169,69 @@ describe('use-case manifest cache', () => {
     expect(fetcher.mock.calls[2][1].headers).toEqual({})
   })
 
+  test('logs cache misses, every hit, unchanged checks and successful snapshot updates', async () => {
+    const info = spyOn(console, 'info').mockImplementation(() => {})
+    const error = spyOn(console, 'error').mockImplementation(() => {})
+    globalThis.fetch = mock()
+      .mockResolvedValueOnce(body('"v1"'))
+      .mockResolvedValueOnce(new Response(null, { status: 304 }))
+      .mockResolvedValueOnce(body('"v2"', [manifest[0]]))
+      .mockResolvedValueOnce(body('"invalid"', {})) as unknown as typeof fetch
+    const cache = createUseCaseManifestCache(url)
+    const tasks: Array<() => Promise<void>> = []
+    const schedule = (task: () => Promise<void>) => tasks.push(task)
+
+    await cache.read(schedule)
+    expect(info).toHaveBeenCalledWith('[use-case-manifest]', 'cache.miss')
+    expect(info).toHaveBeenCalledWith('[use-case-manifest]', 'cache.updated', {
+      reason: 'initial-load',
+      previousEtag: null,
+      etag: '"v1"',
+      count: 9,
+      durationMs: expect.any(Number)
+    })
+
+    await cache.read(schedule)
+    expect(info).toHaveBeenCalledWith('[use-case-manifest]', 'cache.hit', {
+      etag: '"v1"',
+      count: 9
+    })
+    await tasks.shift()?.()
+    expect(info).toHaveBeenCalledWith('[use-case-manifest]', 'cache.unchanged', {
+      etag: '"v1"',
+      count: 9,
+      durationMs: expect.any(Number)
+    })
+    await cache.read(schedule)
+    await tasks.shift()?.()
+    expect(info).toHaveBeenCalledWith('[use-case-manifest]', 'cache.updated', {
+      reason: 'refresh',
+      previousEtag: '"v1"',
+      etag: '"v2"',
+      count: 1,
+      durationMs: expect.any(Number)
+    })
+
+    await cache.read(schedule)
+    await tasks.shift()?.()
+    // Rejected data must not announce a cache update or change the version in hit logs.
+    expect(error).toHaveBeenCalledWith(
+      '[use-case-manifest]',
+      'fetch.failed',
+      expect.objectContaining({ retainedCache: true })
+    )
+    await cache.read(schedule)
+    expect(info).toHaveBeenLastCalledWith('[use-case-manifest]', 'cache.hit', {
+      etag: '"v2"',
+      count: 1
+    })
+    expect(info.mock.calls.filter((call) => call[1] === 'cache.updated')).toHaveLength(2)
+    expect(info.mock.calls.filter((call) => call[1] === 'cache.hit')).toHaveLength(4)
+    const logs = JSON.stringify([...info.mock.calls, ...error.mock.calls])
+    expect(logs).not.toContain(url)
+    expect(logs).not.toContain(manifest[0].title)
+  })
+
   test('rejects an unsolicited 304 and logs cache events only through console', async () => {
     const info = spyOn(console, 'info').mockImplementation(() => {})
     const error = spyOn(console, 'error').mockImplementation(() => {})
