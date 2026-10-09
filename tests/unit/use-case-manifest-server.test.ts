@@ -4,7 +4,10 @@ import manifest from '../../mocks/fixtures/use-case-manifest.json'
 mock.module('server-only', () => ({}))
 const afterResponse = mock((_task: () => Promise<void>) => {})
 mock.module('next/server', () => ({ after: afterResponse }))
-mock.module('@/lib/config', () => ({ INTERNAL_API_URL: 'http://127.0.0.1:3203/api' }))
+mock.module('@/lib/config', () => ({
+  API_URL: 'http://127.0.0.1:3203/api',
+  STATIC_ASSETS_ORIGIN: 'https://assets.example.test///'
+}))
 const originalFetch = globalThis.fetch
 const originalMocking = process.env.NEXT_PUBLIC_API_MOCKING
 const originalNodeEnv = process.env.NODE_ENV
@@ -26,20 +29,34 @@ test('production ignores the development manifest even when the mock flag is set
   const { fetchUseCaseList } = await import('../../service/open-science-use-cases.server')
   expect(await fetchUseCaseList()).toHaveLength(9)
   expect(fetcher.mock.calls[0][0]).toBe(
-    'https://statics.aipoch.com/open-science/usecases/manifest.json'
+    'https://assets.example.test/open-science/usecases/manifest.json'
   )
 })
 
-test('uses the published CDN manifest outside mock development', async () => {
+test('uses the configured static origin for the manifest and resources outside mock development', async () => {
   delete process.env.NEXT_PUBLIC_API_MOCKING
   const fetcher = mock(async (_input: unknown) => Response.json(manifest))
   globalThis.fetch = fetcher as unknown as typeof fetch
-  const { fetchUseCaseList } = await import('../../service/open-science-use-cases.server')
-  expect(await fetchUseCaseList()).toHaveLength(9)
+  const { fetchUseCaseList, fetchUseCaseDetail } = await import(
+    '../../service/open-science-use-cases.server'
+  )
+  const entries = await fetchUseCaseList()
+  expect(entries).toHaveLength(9)
   expect(fetcher.mock.calls[0][0]).toBe(
-    'https://statics.aipoch.com/open-science/usecases/manifest.json'
+    'https://assets.example.test/open-science/usecases/manifest.json'
   )
   expect(afterResponse).not.toHaveBeenCalled()
+  const detail = await fetchUseCaseDetail(manifest[0].name)
+  const base =
+    'https://assets.example.test/open-science/usecases/can-a-simple-algorithm-beat-ai-at-wordle/Can%20a%20Simple%20Algorithm%20Beat%20AI%20at%20Wordle'
+  expect(detail?.package?.url).toBe(`${base}.science`)
+  expect(detail?.coverImage).toBe(`${base}.png`)
+  expect(detail?.introductionUrl).toBe(`${base}.md`)
+  const release = manifest.find((item) => item.case.release_url)
+  expect(release).toBeDefined()
+  expect((await fetchUseCaseDetail(release?.name ?? ''))?.package?.url).toBe(
+    release?.case.release_url
+  )
 })
 
 test('maps manifest details without inventing dates or reports', async () => {
@@ -82,6 +99,6 @@ test('reports a cold manifest failure without falling back to a different catalo
   expect(await fetchUseCaseList()).toBeNull()
   expect(fetcher.mock.calls).toHaveLength(1)
   expect(fetcher.mock.calls[0][0]).toBe(
-    'https://statics.aipoch.com/open-science/usecases/manifest.json'
+    'https://assets.example.test/open-science/usecases/manifest.json'
   )
 })

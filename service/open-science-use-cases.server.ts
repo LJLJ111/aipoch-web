@@ -1,16 +1,16 @@
 import 'server-only'
 import { after } from 'next/server'
 import { cache } from 'react'
-import { INTERNAL_API_URL } from '@/lib/config'
+import { API_URL, STATIC_ASSETS_ORIGIN } from '@/lib/config'
 import { createUseCaseManifestCache } from '@/lib/use-case-manifest'
 import type { UseCaseDetail, UseCaseIndexEntry } from '@/lib/use-case-types'
 
-// Public publishing location; no credentials are needed by the server or browser.
-const USE_CASE_MANIFEST_URL = 'https://statics.aipoch.com/open-science/usecases/manifest.json'
+// Manifest-relative resources share the configured public static asset origin.
+const USE_CASE_MANIFEST_URL = `${STATIC_ASSETS_ORIGIN.replace(/\/+$/, '')}/open-science/usecases/manifest.json`
 
 const manifestSource = (): string => {
   if (process.env.NODE_ENV !== 'production' && process.env.NEXT_PUBLIC_API_MOCKING === 'enabled') {
-    return `${new URL(INTERNAL_API_URL).origin}/use-case-manifest/manifest.json`
+    return `${new URL(API_URL).origin}/use-case-manifest/manifest.json`
   }
   return USE_CASE_MANIFEST_URL
 }

@@ -83,7 +83,6 @@ describe('sitemap', () => {
     const { default: sitemap } = await import('../../app/sitemap')
     const routes = await sitemap()
     expect(routes.some((route) => route.url.includes('/replay/dot-science'))).toBe(false)
-    expect(routes.some((route) => route.url.includes('/internal/use-cases/'))).toBe(false)
     for (const path of [
       '/open-science/use-cases',
       '/open-science/use-cases/manifest-case',

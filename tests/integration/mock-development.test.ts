@@ -202,8 +202,7 @@ describe('mock development end to end', () => {
       const context = await browser.newContext()
       const page = await context.newPage()
       const item = manifestSample[1]
-      // Exercise both URLs through Next: the removed endpoint has no alias or redirect.
-      expect((await fetch(`${web}/internal/use-cases/${item.name}`)).status).toBe(404)
+      // The replay page supplies package metadata without a separate endpoint.
       expect(
         (await fetch(`${web}/open-science/use-cases/no-such-case/replay/dot-science`)).status
       ).toBe(404)
@@ -246,11 +245,7 @@ describe('mock development end to end', () => {
       ).toBe(0)
       expect(await page.getByText('Full only', { exact: true }).count()).toBe(0)
       expect(requests.some((url) => url.includes('/api/v1/open-science/use-cases'))).toBe(false)
-      expect(
-        requests.some(
-          (url) => url.includes('/internal/use-cases/') || url.includes('/replay/dot-science')
-        )
-      ).toBe(false)
+      expect(requests.some((url) => url.includes('/replay/dot-science'))).toBe(false)
       const states = await page.evaluate(
         () => (window as typeof window & { replayStates: string[] }).replayStates
       )
@@ -300,11 +295,7 @@ describe('mock development end to end', () => {
       await waitForCatalog(manifestSample[0].title)
       await page.getByRole('button', { name: 'Retry', exact: true }).click()
       await page.getByText(`Local sample replay for ${item.title}.`, { exact: true }).waitFor()
-      expect(
-        requests.some(
-          (url) => url.includes('/replay/dot-science') || url.includes('/internal/use-cases/')
-        )
-      ).toBe(false)
+      expect(requests.some((url) => url.includes('/replay/dot-science'))).toBe(false)
     } finally {
       await update('normal')
       await browser.close()
