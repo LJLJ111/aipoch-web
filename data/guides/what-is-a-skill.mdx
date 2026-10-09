@@ -15,17 +15,17 @@ Each Skill contains detailed instructions and optional resources (templates, pro
 
 Unlike prompts, which are one-off instructions for a single conversation, Skills persist across sessions. You define your methodology once, and the assistant applies it consistently whenever that type of task arises.
 
-<div className="grid *:bg-white/40 gap-6 my-8">
-    <div className=" dark:bg-surface-dark border border-gray-200 dark:border-border-dark p-6 rounded-lg shadow-sm">
-        <h4 className="font-bold text-base mb-2 flex items-center gap-2"><Check size={16} className="text-green-600"/> Consistency across the lab</h4>
+<div className="grid gap-6 my-8">
+    <div className="border border-[#e7e5de] bg-white p-6">
+        <h4 className="font-bold text-base mb-2 flex items-center gap-2"><Check size={16} className="text-[#607a32]"/> Consistency across the lab</h4>
         <p className="text-sm text-gray-600 dark:text-gray-400">A protocol review Skill ensures the same checklist gets applied whether the work is done Monday morning or Friday evening, by you or a colleague. The methodology is encoded in the Skill itself.</p>
     </div>
-    <div className=" dark:bg-surface-dark border border-gray-200 dark:border-border-dark p-6 rounded-lg shadow-sm">
-            <h4 className="font-bold text-base mb-2 flex items-center gap-2"><Check size={16} className="text-green-600"/> Knowledge that stays</h4>
+    <div className="border border-[#e7e5de] bg-white p-6">
+            <h4 className="font-bold text-base mb-2 flex items-center gap-2"><Check size={16} className="text-[#607a32]"/> Knowledge that stays</h4>
             <p className="text-sm text-gray-600 dark:text-gray-400">Expertise that would otherwise exist only in someone's head can be captured and shared. When a senior PI develops an effective approach to grant writing or data analysis, that approach can become a Skill that benefits the entire team.</p>
     </div>
-    <div className=" dark:bg-surface-dark border border-gray-200 dark:border-border-dark p-6 rounded-lg shadow-sm">
-            <h4 className="font-bold text-base mb-2 flex items-center gap-2"><Check size={16} className="text-green-600"/> Less repetition</h4>
+    <div className="border border-[#e7e5de] bg-white p-6">
+            <h4 className="font-bold text-base mb-2 flex items-center gap-2"><Check size={16} className="text-[#607a32]"/> Less repetition</h4>
             <p className="text-sm text-gray-600 dark:text-gray-400">Instead of explaining preferences and requirements at the start of each conversation, the Skill provides that context automatically. The agent already knows how you want the work done.</p>
     </div>
 </div>
@@ -34,7 +34,7 @@ Unlike prompts, which are one-off instructions for a single conversation, Skills
 
 At its core, a Skill is a folder containing a SKILL.md file:
 
-<div className="bg-[#1e1e1e] text-gray-300 p-6 rounded-md font-mono text-sm my-6 shadow-lg border border-gray-800">
+<div className="bg-[#111] text-[#e7e5de] p-6 font-mono text-sm my-6 overflow-x-auto">
     <div className="flex items-center gap-2 text-yellow-500 mb-2">
             <Folder size={16} /> <span>irb-application/</span>
     </div>
@@ -59,10 +59,10 @@ The SKILL.md file is a simple text document with a small header (the Skill's nam
 An open standard
 Agent Skills were created by Anthropic and initially designed for their Claude model. However, the format became an open standard that other providers are beginning to adopt.
 
-<div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4 rounded flex gap-4 items-start">
-    <div className="p-1 bg-blue-100 dark:bg-blue-800 rounded-full text-blue-600 dark:text-blue-200"><Terminal size={16} /></div>
+<div className="bg-[#f5f0e7] border border-[#e7e5de] border-l-2 border-l-[#d08d23] p-4 flex gap-4 items-start">
+    <div className="p-1 text-[#d08d23]"><Terminal size={16} /></div>
     <div>
-        <h5 className="font-bold text-sm mb-1 text-blue-900 dark:text-blue-100">Portability is key</h5>
-        <p className="text-xs text-blue-800 dark:text-blue-200 leading-relaxed">A Skill written today for Claude should work with other AI assistants as they add support for the format. Rather than building workflows locked to a single vendor, Skills aim to be a common language for teaching AI agents how to handle specialized tasks.</p>
+        <h5 className="font-bold text-sm mb-1 text-[#111]">Portability is key</h5>
+        <p className="text-xs text-[#61615c] leading-relaxed">A Skill written today for Claude should work with other AI assistants as they add support for the format. Rather than building workflows locked to a single vendor, Skills aim to be a common language for teaching AI agents how to handle specialized tasks.</p>
     </div>
 </div>

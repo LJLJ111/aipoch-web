@@ -1,0 +1,75 @@
+.article {
+  padding-inline: 41px;
+  overflow-wrap: anywhere;
+}
+.article :global(.markdown-body) {
+  color: #61615c;
+  font-size: 14px;
+  line-height: 24px;
+}
+.article :global(.markdown-body) :is(h1, h2, h3, h4, h5, h6) {
+  scroll-margin-top: calc(var(--nav-h, 80px) + 24px);
+}
+.article :global(.markdown-body) :is(p, li) {
+  color: #61615c;
+  line-height: 24px;
+}
+.article :global(.markdown-body) :is(h1, h2) {
+  margin-top: 32px;
+  margin-bottom: 16px;
+  color: #111;
+  font-family: Georgia, serif;
+  font-weight: 400;
+  font-size: 32px;
+  line-height: 40px;
+  letter-spacing: -0.5px;
+}
+.article :global(.markdown-body) h3 {
+  margin-top: 28px;
+  color: #111;
+  font-weight: 600;
+  font-size: 20px;
+  line-height: 28px;
+}
+.article :global(.markdown-body) :is(h4, h5, h6) {
+  color: #111;
+}
+.article :global(.markdown-body) a {
+  color: #111;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.article :global(.markdown-body) pre {
+  margin-block: 20px;
+  border-radius: 0;
+  padding: 8px 12px;
+  background: #111;
+  color: #e7e5de;
+  font-size: 12px;
+  line-height: 20px;
+}
+.article :global(.markdown-body) :not(pre) > code {
+  border-radius: 0;
+  background: #e7e5de;
+  color: #111;
+}
+.article :global(.markdown-body) :is(hr, table, th, td) {
+  border-color: #e7e5de;
+}
+.article :global(.markdown-body) th {
+  background: #e7e5de;
+  color: #111;
+}
+.article :global(.markdown-body) td {
+  background: white;
+}
+.article :global(.markdown-body) blockquote {
+  border-color: #d08d23;
+  border-radius: 0;
+  background: #f5f0e7;
+}
+@media (max-width: 767px) {
+  .article {
+    padding-inline: 0;
+  }
+}

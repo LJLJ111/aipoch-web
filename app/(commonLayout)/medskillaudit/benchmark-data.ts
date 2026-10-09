@@ -45,7 +45,8 @@ export const overviewStages = [
   {
     title: 'Core Capability — Static',
     icon: 'FileText',
-    description: "Scores a skill's design and contract across 8 quality dimensions. Weighted at 40%."
+    description:
+      "Scores a skill's design and contract across 8 quality dimensions. Weighted at 40%."
   },
   {
     title: 'Medical Task — Dynamic',
@@ -56,7 +57,8 @@ export const overviewStages = [
   {
     title: 'Final Score',
     icon: 'Clock',
-    description: 'Static × 40% + Dynamic × 60% → one score that maps to a clear deployment disposition.'
+    description:
+      'Static × 40% + Dynamic × 60% → one score that maps to a clear deployment disposition.'
   }
 ] as const
 
@@ -145,7 +147,8 @@ export const staticDimensions = [
   {
     title: 'Agent Usability',
     icon: 'ClipboardList',
-    description: 'A clear, machine-actionable contract an autonomous agent can invoke without ambiguity.'
+    description:
+      'A clear, machine-actionable contract an autonomous agent can invoke without ambiguity.'
   },
   {
     title: 'Human Usability',
@@ -227,11 +230,13 @@ export const pipelineSteps = [
   },
   {
     title: 'Static Evaluation',
-    description: 'Scores 25 criteria across 8 categories (ISO 25010, OpenSSF, agent-specific) → out of 100.'
+    description:
+      'Scores 25 criteria across 8 categories (ISO 25010, OpenSSF, agent-specific) → out of 100.'
   },
   {
     title: 'Classification',
-    description: 'Routes the skill to one of 5 categories and detects its execution mode (A / B / C / D).'
+    description:
+      'Routes the skill to one of 5 categories and detects its execution mode (A / B / C / D).'
   },
   {
     title: 'Dynamic Input Generation',
@@ -253,7 +258,8 @@ export const pipelineSteps = [
   },
   {
     title: 'Optimization Report',
-    description: 'Calculates the final score and emits P0 / P1 / P2 recommendations plus machine-readable JSON.'
+    description:
+      'Calculates the final score and emits P0 / P1 / P2 recommendations plus machine-readable JSON.'
   }
 ] as const
 
@@ -319,11 +325,13 @@ export const validationStudy = {
   keyResults: [
     {
       value: '0.449',
-      label: 'System–expert ICC(2,1)\nvs. human baseline 0.300'
+      label: 'System–expert ICC(2,1)\nvs. human baseline 0.300',
+      comparison: { reference: '0.300', referenceLabel: 'Human', scale: 0.6 }
     },
     {
       value: '9.5',
-      label: "System–consensus divergence (SD)\ntighter than experts' 12.4"
+      label: "System–consensus divergence (SD)\ntighter than experts' 12.4",
+      comparison: { reference: '12.4', referenceLabel: 'Experts', scale: 15 }
     }
   ]
 } as const

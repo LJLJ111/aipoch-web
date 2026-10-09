@@ -22,7 +22,7 @@ export const metadata = medSkillAuditMetadata
 
 export default function MedSkillAuditPage() {
   return (
-    <main className="min-h-screen bg-[#E9E9E9]">
+    <main className="min-h-screen bg-[#f7f7f5]">
       <JsonLd data={buildMedSkillAuditStructuredData()} />
       <BenchmarkShell>
         <BenchmarkHero />

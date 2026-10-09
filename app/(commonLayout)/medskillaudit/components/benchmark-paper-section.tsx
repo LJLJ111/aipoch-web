@@ -37,7 +37,7 @@ export const BenchmarkPaperSection = () => (
               href={benchmarkLinks.paper}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex min-h-11 items-center gap-2 bg-primary px-5 text-xs font-bold uppercase tracking-[0.06em] text-black transition-colors hover:bg-primary/90"
+              className="inline-flex min-h-11 items-center gap-2 bg-white px-5 text-sm font-semibold uppercase text-black transition-colors hover:bg-primary/90"
             >
               Read on arXiv →
             </a>
@@ -45,23 +45,51 @@ export const BenchmarkPaperSection = () => (
               href={benchmarkLinks.github}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex min-h-11 items-center gap-2 border border-white/30 px-5 text-xs font-bold uppercase tracking-[0.06em] text-white transition-colors hover:border-white"
+              className="inline-flex min-h-11 items-center gap-2 border border-white/30 px-5 text-sm font-semibold uppercase text-white transition-colors hover:border-white"
             >
               View skill-auditor
             </a>
           </div>
         </div>
-        <aside className="border border-white/15 bg-white/[0.04] p-6">
+        <aside className="self-start border border-[#2a2a2a] bg-[#232323] p-6">
           <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/55">
             Key Results
           </h3>
           <div className="mt-5 divide-y divide-white/10">
             {validationStudy.keyResults.map((result) => (
-              <div key={result.value} className="flex items-start justify-between gap-5 py-5">
-                <span className="text-3xl font-bold text-green-500">{result.value}</span>
-                <span className="max-w-[260px] whitespace-pre-line text-right text-xs leading-5 text-white/60">
+              <div key={result.value} className="flex flex-col gap-3 py-5">
+                <span className="whitespace-pre-line text-xs leading-5 text-white/60">
                   {result.label}
                 </span>
+                <span className="font-[Georgia] text-5xl font-normal text-[#afd670]">
+                  {result.value}
+                </span>
+                <div aria-hidden className="space-y-2 text-[11px] font-semibold text-white">
+                  <div className="grid grid-cols-[67px_minmax(0,1fr)_40px] items-center gap-2">
+                    <span>SYSTEM</span>
+                    <div className="h-2 bg-[#4a4a4a]">
+                      <div
+                        className="h-full bg-[#afd670]"
+                        style={{
+                          width: `${(Number(result.value) / result.comparison.scale) * 100}%`
+                        }}
+                      />
+                    </div>
+                    <span>{result.value}</span>
+                  </div>
+                  <div className="grid grid-cols-[67px_minmax(0,1fr)_40px] items-center gap-2">
+                    <span className="uppercase">{result.comparison.referenceLabel}</span>
+                    <div className="h-2 bg-[#4a4a4a]">
+                      <div
+                        className="h-full bg-[#999]"
+                        style={{
+                          width: `${(Number(result.comparison.reference) / result.comparison.scale) * 100}%`
+                        }}
+                      />
+                    </div>
+                    <span>{result.comparison.reference}</span>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -69,12 +97,12 @@ export const BenchmarkPaperSection = () => (
       </div>
     </BenchmarkSection>
 
-    <section className="bg-[#E9E9E9]">
+    <section className="bg-[#f7f7f5]">
       <div className="mx-auto max-w-[1200px] px-5 py-14 text-center sm:px-8 md:px-10 md:py-20">
-        <h2 className="text-4xl font-bold tracking-normal sm:text-5xl">
-          Audit your skill <em className="font-normal text-[#555555]">before</em> you deploy it.
+        <h2 className="font-[Georgia] text-4xl font-normal leading-[1.17] tracking-[-1px] sm:text-5xl sm:tracking-[-2px]">
+          Audit your skill <em className="font-normal text-[#61615c]">before</em> you deploy it.
         </h2>
-        <p className="mx-auto mt-5 max-w-[600px] text-[15px] leading-7 text-[#555555]">
+        <p className="mx-auto mt-5 max-w-[600px] text-[15px] leading-6 text-[#61615c]">
           {benchmarkCta.description}
         </p>
         <div className="mt-7 flex flex-wrap justify-center gap-3">
@@ -82,24 +110,24 @@ export const BenchmarkPaperSection = () => (
             href={benchmarkLinks.github}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex min-h-11 items-center gap-2 border border-black bg-black px-5 text-xs font-bold uppercase tracking-[0.06em] text-white transition-colors hover:bg-[#2A2A2A]"
+            className="inline-flex min-h-11 items-center gap-2 border border-black bg-black px-5 text-sm font-semibold uppercase text-white transition-colors hover:bg-[#2A2A2A]"
           >
             Get skill-auditor →
           </a>
           <button
             type="button"
             disabled
-            className="inline-flex min-h-11 items-center gap-2 border border-black px-5 text-xs font-bold uppercase tracking-[0.06em] text-black transition-colors hover:bg-black/5"
+            className="inline-flex min-h-11 items-center gap-2 border border-[#e5e7eb] bg-white px-5 text-sm font-semibold uppercase text-black transition-colors hover:bg-black/5"
           >
             Evaluate a Skill
           </button>
         </div>
-        <div className="mt-6 inline-flex max-w-full overflow-x-auto bg-[#151515] px-4 py-3 font-mono text-[12.5px] text-[#F1F1F1]">
-          <span className="mr-2 text-primary">$</span>
+        <div className="mt-6 inline-flex max-w-full overflow-x-auto bg-[#e7e5de] px-3 py-2 font-mono text-[12.5px] text-[#111]">
+          <span className="mr-2">$</span>
           <code>{benchmarkCta.command}</code>
         </div>
       </div>
-      <p className="mx-auto max-w-[980px] px-5 pb-8 text-center text-xs leading-6 text-[#707070] sm:px-8 md:px-10">
+      <p className="mx-auto max-w-[980px] px-5 pb-8 text-center text-xs leading-6 text-[#61615c] sm:px-8 md:px-10">
         {benchmarkDisclaimer}
       </p>
     </section>

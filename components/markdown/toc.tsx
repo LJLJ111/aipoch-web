@@ -2,6 +2,7 @@
 
 import { List } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { DesignIcon } from '@/components/design-icon'
 import { cn } from '@/lib/utils'
 
 interface TocItem {
@@ -13,12 +14,14 @@ interface TocItem {
 interface TableOfContentsProps {
   toc: TocItem[]
   className?: string
-  variant?: 'default' | 'blog'
+  variant?: 'default' | 'blog' | 'skill' | 'guide'
 }
 
 export function TableOfContents({ toc, className, variant = 'default' }: TableOfContentsProps) {
   const [activeId, setActiveId] = useState<string>('')
   const isBlogVariant = variant === 'blog'
+  const isGuideVariant = variant === 'guide'
+  const isSkillVariant = variant === 'skill'
 
   const filteredToc = toc.filter((item) => item.depth <= 2)
 
@@ -60,10 +63,21 @@ export function TableOfContents({ toc, className, variant = 'default' }: TableOf
         className={cn(
           isBlogVariant
             ? 'pb-4'
-            : 'mb-4 flex h-8 items-center gap-2 text-xs font-medium uppercase tracking-wider text-amber-600'
+            : cn(
+                'mb-4 flex h-8 items-center gap-2 text-xs font-medium uppercase tracking-wider',
+                isGuideVariant
+                  ? 'font-mono tracking-[0.06em] text-[#61615c]'
+                  : isSkillVariant
+                    ? 'text-[#915600]'
+                    : 'text-amber-600'
+              )
         )}
       >
-        {!isBlogVariant && <List className="size-4" />}
+        {isGuideVariant ? (
+          <DesignIcon name="3e5fa" size={16} />
+        ) : (
+          !isBlogVariant && <List className="size-4" />
+        )}
         <span
           className={cn(
             isBlogVariant &&
@@ -73,10 +87,14 @@ export function TableOfContents({ toc, className, variant = 'default' }: TableOf
           On This Page
         </span>
       </div>
-      <ul className={cn(isBlogVariant ? 'flex flex-col gap-1.5' : 'space-y-2')}>
+      <ul
+        className={cn(
+          isBlogVariant ? 'flex flex-col gap-1.5' : isGuideVariant ? 'space-y-0' : 'space-y-2'
+        )}
+      >
         {filteredToc.map((item) => {
           const isActive = activeId === item.href.slice(1)
-          if (isBlogVariant) {
+          if (isBlogVariant || isGuideVariant) {
             return (
               <li key={item.href}>
                 <a
@@ -84,6 +102,7 @@ export function TableOfContents({ toc, className, variant = 'default' }: TableOf
                   className={cn(
                     'relative -ml-3 block py-1 pl-3 font-[Georgia] text-sm leading-5 text-[#2e2e2b] transition-colors',
                     'hover:bg-[#f5f0e7]',
+                    isGuideVariant && 'ml-0 px-3 py-2',
                     isActive &&
                       'bg-[#f5f0e7] before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-[#d08d23]'
                   )}
@@ -102,13 +121,23 @@ export function TableOfContents({ toc, className, variant = 'default' }: TableOf
                 item.depth === 1 && 'font-medium',
                 item.depth === 2 && 'pl-4',
                 isActive
-                  ? 'text-amber-600'
+                  ? isSkillVariant
+                    ? 'text-[#915600]'
+                    : 'text-amber-600'
                   : item.depth === 1
                     ? 'text-gray-900'
-                    : 'text-gray-600'
+                    : isSkillVariant
+                      ? 'text-[#6b6b66]'
+                      : 'text-gray-600'
               )}
             >
-              <a href={item.href} className="block py-1 transition-colors hover:text-amber-600">
+              <a
+                href={item.href}
+                className={cn(
+                  'block py-1 transition-colors',
+                  isSkillVariant ? 'hover:text-[#915600]' : 'hover:text-amber-600'
+                )}
+              >
                 {item.value}
               </a>
             </li>

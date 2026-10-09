@@ -1,0 +1,11 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="icon/check-square" clip-path="url(#clip0_0_4)">
+<path id="Vector" d="M12 0H0V12H12V0Z" fill="#607A32"/>
+<path id="Vector_2" d="M2.75 6.1L5.05 8.25L9.25 3.7" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round" stroke="white"/>
+</g>
+<defs>
+<clipPath id="clip0_0_4">
+<rect width="12" height="12" fill="white"/>
+</clipPath>
+</defs>
+</svg>

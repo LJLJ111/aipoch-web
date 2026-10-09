@@ -1,9 +1,14 @@
 import type { MetadataRoute } from 'next'
+import { HOMEPAGE_LAYOUT_LAST_MODIFIED } from '@/app/(commonLayout)/home/home-structured-data'
 import { MEDFLOW_PAGE_LAST_MODIFIED } from '@/app/(commonLayout)/medflow/medflow-metadata'
+import { MEDSKILLAUDIT_PAGE_LAST_MODIFIED } from '@/app/(commonLayout)/medskillaudit/medskillaudit-structured-data'
 import { OPEN_SCIENCE_PAGE_LAST_MODIFIED } from '@/app/(commonLayout)/open-science/open-science-metadata'
 import { toSchemaDate } from '@/app/(commonLayout)/open-science/open-science-structured-data'
+import { agentSkillPageLastModified } from '@/lib/agent-skill-page-metadata'
+import { BLOG_PAGE_LAST_MODIFIED, blogArticleLastModified } from '@/lib/blog-page-metadata'
 import { commonLayoutLastModified } from '@/lib/common-layout-metadata'
 import { INTERNAL_API_URL, SITE_DOMAIN } from '@/lib/config'
+import { guidePageLastModified } from '@/lib/guide-page-metadata'
 import { getAllGuides } from '@/lib/guides'
 import { fetchBlogSitemap } from '@/service/blog'
 import { fetchOpenScienceDownloadManifest } from '@/service/open-science-download'
@@ -17,13 +22,10 @@ const OPEN_SCIENCE_USE_CASES_LAST_MODIFIED = '2026-10-09'
 const OPEN_SCIENCE_USE_CASE_DETAIL_LAST_MODIFIED = '2026-10-09'
 // Browser package loading and worker parsing were updated on this date.
 const OPEN_SCIENCE_USE_CASE_REPLAY_LAST_MODIFIED = '2026-10-09'
-const BLOG_PAGE_LAST_MODIFIED = '2026-09-18'
-const HOMEPAGE_PAGE_LAST_MODIFIED = '2026-09-29'
+const AGENT_SKILLS_LIST_LAST_MODIFIED = '2026-09-23'
 
 // Disable cache, regenerate on every request
 export const dynamic = 'force-dynamic'
-
-const SEO_PAGE_LAST_MODIFIED = '2026-09-10'
 
 interface SitemapItem {
   url: string
@@ -94,7 +96,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes: MetadataRoute.Sitemap = [
     withReliableLastModified({
       url: SITE_DOMAIN,
-      lastModified: latestPageDate(SEO_PAGE_LAST_MODIFIED, HOMEPAGE_PAGE_LAST_MODIFIED),
+      lastModified: HOMEPAGE_LAYOUT_LAST_MODIFIED,
       changeFrequency: 'weekly',
       priority: 1.0
     }),
@@ -130,13 +132,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }),
     withReliableLastModified({
       url: `${SITE_DOMAIN}/agent-skills/list`,
-      lastModified: SEO_PAGE_LAST_MODIFIED,
+      lastModified: AGENT_SKILLS_LIST_LAST_MODIFIED,
       changeFrequency: 'weekly',
       priority: 0.8
     }),
     withReliableLastModified({
       url: `${SITE_DOMAIN}/medskillaudit`,
-      lastModified: SEO_PAGE_LAST_MODIFIED,
+      lastModified: MEDSKILLAUDIT_PAGE_LAST_MODIFIED,
       changeFrequency: 'monthly',
       priority: 0.8
     }),
@@ -151,7 +153,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const dynamicRoutes: MetadataRoute.Sitemap = skillsSitemap.map((item) =>
     withReliableLastModified({
       url: item.url,
-      lastModified: latestPageDate(item.last_modified, SEO_PAGE_LAST_MODIFIED),
+      lastModified: agentSkillPageLastModified(item.last_modified),
       changeFrequency: item.change_frequency || 'weekly',
       priority: item.priority ?? 0.8
     })
@@ -161,7 +163,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const blogRoutes: MetadataRoute.Sitemap = blogSitemap.map((item) =>
     withReliableLastModified({
       url: item.url,
-      lastModified: latestPageDate(item.last_modified, BLOG_PAGE_LAST_MODIFIED),
+      lastModified: blogArticleLastModified(item.last_modified),
       changeFrequency: (item.change_frequency as 'weekly' | 'monthly') || 'monthly',
       priority: item.priority ?? 0.7
     })
@@ -171,7 +173,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const guideRoutes: MetadataRoute.Sitemap = guides.map((guide) =>
     withReliableLastModified({
       url: `${SITE_DOMAIN}/guides/${guide.slug}`,
-      lastModified: guide.frontmatter.lastModified ?? SEO_PAGE_LAST_MODIFIED,
+      lastModified: guidePageLastModified(guide.frontmatter.lastModified),
       changeFrequency: 'weekly',
       priority: 0.7
     })

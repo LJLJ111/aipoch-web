@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 
-export const MEDFLOW_PAGE_LAST_MODIFIED = '2026-09-20'
+export const MEDFLOW_PAGE_LAST_MODIFIED = '2026-09-21'
 
 export const medFlowSeo = {
   title: 'MedFlow by AIPOCH | Biomedical Research Workflows',

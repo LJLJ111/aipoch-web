@@ -1,8 +1,11 @@
 import { buildAipochOrganizationSchema } from '@/lib/aipoch-organization'
+import { commonLayoutLastModified } from '@/lib/common-layout-metadata'
 import { SITE_DOMAIN } from '@/lib/config'
 import { createPageMetadata } from '@/lib/page-metadata'
 import { staticImage } from '@/lib/staticAsset'
 import { validationStudy } from './benchmark-data'
+
+export const MEDSKILLAUDIT_PAGE_LAST_MODIFIED = '2026-10-08'
 
 export const medSkillAuditSeo = {
   title: 'MedSkillAudit - Audit Framework for Medical Research Agent Skills · AIPOCH',
@@ -46,6 +49,7 @@ export const buildMedSkillAuditStructuredData = (): Record<string, unknown> => (
       name: medSkillAuditSeo.title,
       description: medSkillAuditSeo.description,
       about: { '@id': organizationId },
+      dateModified: commonLayoutLastModified(MEDSKILLAUDIT_PAGE_LAST_MODIFIED),
       breadcrumb: { '@id': breadcrumbId },
       mainEntity: { '@id': softwareId }
     },

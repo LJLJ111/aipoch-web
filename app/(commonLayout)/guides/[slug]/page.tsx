@@ -1,17 +1,19 @@
-import { ArrowLeft, ArrowRight, Clock } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { HighlightedText } from '@/components/highlighted-text'
+import { DesignIcon } from '@/components/design-icon'
+import { GuidesDirectory } from '@/components/guides-directory'
 import { JsonLd } from '@/components/json-ld'
 import { MarkdownRenderer } from '@/components/markdown'
 import { TableOfContents } from '@/components/markdown/toc'
-import { commonLayoutLastModified } from '@/lib/common-layout-metadata'
 import { SITE_DOMAIN } from '@/lib/config'
+import { guidePageLastModified } from '@/lib/guide-page-metadata'
 import { getAdjacentGuides, getAllGuides, getGuide } from '@/lib/guides'
 import { createPageMetadata } from '@/lib/page-metadata'
 import { staticAsset } from '@/lib/staticAsset'
 import { extractToc } from '@/lib/toc'
+import styles from '../guide.module.css'
 
 interface GuidePageProps {
   params: Promise<{ slug: string }>
@@ -62,6 +64,7 @@ export default async function GuidePage({ params }: GuidePageProps) {
     notFound()
   }
 
+  const guides = await getAllGuides()
   const toc = await extractToc(guide.content)
   const { prev, next } = await getAdjacentGuides(slug)
   const ogImage = staticAsset('og-bfe41bdd.webp')
@@ -91,75 +94,74 @@ export default async function GuidePage({ params }: GuidePageProps) {
     },
     url: `${SITE_DOMAIN}/guides/${slug}`,
     datePublished: '2026-02-09T00:00:00Z',
-    dateModified: commonLayoutLastModified(guide.frontmatter.lastModified)
+    dateModified: guidePageLastModified(guide.frontmatter.lastModified)
   }
 
   return (
-    <main className="relative max-w-3xl mx-auto px-4 pt-12 pb-22 lg:pb-32 flex-1">
-      <JsonLd data={articleSchema} />
-      {/* Position the TOC absolutely on the right and hide it on small screens. */}
-      <div className=" fixed right-4 xl:block hidden 2xl:right-72 top-26 w-64">
-        <TableOfContents className="border border-black/10 bg-zinc-100 rounded-md p-4" toc={toc} />
-      </div>
+    <div className="mx-auto grid w-full max-w-[1280px] gap-12 px-5 pt-12 pb-22 sm:px-8 xl:grid-cols-[minmax(0,768px)_minmax(0,1fr)] lg:pb-32">
+      <main className="min-w-0">
+        <JsonLd data={articleSchema} />
+        {/* Article header. */}
+        <header className="mb-8">
+          <div className="mb-6 flex items-center gap-2 text-xs font-medium leading-4 text-[#61615c]">
+            <DesignIcon name="7b545" size={12} />
+            <span>{guide.frontmatter.readTime}</span>
+          </div>
+          <h1 className="font-[Georgia] text-4xl font-normal leading-[1.2] tracking-[-1.5px] text-[#111] md:text-[56px] md:leading-[68px] md:tracking-[-2px]">
+            {guide.frontmatter.title}
+          </h1>
+          <p className="mt-6 text-base leading-[26px] text-[#61615c]">
+            {guide.frontmatter.description}
+          </p>
+        </header>
 
-      {/* Article header. */}
-      <header className="mb-8">
-        <div
-          className="flex items-center gap-2 text-[#ea580c] font-mono text-xs
-        font-bold uppercase leading-none tracking-widest mb-6"
-        >
-          <Clock size={14} />{' '}
-          <span className="leading-none mt-0.5">{guide.frontmatter.readTime}</span>
+        <div className={styles.article}>
+          <MarkdownRenderer content={guide.content} />
         </div>
-        <h1 className="text-4xl md:text-5xl mb-2 leading-snug">
-          <HighlightedText
-            highlightClassName="border bg-primary border-black italic pl-2 pr-4"
-            keywords={[guide.frontmatter.highlight]}
-            content={guide.frontmatter.title}
-          />
-        </h1>
-        <p className="text-gray-400 italic">{guide.frontmatter.description}</p>
-      </header>
 
-      {/* Article content. */}
-      <MarkdownRenderer content={guide.content} />
-
-      {/* Previous/next navigation. */}
-      <nav className="mt-16 pt-8 border-t border-gray-200 dark:border-border-dark">
-        <div className="flex gap-4">
-          {prev ? (
-            <Link
-              href={`/guides/${prev.slug}`}
-              className="flex-1 group p-4 rounded-lg border border-gray-300 dark:border-border-dark hover:border-gray-400 dark:hover:border-gray-600 transition-colors"
-            >
-              <p className="font-medium mt-1 flex items-center justify-start gap-2 group-hover:text-amber-600 transition-colors">
-                <ArrowLeft size={16} /> {prev.frontmatter.title}
-              </p>
-              <p className="text-sm text-gray-500 mt-1 line-clamp-2">
-                {prev.frontmatter.description}
-              </p>
-            </Link>
-          ) : (
-            <div className="flex-1" />
-          )}
-          {next ? (
-            <Link
-              href={`/guides/${next.slug}`}
-              className="flex-1 group p-4 rounded-lg border border-gray-300 dark:border-border-dark hover:border-gray-400 dark:hover:border-gray-600 transition-colors text-right"
-            >
-              <p className="font-medium mt-1 flex items-center justify-end gap-2 group-hover:text-amber-600 transition-colors">
-                {next.frontmatter.title} <ArrowRight size={16} />
-              </p>
-              <p className="text-sm text-gray-500 mt-1 line-clamp-2">
-                {next.frontmatter.description}
-              </p>
-            </Link>
-          ) : (
-            <div className="flex-1" />
-          )}
+        {/* Previous/next navigation. */}
+        <nav aria-label="Adjacent guides" className="mt-16 border-t border-[#e7e5de] pt-8">
+          <div className="flex flex-col gap-4 sm:flex-row">
+            {prev ? (
+              <Link
+                href={`/guides/${prev.slug}`}
+                className="min-w-0 flex-1 group p-5 border border-[#e7e5de] hover:bg-[#f5f0e7] transition-colors"
+              >
+                <p className="font-[Georgia] text-lg font-normal mt-1 flex items-center justify-start gap-2 group-hover:text-[#111] transition-colors">
+                  <ArrowLeft size={16} /> {prev.frontmatter.title}
+                </p>
+                <p className="text-sm text-[#61615c] mt-1 line-clamp-2">
+                  {prev.frontmatter.description}
+                </p>
+              </Link>
+            ) : (
+              <div className="flex-1" />
+            )}
+            {next ? (
+              <Link
+                href={`/guides/${next.slug}`}
+                className="min-w-0 flex-1 group p-5 border border-[#e7e5de] hover:bg-[#f5f0e7] transition-colors text-right"
+              >
+                <p className="font-[Georgia] text-lg font-normal mt-1 flex items-center justify-end gap-2 group-hover:text-[#111] transition-colors">
+                  {next.frontmatter.title} <DesignIcon name="1ece8" size={16} />
+                </p>
+                <p className="text-sm text-[#61615c] mt-1 line-clamp-2">
+                  {next.frontmatter.description}
+                </p>
+              </Link>
+            ) : (
+              <div className="flex-1" />
+            )}
+          </div>
+        </nav>
+      </main>
+      <aside className="hidden min-w-0 xl:block">
+        <div className="sticky top-28 max-h-[calc(100vh-8rem)] overflow-y-auto">
+          <GuidesDirectory guides={guides} />
+          <TableOfContents className="mt-6 p-4" toc={toc} variant="guide" />
         </div>
-      </nav>
-    </main>
+      </aside>
+    </div>
   )
 }
 

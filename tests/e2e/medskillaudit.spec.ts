@@ -31,6 +31,18 @@ test('desktop mega navigation opens MedSkillAudit from the Benchmark menu', asyn
     'false'
   )
   await expect(page.getByRole('heading', { name: 'What is MedSkillAudit?' })).toBeVisible()
+
+  const benchmarkTrigger = headerNav.getByRole('button', { name: 'Benchmark' })
+  await benchmarkTrigger.hover()
+  await medSkillAuditLink.hover()
+  await expect(medSkillAuditLink).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+  await expect(benchmarkTrigger).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+  await headerNav.getByText('Workflow benchmark suite', { exact: true }).hover()
+  await expect(medSkillAuditLink).toHaveAttribute('aria-current', 'page')
+  await expect(medSkillAuditLink).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+  await page.mouse.move(0, 500)
+  await expect(benchmarkTrigger).toHaveAttribute('aria-expanded', 'false')
+  await expect(benchmarkTrigger).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
 })
 
 test('MedSkillAudit page presents framework content and assets', async ({ page }) => {
@@ -68,7 +80,7 @@ test('MedSkillAudit page presents framework content and assets', async ({ page }
 
   await expect(page.getByRole('link', { name: 'How it works' })).toHaveAttribute('href', '#how')
   await expect(page.getByText('Design · 40%')).toHaveCSS('background-color', 'rgb(17, 17, 17)')
-  await expect(page.getByText('Runtime · 60%')).toHaveCSS('background-color', 'rgb(43, 111, 176)')
+  await expect(page.getByText('Runtime · 60%')).toHaveCSS('background-color', 'rgb(230, 230, 230)')
   const scoreSection = page.locator('#score')
   await expect(scoreSection.getByText('Score', { exact: true })).toBeVisible()
   await expect(scoreSection.getByText('Grade', { exact: true })).toBeVisible()

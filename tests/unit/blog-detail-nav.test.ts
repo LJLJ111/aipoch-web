@@ -99,3 +99,33 @@ describe('blog detail navigation', () => {
     expect(previousCard).not.toContain('text-right')
   })
 })
+
+describe('blog detail publication metadata', () => {
+  for (const date of ['2026-05-12', '', '2026-02-30', 'not-a-date']) {
+    test(`keeps validated publication dates separate from the template date: ${date}`, async () => {
+      const post = createPost()
+      post.frontmatter.date = date
+      getPostMock.mockResolvedValue(post)
+      const { default: BlogPostPage } = await import('../../app/(commonLayout)/blog/[slug]/page')
+      const html = renderToStaticMarkup(
+        await BlogPostPage({
+          params: Promise.resolve({ slug: 'current-post' })
+        })
+      )
+      const schemas = [
+        ...html.matchAll(/<script[^>]*type="application\/ld\+json"[^>]*>(.*?)<\/script>/g)
+      ].flatMap((match) => JSON.parse(match[1]))
+      const webpage = schemas.find((schema) => schema['@type'] === 'WebPage')
+      expect(webpage.dateModified).toBe('2026-10-08')
+      for (const schema of schemas.filter((schema) =>
+        ['WebPage', 'Article', 'BlogPosting'].includes(schema['@type'])
+      )) {
+        if (date === '2026-05-12') expect(schema.datePublished).toBe(date)
+        else expect(schema.datePublished).toBeUndefined()
+      }
+      if (date === '2026-05-12')
+        expect(html).toContain('<time dateTime="2026-05-12">May 12, 2026</time>')
+      else expect(html).not.toContain('<time')
+    })
+  }
+})

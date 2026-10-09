@@ -1,13 +1,17 @@
 import type { ReactNode } from 'react'
 
-type BenchmarkShellProps = {
-  children: ReactNode
-}
-
-export const BenchmarkShell = ({ children }: BenchmarkShellProps) => (
-  <div className="bg-[#E9E9E9] text-[#111111]">
-    <div className="border-b border-[#D4D4D4] bg-[linear-gradient(rgba(0,0,0,0.055)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.055)_1px,transparent_1px)] bg-[length:72px_72px]">
-      {children}
+export function BenchmarkShell({ children }: { children: ReactNode }) {
+  return (
+    <div className="relative overflow-hidden bg-[#f7f7f5] text-[#111]">
+      {/* biome-ignore lint/performance/noImgElement: Keep the Figma artwork edge-aligned and scale its original proportions with the viewport. */}
+      <img
+        src="/figma/audit/75fa7.png"
+        alt=""
+        width={1672}
+        height={941}
+        className="pointer-events-none absolute inset-x-0 top-0 h-auto w-full"
+      />
+      <div className="relative">{children}</div>
     </div>
-  </div>
-)
+  )
+}

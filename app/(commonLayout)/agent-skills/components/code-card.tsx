@@ -1,14 +1,14 @@
 'use client'
 
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { cn } from '@/lib/utils'
 import copy from 'clipboard-copy'
 import { Bot, Check, Copy, Info, User } from 'lucide-react'
-import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import { CdnImage as Image } from '@/components/cdn-image'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { SITE_DOMAIN } from '@/lib/config'
 import { staticAsset } from '@/lib/staticAsset'
+import { cn } from '@/lib/utils'
 
 type Identity = 'human' | 'agent'
 

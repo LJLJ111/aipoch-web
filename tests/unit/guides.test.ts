@@ -4,9 +4,16 @@ import GuidePage, {
   generateStaticParams
 } from '../../app/(commonLayout)/guides/[slug]/page'
 import GuidesIndexPage from '../../app/(commonLayout)/guides/page'
+import { guidePageLastModified } from '../../lib/guide-page-metadata'
 import { getAdjacentGuides, getAllGuides, getGuide } from '../../lib/guides'
 
 describe('published guides', () => {
+  test('records the template update without replacing newer content dates', () => {
+    expect(guidePageLastModified('2026-09-01')).toBe('2026-10-08')
+    expect(guidePageLastModified('invalid')).toBe('2026-10-08')
+    expect(guidePageLastModified('2026-10-09T08:00:00Z')).toBe('2026-10-09T08:00:00.000Z')
+  })
+
   test('starts at the first active guide', async () => {
     await expect(GuidesIndexPage()).rejects.toMatchObject({
       digest: expect.stringContaining(';/guides/what-is-a-skill;307;')
@@ -27,19 +34,19 @@ describe('published guides', () => {
     ])
   })
 
-  test.each(['openclaw-local-deployment', 'openclaw-cloud-deployment'])(
-    'returns not found for the retired %s page and its metadata',
-    async (slug) => {
-      const params = Promise.resolve({ slug })
-      expect(await getGuide(slug)).toBeNull()
-      await expect(GuidePage({ params })).rejects.toMatchObject({
-        digest: 'NEXT_HTTP_ERROR_FALLBACK;404'
-      })
-      await expect(generateMetadata({ params })).rejects.toMatchObject({
-        digest: 'NEXT_HTTP_ERROR_FALLBACK;404'
-      })
-    }
-  )
+  test.each([
+    'openclaw-local-deployment',
+    'openclaw-cloud-deployment'
+  ])('returns not found for the retired %s page and its metadata', async (slug) => {
+    const params = Promise.resolve({ slug })
+    expect(await getGuide(slug)).toBeNull()
+    await expect(GuidePage({ params })).rejects.toMatchObject({
+      digest: 'NEXT_HTTP_ERROR_FALLBACK;404'
+    })
+    await expect(generateMetadata({ params })).rejects.toMatchObject({
+      digest: 'NEXT_HTTP_ERROR_FALLBACK;404'
+    })
+  })
 
   test('uses the current introduction in both neighboring recommendation cards', async () => {
     const first = await getAdjacentGuides('what-is-a-skill')
