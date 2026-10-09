@@ -207,7 +207,10 @@ const notebookOutputSections = (output: NormalizedOutput): DetailSection[] => {
     if (typeof data['text/plain'] === 'string') {
       sections.push({ kind: 'code', label: 'Result', text: data['text/plain'] })
     }
-    if (typeof data['image/png'] === 'string' && data['image/png'].startsWith('/')) {
+    if (
+      typeof data['image/png'] === 'string' &&
+      (data['image/png'].startsWith('/') || data['image/png'].startsWith('blob:'))
+    ) {
       sections.push({ kind: 'image', label: 'Figure', url: data['image/png'] })
     }
   }

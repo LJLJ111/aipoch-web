@@ -104,10 +104,6 @@ export interface UseCaseIndexEntry {
   title: string
   description?: string
   exportedAt?: number
-  /** Whether a heavier full tier exists beyond the essential transcript. */
-  hasFull?: boolean
-  /** Approximate download size of the full tier (json + full-only assets). */
-  fullSizeBytes?: number
   /** Optional taxonomy label shown as a pill (e.g. "Agriculture"). */
   category?: string
   /** Gallery card visual on the list page. */
@@ -133,11 +129,7 @@ export interface UseCaseReportRef {
   contentUrl?: string
 }
 
-/**
- * Detail-page payload, split from the session package at publish time. The
- * CDN pipeline stores this as its own JSON per case; the session package
- * detail (transcript tiers) is fetched separately when entering replay.
- */
+/** Detail metadata derived from the shared manifest snapshot. */
 export interface UseCaseDetail {
   slug: string
   title: string

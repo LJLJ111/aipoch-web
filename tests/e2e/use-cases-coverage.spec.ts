@@ -1,11 +1,6 @@
 import { expect, test } from '@playwright/test'
-import {
-  COVERAGE_FIXTURE_SLUG,
-  coverageFixtureIndexEntry,
-  coverageFixtureSession
-} from '../../mocks/fixtures/use-case-coverage'
-
-const envelope = (data: unknown) => JSON.stringify({ code: 20000, msg: 'Success', data })
+import { buildCoveragePackage } from '../../mocks/fixtures/science-coverage-package'
+import { COVERAGE_FIXTURE_SLUG } from '../../mocks/fixtures/use-case-coverage'
 
 // Renderer coverage matrix: every dedicated renderer branch, elicitation
 // state, artifact state, and edge case must leave a visible marker in the DOM.
@@ -13,26 +8,28 @@ const envelope = (data: unknown) => JSON.stringify({ code: 20000, msg: 'Success'
 // The first page hit pays the dev compile cost, so give the test headroom.
 test.setTimeout(240000)
 
-test.beforeEach(async ({ page }) => {
-  // The replay page is fully client-rendered, so browser-level route
-  // interception is enough — no MSW required.
-  await page.route('**/api/v1/open-science/use-cases', (route) => {
-    if (route.request().url().endsWith('/open-science/use-cases')) {
-      return route.fulfill({
-        contentType: 'application/json',
-        body: envelope([coverageFixtureIndexEntry])
-      })
-    }
-    return route.continue()
-  })
-  await page.route(
-    `**/api/v1/open-science/use-cases/${COVERAGE_FIXTURE_SLUG}/transcript`,
-    (route) =>
-      route.fulfill({ contentType: 'application/json', body: envelope(coverageFixtureSession) })
+test.beforeEach(async ({ context }) => {
+  const sample = buildCoveragePackage()
+  await context.route(`**/internal/use-cases/${COVERAGE_FIXTURE_SLUG}`, (route) =>
+    route.fulfill({
+      json: {
+        url: new URL('/coverage.science', route.request().url()).href,
+        filename: 'coverage.science',
+        sizeBytes: sample.sizeBytes,
+        sha256: sample.sha256
+      }
+    })
+  )
+  await context.route('**/coverage.science', (route) =>
+    route.fulfill({ body: Buffer.from(sample.bytes), contentType: 'application/octet-stream' })
   )
 })
 
 test('replay renders every component type in the coverage fixture', async ({ page }) => {
+  let downloads = 0
+  page.context().on('request', (request) => {
+    if (request.url().endsWith('/coverage.science')) downloads++
+  })
   const pageErrors: string[] = []
   page.on('pageerror', (error) => pageErrors.push(error.message))
 
@@ -40,6 +37,11 @@ test('replay renders every component type in the coverage fixture', async ({ pag
     timeout: 180000,
     waitUntil: 'domcontentloaded'
   })
+
+  // Wait for the real worker (including first-use compilation) before checking renderers.
+  await page
+    .getByRole('button', { name: 'View full version', exact: true })
+    .waitFor({ timeout: 30000 })
 
   // -- user bubble -------------------------------------------------------------
   await expect(page.getByText('Run the renderer coverage scenario.')).toBeVisible()
@@ -102,9 +104,7 @@ test('replay renders every component type in the coverage fixture', async ({ pag
   await expandRow(/^Notebook run done$/)
   await expect(page.getByText('coverage stdout line')).toBeVisible()
   await expect(page.getByText('coverage stderr warning')).toBeVisible()
-  await expect(
-    page.locator('img[src*="/use-cases/coverage-fixture/figures/figure-01.png"]')
-  ).toBeVisible()
+  await expect(page.locator('img[src^="blob:"]').first()).toBeVisible()
 
   await expandRow(/^Notebook run\b.*coverage_cell/)
   await expect(page.getByText(/coverage_auc/)).toBeVisible()
@@ -143,7 +143,7 @@ test('replay renders every component type in the coverage fixture', async ({ pag
   await expect(page.getByRole('button', { name: 'Declined tool' })).toBeVisible()
 
   await expandRow('Truncated tool')
-  await expect(page.getByText(/shortened in the essential view/)).toBeVisible()
+  await expect(page.getByText(/Long payloads are shortened in the essential view/)).toBeVisible()
 
   // A tool with no payload renders as a one-line row with expansion disabled.
   await expect(page.getByRole('button', { name: 'Empty tool' })).toBeDisabled()
@@ -160,8 +160,18 @@ test('replay renders every component type in the coverage fixture', async ({ pag
   // -- inline asset link in message content ---------------------------------------------
   await expect(page.getByRole('link', { name: 'coverage_report.md' }).first()).toHaveAttribute(
     'href',
-    '/use-cases/coverage-fixture/objects/report.md'
+    /^blob:/
   )
+
+  await page.getByRole('link', { name: 'coverage_report.md' }).first().click()
+  const preview = page.getByRole('dialog', { name: 'coverage_report.md', exact: true })
+  await expect(preview.getByText('Sample coverage_report.md', { exact: true })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(preview).not.toBeVisible()
+  await page.getByRole('button', { name: 'View full version', exact: true }).click()
+  await expect(page.getByTitle(/Download coverage_huge.bin/)).toHaveAttribute('href', /^blob:/)
+  await page.getByRole('button', { name: 'Back to essential', exact: true }).click()
+  expect(downloads).toBe(1)
 
   // -- global hygiene ----------------------------------------------------------------------
   const bodyText = await page.locator('body').innerText()

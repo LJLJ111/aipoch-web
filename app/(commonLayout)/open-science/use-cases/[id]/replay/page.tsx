@@ -11,12 +11,10 @@ type PageProps = {
 
 export const dynamic = 'force-dynamic'
 
-// Metadata uses the cached manifest for SEO and link previews; the transcript
-// itself is fully client-rendered by ReplayView (single JSON download instead
-// of HTML + hydration payload, and no per-request server render cost).
+// Only metadata is server-rendered; the browser downloads and parses the package.
 export const generateMetadata = async ({ params }: PageProps): Promise<Metadata> => {
   const { id } = await params
-  // A catalog outage must not block the independently loaded transcript or its error state.
+  // A catalog outage must not block the client loading UI or its error state.
   const useCase = await fetchUseCaseDetail(id).catch(() => null)
   if (!useCase) return {}
   return createPageMetadata({

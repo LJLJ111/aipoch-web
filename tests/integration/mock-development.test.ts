@@ -195,48 +195,62 @@ describe('mock development end to end', () => {
     }
   }, 120000)
 
-  test('manifest replay links load essential and full transcripts and report API failures', async () => {
+  test('replay downloads and parses one package, switches locally, and retries failures', async () => {
     const browser = await chromium.launch()
     try {
-      const page = await browser.newPage()
+      const context = await browser.newContext()
+      const page = await context.newPage()
       const item = manifestSample[0]
-      const transcriptPath = `/api/v1/open-science/use-cases/${item.name}/transcript`
+      const requests: string[] = []
+      context.on('request', (request) => {
+        if (!request.serviceWorker()) requests.push(request.url())
+      })
+      await page.addInitScript(() => {
+        const observed: string[] = []
+        Object.assign(window, { replayStates: observed })
+        new MutationObserver(() => {
+          const text = document.querySelector('[role="status"]')?.textContent
+          if (text && observed.at(-1) !== text) observed.push(text)
+        }).observe(document, { subtree: true, childList: true, characterData: true })
+      })
       await page.goto(`${web}/open-science/use-cases/${item.name}`)
-      const responsePromise = page.waitForResponse((response) =>
-        response.url().endsWith(transcriptPath)
+      const infoResponse = page.waitForResponse((response) =>
+        response.url().endsWith(`/internal/use-cases/${item.name}`)
       )
       await page.getByRole('link', { name: 'View the research session', exact: true }).click()
-      await page.waitForURL(`**/open-science/use-cases/${item.name}/replay`)
-      expect((await responsePromise).status()).toBe(200)
+      const info = await (await infoResponse).json()
+      expect(info.filename).toBe(item.case.file_name)
+      expect(info.sha256).toMatch(/^[a-f0-9]{64}$/)
       await page.getByText(`Local sample replay for ${item.title}.`, { exact: true }).waitFor()
       expect(await page.title()).toBe(`Replay: ${item.title} | Open-Science Use Cases`)
-      const fullResponsePromise = page.waitForResponse((response) =>
-        response.url().endsWith(`${transcriptPath}/full`)
-      )
-      await page.getByRole('button', { name: 'View full version', exact: false }).click()
-      expect((await fullResponsePromise).status()).toBe(200)
-      await page
-        .getByText(`Additional full replay details for ${item.title}.`, { exact: true })
-        .waitFor()
-      await page.getByRole('button', { name: 'Back to essential', exact: false }).click()
+      const packageRequests = () => requests.filter((url) => url === info.url).length
+      expect(packageRequests()).toBe(1)
+      await page.getByRole('button', { name: 'View full version', exact: true }).click()
+      await page.waitForURL('**?view=full')
+      await page.getByRole('button', { name: 'Back to essential', exact: true }).click()
       await page.waitForURL(`**/open-science/use-cases/${item.name}/replay`)
-      expect(
-        await page
-          .getByText(`Additional full replay details for ${item.title}.`, { exact: true })
-          .count()
-      ).toBe(0)
-      await page.getByRole('link', { name: 'Back to overview', exact: false }).click()
-      await page.getByRole('link', { name: 'View the research session', exact: true }).waitFor()
-
-      const missingResponse = page.waitForResponse((response) =>
-        response.url().endsWith('/no-such-case/transcript')
+      expect(packageRequests()).toBe(1)
+      expect(requests.some((url) => url.includes('/api/v1/open-science/use-cases'))).toBe(false)
+      const states = await page.evaluate(
+        () => (window as typeof window & { replayStates: string[] }).replayStates
       )
+      expect(states).toContain('Fetching package information…')
+      expect(states).toContain('Parsing research session…')
+      // Retry the complete task after an actual checksum failure.
+      await context.route(info.url, (route) =>
+        route.fulfill({
+          body: Buffer.alloc(info.sizeBytes),
+          contentType: 'application/octet-stream'
+        })
+      )
+      await page.reload()
+      await page.getByRole('alert').filter({ hasText: 'SHA-256 verification failed' }).waitFor()
+      await context.unroute(info.url)
+      await page.getByRole('button', { name: 'Retry', exact: true }).click()
+      await page.getByText(`Local sample replay for ${item.title}.`, { exact: true }).waitFor()
       await page.goto(`${web}/open-science/use-cases/no-such-case/replay`)
-      expect((await missingResponse).status()).toBe(404)
-      await page.getByText('This use case could not be loaded.', { exact: true }).waitFor()
-      expect(await page.getByRole('link', { name: 'Back to overview', exact: false }).count()).toBe(
-        1
-      )
+      await page.getByRole('alert').filter({ hasText: 'Research package not found.' }).waitFor()
+      expect(await page.getByRole('button', { name: 'Retry', exact: true }).count()).toBe(1)
     } finally {
       await browser.close()
     }

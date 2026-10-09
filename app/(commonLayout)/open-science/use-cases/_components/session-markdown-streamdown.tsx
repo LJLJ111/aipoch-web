@@ -4,7 +4,8 @@ import { cjk } from '@streamdown/cjk'
 import { code } from '@streamdown/code'
 import { createMathPlugin } from '@streamdown/math'
 import { useEffect, useMemo, useState } from 'react'
-import { type Components, Streamdown } from 'streamdown'
+import { type Components, defaultRehypePlugins, Streamdown } from 'streamdown'
+import type { PluggableList, Plugin } from 'unified'
 import { useFilePreview } from './file-preview'
 import 'katex/dist/katex.min.css'
 
@@ -12,6 +13,27 @@ import 'katex/dist/katex.min.css'
 // prose tightening, minus streaming machinery, the link-safety modal, and session links.
 const math = createMathPlugin({ singleDollarTextMath: true })
 const basePlugins = { code, math, cjk }
+
+// Keep Streamdown's HTML sanitization while allowing verified package resources.
+const [sanitize, schema] = defaultRehypePlugins.sanitize as [
+  Plugin,
+  { protocols: Record<string, string[]> }
+]
+const rehypePlugins: PluggableList = [
+  defaultRehypePlugins.raw,
+  [
+    sanitize,
+    {
+      ...schema,
+      protocols: {
+        ...schema.protocols,
+        href: [...schema.protocols.href, 'blob'],
+        src: [...schema.protocols.src, 'blob']
+      }
+    }
+  ],
+  defaultRehypePlugins.harden
+]
 
 type MermaidPluginFactory = typeof import('@streamdown/mermaid')['createMermaidPlugin']
 
@@ -38,7 +60,7 @@ const linkComponent: Components['a'] = ({ node: _node, href, children, ...props 
   // Intercept internal asset links only when a preview provider is mounted
   // (the transcript); without one, fall through to a plain link so the click
   // still opens the file instead of dying on preventDefault + no-op.
-  if (href?.startsWith('/use-cases/') && openPreview) {
+  if ((href?.startsWith('/use-cases/') || href?.startsWith('blob:')) && openPreview) {
     const name = typeof children === 'string' ? children : (href.split('/').pop() ?? href)
     return (
       <a
@@ -85,6 +107,7 @@ const SessionMarkdownStreamdown = ({ content }: { content: string }) => {
       <Streamdown
         className="agent-markdown prose prose-sm prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:my-2"
         plugins={plugins}
+        rehypePlugins={rehypePlugins}
         controls={controls}
         components={{ a: linkComponent }}
         dir="auto"
@@ -93,8 +116,7 @@ const SessionMarkdownStreamdown = ({ content }: { content: string }) => {
         animated={false}
         parseIncompleteMarkdown={false}
         shikiTheme={['github-light', 'github-light']}
-        // Package content is sanitized at import time; site-relative asset links
-        // (rewritten to /use-cases/... by the importer) must not be blocked.
+        // Sanitization above preserves only the permitted URL protocols.
         urlTransform={(url) => url}
       >
         {content}

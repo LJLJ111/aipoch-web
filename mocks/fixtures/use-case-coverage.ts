@@ -405,12 +405,3 @@ export const coverageFixtureSession: UseCaseSession = {
   omissions: ['Coverage fixture omission note.'],
   excludedFiles: []
 }
-
-export const coverageFixtureIndexEntry = {
-  slug: COVERAGE_FIXTURE_SLUG,
-  title: coverageFixtureSession.title,
-  description: coverageFixtureSession.description,
-  exportedAt: coverageFixtureSession.exportedAt,
-  hasFull: false,
-  fullSizeBytes: 0
-}

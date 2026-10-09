@@ -84,7 +84,7 @@ test('describes every detail and replay page as an inspectable session', async (
   expect(replay.alternates?.canonical?.toString()).toEndWith(
     '/open-science/use-cases/sample-case/replay'
   )
-  // Metadata comes from the catalog even if the separate transcript API is unavailable.
+  // Metadata comes from the catalog without downloading the session package.
   expect(globalThis.fetch).not.toHaveBeenCalled()
 })
 

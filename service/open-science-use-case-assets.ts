@@ -1,7 +1,7 @@
 import { headers } from 'next/headers'
 
 // Server-only helper (uses next/headers) — must not be imported by client
-// components; the shared API contract lives in open-science-use-cases.ts.
+// components; shared render types live in lib/use-case-types.ts.
 
 // Fetch a text asset (markdown source for the intro page's report body).
 // CDN URLs are used as-is; relative URLs resolve against the incoming

@@ -120,7 +120,7 @@ const RelatedCard = ({ useCase }: { useCase: UseCaseIndexEntry }) => {
 export default async function OpenScienceUseCaseIntroPage({ params }: PageProps) {
   const { id } = await params
   // The detail payload is its own tier, split from the session package at
-  // publish time; the transcript tiers are only fetched by the replay page.
+  // publish time; the session package is only fetched by the replay page.
   const [useCase, index] = await Promise.all([fetchUseCaseDetail(id), fetchUseCaseList()])
   if (!useCase) notFound()
 

@@ -1,32 +1,3 @@
-/**
- * Import an open-science session package (`.science`, gzip tar) into static site data.
- *
- * Usage:
- *   bun run scripts/import-session-package.ts
- *     Import every `.science` file in `session-packages/`; the file name
- *     (minus extension) becomes the case slug and its URL segment.
- *   bun run scripts/import-session-package.ts <path-to.science> <slug>
- *     Import a single package from an arbitrary path.
- *
- * Outputs:
- *   public/use-cases/index.json            list-page metadata (upserted in place)
- *   public/use-cases/<slug>/detail.json    detail-page metadata: cover, figure count, report
- *                                          (markdown content + original file)
- *   public/use-cases/<slug>/essential.json SSR tier: full conversation, shortened payloads,
- *                                          small assets only
- *   public/use-cases/<slug>/full.json      on-demand tier: everything (replay page only)
- *   public/use-cases/<slug>/objects/<sha>  referenced file blobs (both tiers share these)
- *   public/use-cases/<slug>/figures/*.png  notebook figure outputs
- *
- * The importer verifies the manifest checksums, refuses unknown schema
- * versions, sanitizes local absolute paths, and resolves file references so
- * the renderer never needs to understand the package layout.
- */
-import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { basename, join } from 'node:path'
-import { gunzipSync } from 'node:zlib'
-import { Parser as TarParser } from 'tar'
 import type {
   MessageArtifact,
   NormalizedActivity,
@@ -34,24 +5,9 @@ import type {
   NormalizedRun,
   TranscriptItem,
   UseCaseAsset,
-  UseCaseDetail,
-  UseCaseIndexEntry,
   UseCaseSession
-} from '../lib/use-case-types'
-
-// ---------------------------------------------------------------------------
-// Package reading + verification
-// ---------------------------------------------------------------------------
-
-const ENTRY_PATH =
-  /^(manifest\.json|session\.json|records\.json|ro-crate-metadata\.json|README\.md|objects\/[a-f0-9]{64})$/
-
-interface PackageFiles {
-  manifest: Manifest
-  sessionFile: { version: number; session: SessionRecord }
-  records?: RecordsFile
-  objects: Map<string, Buffer> // objects/<sha> name -> bytes
-}
+} from '../use-case-types'
+import { readArchive, readJson } from './archive'
 
 interface ManifestInventoryEntry {
   path: string
@@ -87,80 +43,6 @@ interface RecordsFile extends JsonObject {
   tables: Record<string, JsonObject[]>
 }
 
-const sha256hex = (input: Buffer | string): string =>
-  createHash('sha256').update(input).digest('hex')
-
-function fail(message: string): never {
-  console.error(`import-session-package: ${message}`)
-  process.exit(1)
-}
-
-const readPackage = (archivePath: string): PackageFiles => {
-  const tarBytes = gunzipSync(readFileSync(archivePath))
-  const entries = new Map<string, Buffer>()
-  const parser = new TarParser({
-    onReadEntry: (entry) => {
-      const chunks: Buffer[] = []
-      entry.on('data', (chunk: Buffer) => chunks.push(chunk))
-      entry.on('end', () => {
-        entries.set(entry.path, Buffer.concat(chunks))
-      })
-    }
-  })
-  parser.end(tarBytes)
-
-  for (const name of entries.keys()) {
-    if (!ENTRY_PATH.test(name)) fail(`unexpected archive entry: ${name}`)
-  }
-
-  const manifestRaw = entries.get('manifest.json')
-  const sessionRaw = entries.get('session.json')
-  if (!manifestRaw || !sessionRaw) fail('archive is missing manifest.json or session.json')
-
-  const manifest = JSON.parse(manifestRaw.toString('utf8')) as Manifest
-  if (manifest.format !== 'open-science-session')
-    fail(`unsupported package format: ${String(manifest.format)}`)
-  if (manifest.schemaVersion !== 1)
-    fail(`unsupported manifest schemaVersion: ${String(manifest.schemaVersion)}`)
-  const supportedFeatures = new Set(['literature', 'ro-crate'])
-  for (const feature of manifest.requiredFeatures ?? []) {
-    if (!supportedFeatures.has(feature)) fail(`unsupported required feature: ${feature}`)
-  }
-
-  const objects = new Map<string, Buffer>()
-  for (const entry of manifest.inventory) {
-    if (entry.path.startsWith('objects/')) {
-      const bytes = entries.get(entry.path)
-      if (!bytes) fail(`inventory entry missing from archive: ${entry.path}`)
-      objects.set(entry.path, bytes)
-    }
-  }
-
-  // Verify every inventory entry against the archived bytes.
-  for (const entry of manifest.inventory) {
-    const bytes = entries.get(entry.path)
-    if (!bytes) fail(`inventory entry missing from archive: ${entry.path}`)
-    if (bytes.byteLength !== entry.sizeBytes)
-      fail(`size mismatch for ${entry.path}: ${bytes.byteLength} != ${entry.sizeBytes}`)
-    if (sha256hex(bytes) !== entry.checksum) fail(`checksum mismatch for ${entry.path}`)
-  }
-
-  const sessionFile = JSON.parse(sessionRaw.toString('utf8')) as PackageFiles['sessionFile']
-  if (sessionFile.version !== 2) fail(`unsupported session.json version: ${sessionFile.version}`)
-
-  const recordsRaw = entries.get('records.json')
-  return {
-    manifest,
-    sessionFile,
-    records: recordsRaw ? (JSON.parse(recordsRaw.toString('utf8')) as RecordsFile) : undefined,
-    objects
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Path sanitization — the package keeps local absolute paths in tool payloads
-// ---------------------------------------------------------------------------
-
 const buildSanitizer = (session: SessionRecord, runDocument: JsonObject | undefined) => {
   const prefixes: string[] = []
   const cwd = typeof session.cwd === 'string' ? session.cwd : ''
@@ -192,9 +74,8 @@ const buildSanitizer = (session: SessionRecord, runDocument: JsonObject | undefi
 // Blob selection — only copy what the renderer can reference
 // ---------------------------------------------------------------------------
 
-// MIME types for bundled extra files (drives the table's Type column and the
-// preview dialog's sniffing; preview itself falls back to the extension).
-const EXTRA_MIME_BY_EXT: Record<string, string> = {
+// MIME types for package resources; previews also use the original filename.
+const MIME_BY_EXT: Record<string, string> = {
   pdf: 'application/pdf',
   png: 'image/png',
   jpg: 'image/jpeg',
@@ -220,33 +101,6 @@ const SKIP_BLOB = [
 ]
 
 // Extensions the static server can serve with a displayable Content-Type.
-const SAFE_OBJECT_EXTENSIONS = new Set([
-  'png',
-  'jpg',
-  'jpeg',
-  'gif',
-  'svg',
-  'webp',
-  'pdf',
-  'md',
-  'markdown',
-  'csv',
-  'json',
-  'txt',
-  'log',
-  'py',
-  'js',
-  'ts',
-  'tsx',
-  'r',
-  'sh',
-  'yaml',
-  'yml',
-  'toml',
-  'xml',
-  'html'
-])
-
 // Essential-tier limits: blobs larger than this ship only in the full tier, and
 // any single string longer than this is shortened with a visible marker.
 const ESSENTIAL_ASSET_MAX_BYTES = 2 * 1024 ** 2
@@ -281,22 +135,57 @@ const truncateOversizedStrings = (value: unknown): unknown => {
   return value
 }
 
-// ---------------------------------------------------------------------------
-// Main
-// ---------------------------------------------------------------------------
-
-const importOne = (archivePath: string, slug: string): void => {
-  const pkg = readPackage(archivePath)
-  const { manifest } = pkg
-  const session = pkg.sessionFile.session
-
-  const outPublicDir = join('public', 'use-cases', slug)
-  const outObjectsDir = join(outPublicDir, 'objects')
-  const outFiguresDir = join(outPublicDir, 'figures')
-  rmSync(outPublicDir, { recursive: true, force: true })
-  mkdirSync(outObjectsDir, { recursive: true })
-  mkdirSync(outFiguresDir, { recursive: true })
-
+export async function parsePackage(archive: Blob, slug: string) {
+  const objects = await readArchive(archive)
+  const manifest = await readJson<Manifest>(objects.get('manifest.json'), 'manifest.json')
+  if (manifest.format !== 'open-science-session' || manifest.schemaVersion !== 1)
+    throw new Error('Unsupported .science manifest format or schema version.')
+  if (
+    !Array.isArray(manifest.inventory) ||
+    !manifest.source ||
+    typeof manifest.source.title !== 'string'
+  )
+    throw new Error('Invalid package manifest.')
+  for (const feature of manifest.requiredFeatures ?? []) {
+    if (!['literature', 'ro-crate'].includes(feature))
+      throw new Error(`Unsupported required feature: ${feature}`)
+  }
+  const inventoried = new Set<string>()
+  for (const entry of manifest.inventory) {
+    if (inventoried.has(entry.path)) throw new Error(`Duplicate inventory entry: ${entry.path}`)
+    inventoried.add(entry.path)
+    const file = objects.get(entry.path)
+    if (!file || file.blob.size !== entry.sizeBytes || file.checksum !== entry.checksum)
+      throw new Error(`Package inventory verification failed: ${entry.path}`)
+  }
+  for (const path of objects.keys()) {
+    if (path !== 'manifest.json' && !inventoried.has(path))
+      throw new Error(`Unverified archive entry: ${path}`)
+  }
+  const sessionFile = await readJson<{ version: number; session: SessionRecord }>(
+    objects.get('session.json'),
+    'session.json'
+  )
+  if (
+    sessionFile.version !== 2 ||
+    !sessionFile.session ||
+    !Array.isArray(sessionFile.session.messages)
+  )
+    throw new Error('Unsupported or invalid session.json.')
+  const records = objects.has('records.json')
+    ? await readJson<RecordsFile>(objects.get('records.json'), 'records.json')
+    : undefined
+  const pkg = { manifest, sessionFile, records, objects }
+  const session = sessionFile.session
+  const resources: { id: string; blob: Blob }[] = []
+  const resource = (blob: Blob, filename: string) => {
+    const id = `science-asset:${resources.length}`
+    const extension = filename.split('.').pop()?.toLowerCase() ?? ''
+    // HTML and SVG must not become executable same-origin blob documents.
+    const type = extension === 'svg' ? 'text/plain' : (MIME_BY_EXT[extension] ?? 'text/plain')
+    resources.push({ id, blob: blob.slice(0, blob.size, type) })
+    return id
+  }
   // --- assets: storageKey -> public url -----------------------------------
   // Blob names carry a real extension (resolved from records.json or the
   // storage key) so the static server returns a displayable Content-Type
@@ -311,24 +200,18 @@ const importOne = (archivePath: string, slug: string): void => {
       }
     }
   }
-  const objectNameFor = (storageKey: string, objectPath: string): string => {
-    const sha = basename(objectPath)
-    const filename = filenameByStorageKey.get(storageKey) ?? storageKey.split('/').pop() ?? ''
-    const ext = filename.includes('.') ? filename.split('.').pop()?.toLowerCase() : undefined
-    return ext && SAFE_OBJECT_EXTENSIONS.has(ext) ? `${sha}.${ext}` : sha
-  }
-  const assets: Record<string, UseCaseAsset> = {}
+  const assets: Record<string, UseCaseAsset> = Object.create(null)
   for (const entry of manifest.inventory) {
     const storageKey = entry.storageKey
     if (!storageKey) continue
     if (SKIP_BLOB.some((pattern) => pattern.test(storageKey))) continue
     const bytes = pkg.objects.get(entry.path)
     if (!bytes) continue
-    const objectName = objectNameFor(storageKey, entry.path)
-    writeFileSync(join(outObjectsDir, objectName), bytes)
+    const filename =
+      filenameByStorageKey.get(storageKey) ?? storageKey.split('/').pop() ?? entry.path
     assets[storageKey] = {
-      url: `/use-cases/${slug}/objects/${objectName}`,
-      filename: filenameByStorageKey.get(storageKey) ?? storageKey.split('/').pop() ?? objectName,
+      url: resource(bytes.blob, filename),
+      filename,
       sizeBytes: entry.sizeBytes,
       kind: entry.kind
     }
@@ -337,7 +220,7 @@ const importOne = (archivePath: string, slug: string): void => {
   // --- notebook run document ----------------------------------------------
   const runEntry = manifest.inventory.find((e) => e.storageKey?.endsWith('/run.json'))
   const runDocument = runEntry
-    ? (JSON.parse((pkg.objects.get(runEntry.path) as Buffer).toString('utf8')) as JsonObject)
+    ? await readJson<JsonObject>(pkg.objects.get(runEntry.path), runEntry.path)
     : undefined
   const { sanitize, deep } = buildSanitizer(session, runDocument)
 
@@ -354,10 +237,10 @@ const importOne = (archivePath: string, slug: string): void => {
       if (image && !image.startsWith('/')) {
         figureIndex += 1
         const filename = `figure-${String(figureIndex).padStart(2, '0')}.png`
-        writeFileSync(join(outFiguresDir, filename), Buffer.from(image, 'base64'))
+        const bytes = Uint8Array.from(atob(image), (char) => char.charCodeAt(0))
         normalized.data = {
           ...normalized.data,
-          'image/png': `/use-cases/${slug}/figures/${filename}`
+          'image/png': resource(new Blob([bytes]), filename)
         }
       }
       outputs.push(normalized)
@@ -469,32 +352,6 @@ const importOne = (archivePath: string, slug: string): void => {
       const url = assetUrlByFilename.get(filename)
       return url ? `[${label}](${url})` : match
     })
-  // Optional showcase extras: files dropped in session-packages/<slug>.extra/
-  // are bundled as additional assets and pinned to the last assistant message.
-  // They survive re-imports (unlike hand-patched output).
-  const extraArtifacts: MessageArtifact[] = []
-  const extraDir = join('session-packages', `${slug}.extra`)
-  if (existsSync(extraDir)) {
-    for (const filename of readdirSync(extraDir).sort()) {
-      if (filename.startsWith('.')) continue
-      const bytes = readFileSync(join(extraDir, filename))
-      const ext = filename.includes('.') ? filename.split('.').pop()?.toLowerCase() : undefined
-      const objectName =
-        ext && SAFE_OBJECT_EXTENSIONS.has(ext)
-          ? `${sha256hex(filename)}.${ext}`
-          : sha256hex(filename)
-      writeFileSync(join(outObjectsDir, objectName), bytes)
-      const url = `/use-cases/${slug}/objects/${objectName}`
-      assets[`extra/${filename}`] = { url, filename, sizeBytes: bytes.byteLength, kind: 'file' }
-      extraArtifacts.push({
-        name: filename,
-        mimeType: ext ? EXTRA_MIME_BY_EXT[ext] : undefined,
-        size: bytes.byteLength,
-        url
-      })
-      assetUrlByFilename.set(filename, url)
-    }
-  }
   const messageItems: { ts: number; item: TranscriptItem }[] = session.messages.map((message) => {
     const artifactIds = Array.isArray(message.artifactIds)
       ? (message.artifactIds as unknown[]).filter((id): id is string => typeof id === 'string')
@@ -517,16 +374,6 @@ const importOne = (archivePath: string, slug: string): void => {
       }
     }
   })
-
-  if (extraArtifacts.length > 0) {
-    for (let index = messageItems.length - 1; index >= 0; index--) {
-      const entry = messageItems[index].item
-      if (entry.type === 'message' && entry.role === 'assistant') {
-        entry.artifacts = [...(entry.artifacts ?? []), ...extraArtifacts]
-        break
-      }
-    }
-  }
 
   // --- timeline: merge by timestamp, fold consecutive activities into groups ---
   const merged = [...messageItems, ...activityItems].sort((a, b) => a.ts - b.ts)
@@ -554,9 +401,9 @@ const importOne = (archivePath: string, slug: string): void => {
     excludedFiles: manifest.excludedFiles ?? []
   }
 
-  // --- two tiers: essential (SSR default) and full (loaded on demand) ---------
+  // Both views are derived from the same parsed package.
   // The essential tier keeps the whole conversation but shortens oversized tool
-  // payloads and drops large file blobs, so the first page load stays small.
+  // payloads and drops large file blobs, so the default transcript stays readable.
   const essentialAssetUrls = new Set(
     Object.values(assets)
       .filter((asset) => asset.sizeBytes <= ESSENTIAL_ASSET_MAX_BYTES)
@@ -615,129 +462,18 @@ const importOne = (archivePath: string, slug: string): void => {
   const essentialAssets = Object.fromEntries(
     Object.entries(assets).filter(([, asset]) => essentialAssetUrls.has(asset.url))
   )
-  const hasFull = truncatedActivityCount > 0 || fullOnlyAssetBytes > 0
   const essentialModel: UseCaseSession = {
     ...model,
     items: essentialItems,
     assets: essentialAssets,
-    omissions: hasFull
-      ? [
-          ...model.omissions,
-          'Large tool payloads and files over 2 MiB are shortened in the essential view; load the full version for everything.'
-        ]
-      : model.omissions
+    omissions:
+      truncatedActivityCount > 0 || fullOnlyAssetBytes > 0
+        ? [
+            ...model.omissions,
+            'Large tool payloads and files over 2 MiB are shortened in the essential view; load the full version for everything.'
+          ]
+        : model.omissions
   }
 
-  const fullJson = JSON.stringify(model)
-  writeFileSync(join(outPublicDir, 'full.json'), fullJson)
-  writeFileSync(join(outPublicDir, 'essential.json'), JSON.stringify(essentialModel))
-  const fullSizeBytes = Buffer.byteLength(fullJson) + fullOnlyAssetBytes
-
-  // --- list-page index ---------------------------------------------------------
-  const indexPath = join('public', 'use-cases', 'index.json')
-  const index: UseCaseIndexEntry[] = existsSync(indexPath)
-    ? (JSON.parse(readFileSync(indexPath, 'utf8')) as UseCaseIndexEntry[])
-    : []
-  // Curated fields (category / preview.image / report) are edited by hand in
-  // index.json; re-importing a package must refresh computed fields without
-  // dropping them.
-  const existing = index.find((e) => e.slug === slug)
-  const entry: UseCaseIndexEntry = {
-    slug,
-    title: model.title,
-    description: model.description,
-    exportedAt: model.exportedAt,
-    ...(existing?.category ? { category: existing.category } : {}),
-    ...(existing?.preview?.image ? { preview: { image: existing.preview.image } } : {}),
-    ...(existing?.report ? { report: existing.report } : {})
-  }
-  // Upsert in place: the index order is curated by hand, so re-importing a
-  // package must not reshuffle it; new slugs append at the end.
-  const next = existing ? index.map((e) => (e.slug === slug ? entry : e)) : [...index, entry]
-  mkdirSync(join('public', 'use-cases'), { recursive: true })
-  writeFileSync(indexPath, `${JSON.stringify(next, null, 2)}\n`)
-
-  // --- detail-page payload ---------------------------------------------------
-  // Split at import time (the CDN pipeline does the same ahead of upload): the
-  // cover image and the report — rendered markdown content plus the original
-  // file — are dedicated fields, so the frontend never picks files out of the
-  // artifact list itself.
-  const producedArtifacts = [...sessionArtifacts, ...extraArtifacts]
-  const imageCount = producedArtifacts.filter((artifact) =>
-    artifact.mimeType?.startsWith('image/')
-  ).length
-  const largestMarkdown = producedArtifacts
-    .filter((artifact) => artifact.url && artifact.name.toLowerCase().endsWith('.md'))
-    .sort((a, b) => (b.size ?? 0) - (a.size ?? 0))[0]
-  const coverImage =
-    existing?.preview?.image ??
-    (figureIndex > 0 ? `/use-cases/${slug}/figures/figure-01.png` : undefined) ??
-    producedArtifacts.find((artifact) => artifact.mimeType?.startsWith('image/') && artifact.url)
-      ?.url
-  const reportContentUrl = existing?.report?.contentUrl ?? largestMarkdown?.url
-  const reportUrl = existing?.report?.url ?? largestMarkdown?.url
-  const detail: UseCaseDetail = {
-    slug,
-    title: model.title,
-    description: model.description,
-    exportedAt: model.exportedAt,
-    ...(existing?.category ? { category: existing.category } : {}),
-    ...(coverImage ? { coverImage } : {}),
-    figureCount: imageCount,
-    ...(reportContentUrl || reportUrl
-      ? {
-          report: {
-            ...(reportContentUrl ? { contentUrl: reportContentUrl } : {}),
-            ...(reportUrl ? { url: reportUrl } : {}),
-            ...(existing?.report?.pageCount ? { pageCount: existing.report.pageCount } : {})
-          }
-        }
-      : {})
-  }
-  writeFileSync(join(outPublicDir, 'detail.json'), JSON.stringify(detail))
-
-  const groupCount = items.filter((i) => i.type === 'activity-group').length
-  const elicitationCount = items.filter((i) => i.type === 'elicitation').length
-  console.log(
-    `imported "${model.title}" as ${slug}: ${messageItems.length} messages, ` +
-      `${graphActivities.length} activities in ${groupCount} groups, ${elicitationCount} elicitations, ` +
-      `${Object.keys(assets).length} assets, ${figureIndex} figures; ` +
-      `essential tier: ${truncatedActivityCount} truncated activities, ` +
-      `${Object.keys(essentialAssets).length} assets (full: ${hasFull ? `${fullSizeBytes} bytes` : 'same'})`
-  )
+  return { essential: essentialModel, full: model, resources }
 }
-
-const PACKAGES_DIR = join('session-packages')
-
-const main = (): void => {
-  const [, , archiveArg, slugArg] = process.argv
-  if (archiveArg) {
-    if (!slugArg)
-      fail(
-        'usage: bun run scripts/import-session-package.ts <pkg.science> <slug>\n' +
-          `   or: bun run scripts/import-session-package.ts   (imports every .science in ${PACKAGES_DIR}/)`
-      )
-    if (!/^[a-z0-9][a-z0-9-]*$/.test(slugArg)) fail(`invalid slug: ${slugArg}`)
-    if (!existsSync(archiveArg)) fail(`file not found: ${archiveArg}`)
-    importOne(archiveArg, slugArg)
-    return
-  }
-  if (!existsSync(PACKAGES_DIR)) fail(`no arguments given and ${PACKAGES_DIR}/ does not exist`)
-  const files = readdirSync(PACKAGES_DIR)
-    .filter((name) => name.endsWith('.science'))
-    .sort()
-  if (files.length === 0) fail(`no .science files found in ${PACKAGES_DIR}/`)
-  for (const file of files) {
-    const slug = file.slice(0, -'.science'.length)
-    if (!/^[a-z0-9][a-z0-9-]*$/.test(slug)) {
-      console.error(
-        `skipping ${file}: rename it to <slug>.science (lowercase letters, digits, dashes)`
-      )
-      process.exitCode = 1
-      continue
-    }
-    importOne(join(PACKAGES_DIR, file), slug)
-  }
-}
-
-main()

@@ -1,69 +1,37 @@
-import { describe, expect, test } from 'bun:test'
+import { expect, test } from 'bun:test'
 import { getResponse } from 'msw'
-import { useCaseManifest } from '../../mocks/fixtures'
-import { createHandlers } from '../../mocks/handlers'
+import { parsePackage } from '../../lib/science-package/parse'
+import { digest } from '../../mocks/fixtures/science-package'
+import { adapterHandlers } from '../../mocks/handlers/adapter'
 
-const handle = async (path: string) => {
-  const handlers = createHandlers('http://127.0.0.1:3203')
-  return (
-    (await getResponse(handlers, new Request(`http://127.0.0.1:3203${path}`))) ??
-    new Response(null, { status: 404 })
-  )
-}
+const origin = 'http://127.0.0.1:3203'
+const handlers = adapterHandlers(origin)
+const handle = async (path: string) =>
+  (await getResponse(handlers, new Request(`${origin}${path}`))) ??
+  new Response(null, { status: 404 })
 
-describe('open-science use-case mock contracts', () => {
-  test('serves the index plus essential and full transcript tiers', async () => {
-    const listResponse = await handle('/api/v1/open-science/use-cases')
-    expect(listResponse.status).toBe(200)
-    const listBody = await listResponse.json()
-    expect(listBody.code).toBe(20000)
-    expect(Array.isArray(listBody.data)).toBe(true)
-    expect(listBody.data.length).toBeGreaterThan(0)
-
-    const slug = listBody.data[0].slug
-    const detailResponse = await handle(`/api/v1/open-science/use-cases/${slug}`)
-    expect(detailResponse.status).toBe(200)
-    const detail = await detailResponse.json()
-    expect(detail.data.slug).toBe(slug)
-    expect(typeof detail.data.title).toBe('string')
-    expect(typeof detail.data.figureCount).toBe('number')
-
-    const essentialResponse = await handle(`/api/v1/open-science/use-cases/${slug}/transcript`)
-    expect(essentialResponse.status).toBe(200)
-    const essential = await essentialResponse.json()
-    expect(essential.data.slug).toBe(slug)
-    expect(essential.data.schemaVersion).toBe(1)
-
-    const fullResponse = await handle(`/api/v1/open-science/use-cases/${slug}/transcript/full`)
-    expect(fullResponse.status).toBe(200)
-    const full = await fullResponse.json()
-    expect(full.data.slug).toBe(slug)
-    // The full tier carries at least as many assets as the essential tier.
-    expect(Object.keys(full.data.assets).length).toBeGreaterThanOrEqual(
-      Object.keys(essential.data.assets).length
+test('every manifest sample downloads a real package with matching size and SHA-256', async () => {
+  const manifest = await (await handle('/use-case-manifest/manifest.json')).json()
+  for (const item of manifest) {
+    const response = await handle(
+      `/use-case-manifest/${item.name}/${encodeURIComponent(item.case.file_name)}`
     )
-  })
-
-  test('returns the 404 envelope for unknown slugs', async () => {
-    const response = await handle('/api/v1/open-science/use-cases/no-such-case/transcript')
-    expect(response.status).toBe(404)
-    const body = await response.json()
-    expect(body.data).toBeNull()
-
-    const detailResponse = await handle('/api/v1/open-science/use-cases/no-such-case')
-    expect(detailResponse.status).toBe(404)
-    const detailBody = await detailResponse.json()
-    expect(detailBody.data).toBeNull()
-  })
+    const bytes = new Uint8Array(await response.arrayBuffer())
+    expect(response.status).toBe(200)
+    expect(bytes.length).toBe(item.case.bytes)
+    expect(digest(bytes)).toBe(item.case.sha256)
+    const parsed = await parsePackage(new Blob([bytes]), item.name)
+    expect(parsed.full.title).toBe(item.title)
+  }
 })
 
-test('every manifest case has deterministic replay data in mock development', async () => {
-  for (const item of useCaseManifest) {
-    const response = await handle(`/api/v1/open-science/use-cases/${item.name}/transcript`)
-    expect(response.status).toBe(200)
-    const body = await response.json()
-    expect(body.data.slug).toBe(item.name)
-    expect(body.data.title).toBe(item.title)
-    expect(body.data.items.length).toBeGreaterThan(0)
+test('obsolete transcript APIs and missing packages are not mocked as successful', async () => {
+  for (const path of [
+    '/api/v1/open-science/use-cases',
+    '/api/v1/open-science/use-cases/sample/transcript',
+    '/api/v1/open-science/use-cases/sample/transcript/full',
+    '/use-case-manifest/missing.science'
+  ]) {
+    expect((await handle(path)).status).toBe(404)
   }
 })

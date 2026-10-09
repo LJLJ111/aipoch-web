@@ -1,5 +1,10 @@
 import { HttpResponse, http } from 'msw'
 import { useCaseManifest } from '../fixtures'
+import { buildSciencePackage } from '../fixtures/science-package'
+
+const packages = new Map(
+  useCaseManifest.map((item) => [item.name, buildSciencePackage(item.title)])
+)
 
 /** The HTTP adapter owns mock revisions, so SSR and browsers see one object version. */
 export const useCaseManifestHandlers = (origin: string) => {
@@ -32,7 +37,12 @@ export const useCaseManifestHandlers = (origin: string) => {
           : useCaseManifest.map((item) => ({
               ...item,
               title: `${item.title}${responseSuffix}`,
-              case: { ...item.case, release_url: '' }
+              case: {
+                ...item.case,
+                release_url: '',
+                bytes: packages.get(item.name)?.sizeBytes,
+                sha256: packages.get(item.name)?.sha256
+              }
             })),
         { headers }
       )
@@ -81,10 +91,17 @@ export const useCaseManifestHandlers = (origin: string) => {
           return HttpResponse.text(`# ${item.title}\n\nLocal sample introduction.`, {
             headers: { 'Content-Type': 'text/markdown' }
           })
-        if (path === `${item.name}/${item.case.file_name}`)
-          return HttpResponse.text('Local sample, not a .science archive.', {
-            headers: { 'Content-Disposition': 'attachment; filename="sample.science"' }
+        if (path === `${item.name}/${item.case.file_name}`) {
+          const sample = packages.get(item.name)
+          if (!sample) return new HttpResponse(null, { status: 404 })
+          return new HttpResponse(sample.bytes as BodyInit, {
+            headers: {
+              'Content-Type': 'application/octet-stream',
+              'Content-Length': String(sample.sizeBytes),
+              'Content-Disposition': 'attachment; filename="sample.science"'
+            }
           })
+        }
       }
       return new HttpResponse(null, { status: 404 })
     })

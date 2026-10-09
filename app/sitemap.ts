@@ -15,6 +15,7 @@ const OPEN_SCIENCE_DOWNLOAD_LAST_MODIFIED = '2026-09-30'
 const OPEN_SCIENCE_USE_CASES_LAST_MODIFIED = '2026-10-09'
 // Track overview and replay template changes separately from the gallery.
 const OPEN_SCIENCE_USE_CASE_DETAIL_LAST_MODIFIED = '2026-10-09'
+// Browser package loading and worker parsing were updated on this date.
 const OPEN_SCIENCE_USE_CASE_REPLAY_LAST_MODIFIED = '2026-10-09'
 const BLOG_PAGE_LAST_MODIFIED = '2026-09-18'
 const HOMEPAGE_PAGE_LAST_MODIFIED = '2026-09-29'
