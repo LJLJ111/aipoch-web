@@ -115,33 +115,3 @@ test('detail degrades to null on a manifest failure instead of throwing', async 
   const { fetchUseCaseDetail } = await import('../../service/open-science-use-cases.server')
   expect(await fetchUseCaseDetail(manifest[0].name)).toBeNull()
 })
-
-test('detail passes through optional manifest metadata when present', async () => {
-  delete process.env.NEXT_PUBLIC_API_MOCKING
-  const enriched = {
-    ...manifest[0],
-    description: 'A short study description.',
-    category: 'Agriculture',
-    exported_at: 1788220800000,
-    figure_count: 3,
-    report: {
-      file: { ...manifest[0].cover, file_name: 'Report.pdf' },
-      content: { ...manifest[0].cover, file_name: 'Report.md' },
-      page_count: 19
-    }
-  }
-  globalThis.fetch = mock(async (_input: unknown) =>
-    Response.json([enriched])
-  ) as unknown as typeof fetch
-  const { fetchUseCaseDetail } = await import('../../service/open-science-use-cases.server')
-  const detail = await fetchUseCaseDetail(manifest[0].name)
-  const base =
-    'https://assets.example.test/open-science/usecases/can-a-simple-algorithm-beat-ai-at-wordle'
-  expect(detail).toMatchObject({
-    description: 'A short study description.',
-    category: 'Agriculture',
-    exportedAt: 1788220800000,
-    figureCount: 3,
-    report: { url: `${base}/Report.pdf`, contentUrl: `${base}/Report.md`, pageCount: 19 }
-  })
-})

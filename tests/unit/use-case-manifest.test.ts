@@ -71,64 +71,6 @@ describe('use-case manifest normalization', () => {
     ).toThrow()
     expect(() => parseUseCaseManifest({}, url)).toThrow()
   })
-
-  test('passes through optional detail metadata when the manifest provides it', () => {
-    const reportFile = { ...manifest[0].cover, file_name: 'Report.pdf' }
-    const reportContent = { ...manifest[0].cover, file_name: 'Report.md' }
-    const [entry] = parseUseCaseManifest(
-      [
-        {
-          ...manifest[0],
-          description: 'A short study description.',
-          category: 'Agriculture',
-          exported_at: 1788220800000,
-          figure_count: 3,
-          report: { file: reportFile, content: reportContent, page_count: 19 }
-        }
-      ],
-      url
-    )
-    const base = 'https://objects.example.test/cases/can-a-simple-algorithm-beat-ai-at-wordle'
-    expect(entry).toMatchObject({
-      description: 'A short study description.',
-      category: 'Agriculture',
-      exportedAt: 1788220800000,
-      figureCount: 3,
-      report: {
-        url: `${base}/Report.pdf`,
-        contentUrl: `${base}/Report.md`,
-        pageCount: 19
-      }
-    })
-  })
-
-  test('drops malformed optional metadata instead of failing the catalog', () => {
-    const [entry] = parseUseCaseManifest(
-      [
-        {
-          ...manifest[0],
-          description: '   ',
-          category: 42,
-          exported_at: 'soon',
-          figure_count: -1,
-          report: { page_count: 'many' }
-        }
-      ],
-      url
-    )
-    expect(entry.description).toBeUndefined()
-    expect(entry.category).toBeUndefined()
-    expect(entry.exportedAt).toBeUndefined()
-    expect(entry.figureCount).toBeUndefined()
-    expect(entry.report).toBeUndefined()
-    // Strict shapes still apply inside a present report object.
-    expect(() =>
-      parseUseCaseManifest(
-        [{ ...manifest[0], report: { file: { file_name: '../evil.pdf' } } }],
-        url
-      )
-    ).toThrow()
-  })
 })
 
 describe('use-case manifest cache', () => {

@@ -55,12 +55,7 @@ export const fetchUseCaseDetail = async (slug: string): Promise<UseCaseDetail | 
       title: entry.title,
       coverImage: entry.preview?.image,
       package: entry.package,
-      introductionUrl: entry.introductionUrl,
-      ...(entry.description ? { description: entry.description } : {}),
-      ...(entry.category ? { category: entry.category } : {}),
-      ...(entry.exportedAt !== undefined ? { exportedAt: entry.exportedAt } : {}),
-      ...(entry.figureCount !== undefined ? { figureCount: entry.figureCount } : {}),
-      ...(entry.report ? { report: entry.report } : {})
+      introductionUrl: entry.introductionUrl
     }
   } catch {
     // Same contract as fetchUseCaseList: a manifest outage degrades the detail
