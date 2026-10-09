@@ -87,23 +87,10 @@ export const parseUseCaseManifest = (
   })
 }
 
-// Log public resource identities without dumping archive contents or signed URLs.
-const resourceFilename = (url: string | undefined) =>
-  url ? decodeURIComponent(new URL(url).pathname.split('/').at(-1) ?? '') : null
-
-const snapshotDetails = (snapshot: Snapshot | undefined) => ({
+// Diagnostics describe cache state only; manifest entries and resource contents stay out of logs.
+const snapshotSummary = (snapshot: Snapshot | undefined) => ({
   etag: snapshot?.etag ?? null,
-  count: snapshot?.entries.length ?? 0,
-  entries:
-    snapshot?.entries.map((entry) => ({
-      slug: entry.slug,
-      title: entry.title,
-      resources: {
-        cover: resourceFilename(entry.preview?.image),
-        introduction: resourceFilename(entry.introductionUrl),
-        package: { filename: entry.package.filename, sizeBytes: entry.package.sizeBytes }
-      }
-    })) ?? []
+  count: snapshot?.entries.length ?? 0
 })
 
 /** One cache per manifest source in a server runtime; no TTL or eviction timer. */
@@ -142,7 +129,7 @@ export const createUseCaseManifestCache = (url: string) => {
           'cache.unchanged',
           JSON.stringify({
             cacheStatus: 'unchanged',
-            ...snapshotDetails(snapshot),
+            ...snapshotSummary(snapshot),
             httpStatus,
             durationMs: Date.now() - startedAt
           })
@@ -162,7 +149,7 @@ export const createUseCaseManifestCache = (url: string) => {
           cacheStatus: 'updated',
           reason: previous ? 'refresh' : 'initial-load',
           previousEtag: previous?.etag ?? null,
-          ...snapshotDetails(snapshot),
+          ...snapshotSummary(snapshot),
           httpStatus,
           durationMs: Date.now() - startedAt
         })
@@ -176,7 +163,7 @@ export const createUseCaseManifestCache = (url: string) => {
         'fetch.failed',
         JSON.stringify({
           cacheStatus: snapshot ? 'retained' : 'miss',
-          ...snapshotDetails(snapshot),
+          ...snapshotSummary(snapshot),
           httpStatus,
           retainedCache: Boolean(snapshot),
           errorType: error instanceof Error ? error.name : 'UnknownError',
@@ -203,7 +190,7 @@ export const createUseCaseManifestCache = (url: string) => {
       console.info(
         LOG_PREFIX,
         'cache.miss',
-        JSON.stringify({ cacheStatus: 'miss', ...snapshotDetails(undefined) })
+        JSON.stringify({ cacheStatus: 'miss', ...snapshotSummary(undefined) })
       )
       return (await refresh()).entries
     }
@@ -211,7 +198,7 @@ export const createUseCaseManifestCache = (url: string) => {
     console.info(
       LOG_PREFIX,
       'cache.hit',
-      JSON.stringify({ cacheStatus: 'hit', ...snapshotDetails(current) })
+      JSON.stringify({ cacheStatus: 'hit', ...snapshotSummary(current) })
     )
     const observedChecks = completedChecks
     schedule(async () => {

@@ -168,7 +168,7 @@ describe('use-case manifest cache', () => {
     expect(fetcher.mock.calls[2][1].headers).toEqual({})
   })
 
-  test('logs resource entries and explicit cache states as complete JSON records', async () => {
+  test('logs cache states and counts without manifest or resource contents', async () => {
     const info = spyOn(console, 'info').mockImplementation(() => {})
     const error = spyOn(console, 'error').mockImplementation(() => {})
     globalThis.fetch = mock()
@@ -183,20 +183,9 @@ describe('use-case manifest cache', () => {
       [...info.mock.calls, ...error.mock.calls]
         .filter((call) => call[0] === '[use-case-manifest]' && call[1] === event)
         .map((call) => JSON.parse(call[2]))
-    const firstEntry = {
-      slug: manifest[0].name,
-      title: manifest[0].title,
-      resources: {
-        cover: manifest[0].cover.file_name,
-        introduction: manifest[0].introduction?.file_name ?? null,
-        package: { filename: manifest[0].case.file_name, sizeBytes: manifest[0].case.bytes }
-      }
-    }
 
     await cache.read(schedule)
-    expect(records('cache.miss')).toEqual([
-      { cacheStatus: 'miss', etag: null, count: 0, entries: [] }
-    ])
+    expect(records('cache.miss')).toEqual([{ cacheStatus: 'miss', etag: null, count: 0 }])
     expect(records('fetch.start')[0]).toMatchObject({ cacheStatus: 'miss', conditional: false })
     expect(records('cache.updated')[0]).toMatchObject({
       cacheStatus: 'updated',
@@ -207,13 +196,9 @@ describe('use-case manifest cache', () => {
       httpStatus: 200,
       durationMs: expect.any(Number)
     })
-    expect(records('cache.updated')[0].entries).toHaveLength(9)
-    expect(records('cache.updated')[0].entries[0]).toEqual(firstEntry)
-    expect(records('cache.updated')[0].entries[3].resources.introduction).toBeNull()
 
     await cache.read(schedule)
     expect(records('cache.hit')[0]).toMatchObject({ cacheStatus: 'hit', etag: '"v1"', count: 9 })
-    expect(records('cache.hit')[0].entries[0]).toEqual(firstEntry)
     await tasks.shift()?.()
     expect(records('fetch.start')[1]).toMatchObject({ cacheStatus: 'hit', conditional: true })
     expect(records('cache.unchanged')[0]).toMatchObject({
@@ -231,7 +216,6 @@ describe('use-case manifest cache', () => {
       previousEtag: '"v1"',
       etag: '"v2"',
       count: 1,
-      entries: [firstEntry],
       httpStatus: 200,
       durationMs: expect.any(Number)
     })
@@ -243,15 +227,13 @@ describe('use-case manifest cache', () => {
       cacheStatus: 'retained',
       retainedCache: true,
       etag: '"v2"',
-      count: 1,
-      entries: [firstEntry]
+      count: 1
     })
     await cache.read(schedule)
     expect(records('cache.hit').at(-1)).toMatchObject({
       cacheStatus: 'hit',
       etag: '"v2"',
-      count: 1,
-      entries: [firstEntry]
+      count: 1
     })
     expect(records('cache.updated')).toHaveLength(2)
     expect(records('cache.hit')).toHaveLength(4)
@@ -259,6 +241,16 @@ describe('use-case manifest cache', () => {
     expect(logs).not.toContain(url)
     expect(logs).not.toContain('signature=secret')
     expect(logs).not.toContain('[Object]')
+    for (const call of [...info.mock.calls, ...error.mock.calls]) {
+      expect(JSON.parse(call[2])).not.toHaveProperty('entries')
+    }
+    for (const item of manifest) {
+      expect(logs).not.toContain(item.name)
+      expect(logs).not.toContain(item.title)
+      expect(logs).not.toContain(item.cover.file_name)
+      expect(logs).not.toContain(item.case.file_name)
+      expect(logs).not.toContain(item.case.sha256)
+    }
   })
 
   test('rejects an unsolicited 304 and logs cache events only through console', async () => {
@@ -274,7 +266,6 @@ describe('use-case manifest cache', () => {
       cacheStatus: 'miss',
       retainedCache: false,
       count: 0,
-      entries: [],
       httpStatus: 304
     })
     expect(JSON.stringify(error.mock.calls)).not.toContain(url)

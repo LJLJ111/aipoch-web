@@ -42,6 +42,8 @@ test('uses the configured static origin for the manifest and resources outside m
   )
   const entries = await fetchUseCaseList()
   expect(entries).toHaveLength(9)
+  // List loading fetches only the manifest, never Markdown, covers, or archives.
+  expect(fetcher).toHaveBeenCalledTimes(1)
   expect(fetcher.mock.calls[0][0]).toBe(
     'https://assets.example.test/open-science/usecases/manifest.json'
   )
@@ -57,6 +59,8 @@ test('uses the configured static origin for the manifest and resources outside m
   expect((await fetchUseCaseDetail(release?.name ?? ''))?.package?.url).toBe(
     release?.case.release_url
   )
+  // Detail metadata resolves cached URLs without downloading their bodies either.
+  expect(fetcher).toHaveBeenCalledTimes(1)
 })
 
 test('maps manifest details without inventing dates or reports', async () => {
