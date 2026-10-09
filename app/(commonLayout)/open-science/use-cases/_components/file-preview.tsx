@@ -23,6 +23,7 @@ import {
   useRef,
   useState
 } from 'react'
+import { ExtensionPreservingFileName } from './extension-preserving-file-name'
 import { SessionMarkdown } from './session-markdown'
 
 // In-site preview for exported session files. Kinds the browser can render
@@ -363,9 +364,10 @@ const FilePreviewDialog = ({ file, onClose }: { file: PreviewFile; onClose: () =
       >
         <div className="flex items-center gap-2 border-b border-border-200/70 px-4 py-3">
           <FileText className="size-4 shrink-0 text-text-300" aria-hidden="true" />
-          <p className="min-w-0 flex-1 truncate text-[13px] font-medium text-text-000">
-            {file.name}
-          </p>
+          <ExtensionPreservingFileName
+            name={file.name}
+            className="min-w-0 flex-1 text-[13px] font-medium text-text-000"
+          />
           {isTextKind(kind) && textState.text !== undefined ? (
             <button
               type="button"
