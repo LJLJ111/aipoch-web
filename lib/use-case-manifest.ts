@@ -16,6 +16,10 @@ const resource = (value: unknown): UseCaseManifestResource => {
   if (
     typeof item.file_name !== 'string' ||
     !item.file_name.trim() ||
+    item.file_name === '.' ||
+    item.file_name === '..' ||
+    /[/\\]/.test(item.file_name) ||
+    Array.from(item.file_name).some((character) => character.charCodeAt(0) < 32) ||
     !Number.isSafeInteger(item.bytes) ||
     (item.bytes as number) < 0 ||
     typeof item.sha256 !== 'string' ||
@@ -39,7 +43,7 @@ const httpUrl = (value: string): URL => {
   return url
 }
 
-/** Paths in the manifest are raw object keys, not pre-encoded URLs. */
+/** Published objects use the case slug and raw file name; path is source metadata. */
 export const parseUseCaseManifest = (
   value: unknown,
   manifestUrl: string
@@ -47,8 +51,6 @@ export const parseUseCaseManifest = (
   if (!Array.isArray(value)) throw new Error('Expected a manifest array')
   const base = new URL('.', httpUrl(manifestUrl))
   const names = new Set<string>()
-  const resourceUrl = (item: UseCaseManifestResource) =>
-    new URL(item.path.split('/').map(encodeURIComponent).join('/'), base).href
   return value.map((value) => {
     const item = record(value)
     if (
@@ -60,6 +62,8 @@ export const parseUseCaseManifest = (
     )
       throw new Error('Invalid or duplicate manifest case')
     names.add(item.name)
+    const resourceUrl = (resource: UseCaseManifestResource) =>
+      new URL(`${item.name}/${encodeURIComponent(resource.file_name)}`, base).href
     const cover = resource(item.cover)
     const archive = resource(item.case)
     const releaseUrl = record(item.case).release_url

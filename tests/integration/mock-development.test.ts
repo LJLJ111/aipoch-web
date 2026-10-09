@@ -81,6 +81,8 @@ describe('mock development end to end', () => {
     expect(html).toContain(manifestSample[0].title)
     expect(html).toContain('Can%20a%20Simple%20Algorithm')
     expect(html).not.toContain(manifestSample[0].cover.sha256)
+    expect(html).not.toContain(manifestSample[6].title)
+    expect(html).toContain('/can-a-simple-algorithm-beat-ai-at-wordle/Can%20a%20Simple')
     await (await fetch(pageUrl)).text()
     await eventually(async () => (await stats()).notModified > 0)
     expect((await stats()).lastValidator).toMatch(/^"use-case-manifest-/)
@@ -130,7 +132,13 @@ describe('mock development end to end', () => {
       expect(await page.locator('meta[name="description"]').getAttribute('content')).toContain(
         'download its Open-Science research package'
       )
-      expect(await page.getByRole('link', { name: 'Download research package' }).count()).toBe(1)
+      const download = page.getByRole('link', { name: 'Download research package' })
+      const downloadUrl = await download.getAttribute('href')
+      expect(downloadUrl).toBe(
+        `${api}/use-case-manifest/can-a-simple-algorithm-beat-ai-at-wordle/Can%20a%20Simple%20Algorithm%20Beat%20AI%20at%20Wordle.science`
+      )
+      if (!downloadUrl) throw new Error('Missing research package URL')
+      expect((await fetch(downloadUrl)).status).toBe(200)
       expect(await page.getByRole('link', { name: 'View the research session' }).count()).toBe(0)
       expect(await page.locator('main').innerText()).not.toContain('1970')
       await page.goto(`${web}/open-science/use-cases/${manifestSample[3].name}`)
@@ -141,7 +149,7 @@ describe('mock development end to end', () => {
       const sitemap = (await (await fetch(`${web}/sitemap.xml`)).text()).replace(/>\s+</g, '><')
       for (const item of manifestSample) {
         expect(sitemap).toContain(
-          `/open-science/use-cases/${item.name}</loc><lastmod>2026-10-08T00:00:00.000Z</lastmod>`
+          `/open-science/use-cases/${item.name}</loc><lastmod>2026-10-09T00:00:00.000Z</lastmod>`
         )
         expect(sitemap).not.toContain(`/open-science/use-cases/${item.name}/replay</loc>`)
       }
@@ -188,6 +196,15 @@ describe('mock development end to end', () => {
       await page.getByRole('heading', { name: manifestSample[0].title, exact: true }).waitFor()
       await page.getByRole('link', { name: 'Next', exact: true }).click()
       await page.waitForURL('**/open-science/use-cases?page=2')
+      await page.getByRole('heading', { name: manifestSample[6].title, exact: true }).waitFor()
+      expect(await page.locator('main img').count()).toBe(3)
+      expect(
+        await page.getByRole('heading', { name: manifestSample[0].title, exact: true }).count()
+      ).toBe(0)
+      await page.goBack()
+      await page.getByRole('heading', { name: manifestSample[0].title, exact: true }).waitFor()
+      expect(await page.locator('main img').count()).toBe(6)
+      await page.goForward()
       await page.getByRole('heading', { name: manifestSample[6].title, exact: true }).waitFor()
       expect(await page.locator('main img').count()).toBe(3)
       expect(requests.some((url) => url.includes('/use-case-manifest/manifest.json'))).toBe(false)

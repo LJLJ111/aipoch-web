@@ -44,3 +44,15 @@ test('mock object storage supports conditional GET, updates, empty data and fail
   expect(stats.requests).toBe(6)
   expect(stats.notModified).toBe(1)
 })
+
+test('serves assets from the published case-name/file-name layout', async () => {
+  const origin = 'http://127.0.0.1:3203'
+  const handlers = useCaseManifestHandlers(origin)
+  const prefix = `${origin}/use-case-manifest/can-a-simple-algorithm-beat-ai-at-wordle/Can%20a%20Simple%20Algorithm%20Beat%20AI%20at%20Wordle`
+  for (const extension of ['png', 'md', 'science']) {
+    const response = await getResponse(handlers, new Request(`${prefix}.${extension}`))
+    expect(response?.status).toBe(200)
+  }
+  const missing = await getResponse(handlers, new Request(`${prefix}.missing`))
+  expect(missing?.status).toBe(404)
+})

@@ -71,17 +71,17 @@ export const useCaseManifestHandlers = (origin: string) => {
         new URL(request.url).pathname.slice('/use-case-manifest/'.length)
       )
       for (const item of useCaseManifest) {
-        if (path === item.cover.path) {
+        if (path === `${item.name}/${item.cover.file_name}`) {
           return new HttpResponse(
             '<svg xmlns="http://www.w3.org/2000/svg" width="626" height="292"><rect width="626" height="292" fill="#e8e8e4"/><text x="30" y="150" font-size="32">Research case preview</text></svg>',
             { headers: { 'Content-Type': 'image/svg+xml' } }
           )
         }
-        if (path === item.introduction?.path)
+        if (item.introduction && path === `${item.name}/${item.introduction.file_name}`)
           return HttpResponse.text(`# ${item.title}\n\nLocal sample introduction.`, {
             headers: { 'Content-Type': 'text/markdown' }
           })
-        if (path === item.case.path)
+        if (path === `${item.name}/${item.case.file_name}`)
           return HttpResponse.text('Local sample, not a .science archive.', {
             headers: { 'Content-Disposition': 'attachment; filename="sample.science"' }
           })

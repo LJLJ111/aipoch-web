@@ -9,6 +9,7 @@ const originalFetch = globalThis.fetch
 const originalMocking = process.env.NEXT_PUBLIC_API_MOCKING
 const originalNodeEnv = process.env.NODE_ENV
 afterEach(() => {
+  afterResponse.mockClear()
   globalThis.fetch = originalFetch
   if (originalMocking === undefined) delete process.env.NEXT_PUBLIC_API_MOCKING
   else process.env.NEXT_PUBLIC_API_MOCKING = originalMocking
@@ -20,22 +21,24 @@ afterEach(() => {
 test('production ignores the development manifest even when the mock flag is set', async () => {
   Reflect.set(process.env, 'NODE_ENV', 'production')
   process.env.NEXT_PUBLIC_API_MOCKING = 'enabled'
-  const fetcher = mock(async (_input: unknown) => Response.json({ code: 20000, data: [] }))
+  const fetcher = mock(async (_input: unknown) => Response.json(manifest))
   globalThis.fetch = fetcher as unknown as typeof fetch
   const { fetchUseCaseList } = await import('../../service/open-science-use-cases.server')
-  expect(await fetchUseCaseList()).toEqual([])
-  expect(fetcher.mock.calls[0][0]).toBe('http://127.0.0.1:3203/api/v1/open-science/use-cases')
+  expect(await fetchUseCaseList()).toHaveLength(9)
+  expect(fetcher.mock.calls[0][0]).toBe(
+    'https://statics.aipoch.com/open-science/usecases/manifest.json'
+  )
 })
 
-test('uses the existing API while the S3 placeholder is unset', async () => {
+test('uses the published CDN manifest outside mock development', async () => {
   delete process.env.NEXT_PUBLIC_API_MOCKING
-  const fetcher = mock(async (_input: unknown) =>
-    Response.json({ code: 20000, data: [{ slug: 'existing', title: 'Existing' }] })
-  )
+  const fetcher = mock(async (_input: unknown) => Response.json(manifest))
   globalThis.fetch = fetcher as unknown as typeof fetch
   const { fetchUseCaseList } = await import('../../service/open-science-use-cases.server')
-  expect(await fetchUseCaseList()).toEqual([{ slug: 'existing', title: 'Existing' }])
-  expect(fetcher.mock.calls[0][0]).toBe('http://127.0.0.1:3203/api/v1/open-science/use-cases')
+  expect(await fetchUseCaseList()).toHaveLength(9)
+  expect(fetcher.mock.calls[0][0]).toBe(
+    'https://statics.aipoch.com/open-science/usecases/manifest.json'
+  )
   expect(afterResponse).not.toHaveBeenCalled()
 })
 
@@ -56,4 +59,16 @@ test('maps manifest detail without inventing dates, reports or replay support', 
   expect(await fetchUseCaseDetail('missing')).toBeNull()
   expect(await fetchUseCaseList()).toHaveLength(9)
   expect(afterResponse).toHaveBeenCalled()
+})
+
+test('reports a cold manifest failure without falling back to a different catalog', async () => {
+  delete process.env.NEXT_PUBLIC_API_MOCKING
+  const fetcher = mock(async (_input: unknown) => new Response(null, { status: 503 }))
+  globalThis.fetch = fetcher as unknown as typeof fetch
+  const { fetchUseCaseList } = await import('../../service/open-science-use-cases.server')
+  expect(await fetchUseCaseList()).toBeNull()
+  expect(fetcher.mock.calls).toHaveLength(1)
+  expect(fetcher.mock.calls[0][0]).toBe(
+    'https://statics.aipoch.com/open-science/usecases/manifest.json'
+  )
 })

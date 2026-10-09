@@ -20,7 +20,8 @@ describe('use-case manifest normalization', () => {
       slug: manifest[0].name,
       title: manifest[0].title,
       preview: {
-        image: `${new URL('.', url)}${manifest[0].cover.path.split('/').map(encodeURIComponent).join('/')}`
+        image:
+          'https://objects.example.test/cases/can-a-simple-algorithm-beat-ai-at-wordle/Can%20a%20Simple%20Algorithm%20Beat%20AI%20at%20Wordle.png'
       },
       package: { sizeBytes: manifest[0].case.bytes },
       hasReplay: false
@@ -29,6 +30,27 @@ describe('use-case manifest normalization', () => {
     expect(cases[0].introductionUrl).toEndWith('.md')
     expect(cases[3].package.url).toBe(manifest[3].case.release_url)
     expect(cases[3].introductionUrl).toBeUndefined()
+  })
+
+  test('uses the case name and encodes the file name as one URL segment', () => {
+    const [entry] = parseUseCaseManifest(
+      [{ ...manifest[0], cover: { ...manifest[0].cover, file_name: '图 #1?100%.png' } }],
+      url
+    )
+    expect(entry.preview?.image).toBe(
+      'https://objects.example.test/cases/can-a-simple-algorithm-beat-ai-at-wordle/%E5%9B%BE%20%231%3F100%25.png'
+    )
+    expect(entry.package.url).toBe(
+      'https://objects.example.test/cases/can-a-simple-algorithm-beat-ai-at-wordle/Can%20a%20Simple%20Algorithm%20Beat%20AI%20at%20Wordle.science'
+    )
+    expect(entry.introductionUrl).toBe(
+      'https://objects.example.test/cases/can-a-simple-algorithm-beat-ai-at-wordle/Can%20a%20Simple%20Algorithm%20Beat%20AI%20at%20Wordle.md'
+    )
+    for (const file_name of ['.', '..', '../cover.png', 'a/b.png', 'a\\b.png', 'cover\u0000.png']) {
+      expect(() =>
+        parseUseCaseManifest([{ ...manifest[0], cover: { ...manifest[0].cover, file_name } }], url)
+      ).toThrow()
+    }
   })
 
   test('accepts an empty manifest and rejects duplicate slugs or invalid resources', () => {
