@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import { SITE_DOMAIN } from '@/lib/config'
 import { createPageMetadata } from '@/lib/page-metadata'
-import { fetchUseCaseTranscript } from '@/service/open-science-use-cases'
+import { fetchUseCaseDetail } from '@/service/open-science-use-cases.server'
 import { ReplayView } from '../../_components/replay-view'
 
 type PageProps = {
@@ -11,12 +11,13 @@ type PageProps = {
 
 export const dynamic = 'force-dynamic'
 
-// Metadata stays server-rendered for SEO and link previews; the transcript
+// Metadata uses the cached manifest for SEO and link previews; the transcript
 // itself is fully client-rendered by ReplayView (single JSON download instead
 // of HTML + hydration payload, and no per-request server render cost).
 export const generateMetadata = async ({ params }: PageProps): Promise<Metadata> => {
   const { id } = await params
-  const useCase = await fetchUseCaseTranscript(id)
+  // A catalog outage must not block the independently loaded transcript or its error state.
+  const useCase = await fetchUseCaseDetail(id).catch(() => null)
   if (!useCase) return {}
   return createPageMetadata({
     title: `Replay: ${useCase.title} | Open-Science Use Cases`,

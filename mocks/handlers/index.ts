@@ -30,8 +30,7 @@ export const adapterHandlers = (origin: string) => [
   ...stateHandlers(origin),
   ...downloadHandlers(origin),
   ...useCaseManifestHandlers(origin),
-  // Read-only use-case fixtures also live on the adapter so SSR fetches that
-  // reach the mock port still resolve when MSW interception is skipped.
+  // Read-only replay fixtures also resolve on the adapter for direct HTTP requests.
   ...useCaseHandlers(origin),
   ...fallbackHandlers(origin)
 ]

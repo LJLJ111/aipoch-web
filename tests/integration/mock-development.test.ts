@@ -142,7 +142,7 @@ describe('mock development end to end', () => {
       )
       expect(headingSize).toBeGreaterThan(paragraphSize)
       expect(await page.locator('meta[name="description"]').getAttribute('content')).toContain(
-        'download its Open-Science research package'
+        'Read-only replay of the Open-Science session'
       )
       const download = page.getByRole('link', { name: 'Download research package' })
       const downloadUrl = await download.getAttribute('href')
@@ -151,7 +151,9 @@ describe('mock development end to end', () => {
       )
       if (!downloadUrl) throw new Error('Missing research package URL')
       expect((await fetch(downloadUrl)).status).toBe(200)
-      expect(await page.getByRole('link', { name: 'View the research session' }).count()).toBe(0)
+      expect(
+        await page.getByRole('link', { name: 'View the research session' }).getAttribute('href')
+      ).toBe(`/open-science/use-cases/${manifestSample[0].name}/replay`)
       expect(await page.locator('main').innerText()).not.toContain('1970')
       // Shared "AI" keywords promote the later data-center case before the first fallback.
       const related = page.locator('main section').filter({
@@ -181,8 +183,60 @@ describe('mock development end to end', () => {
         expect(sitemap).toContain(
           `/open-science/use-cases/${item.name}</loc><lastmod>2026-10-09T00:00:00.000Z</lastmod>`
         )
-        expect(sitemap).not.toContain(`/open-science/use-cases/${item.name}/replay</loc>`)
+        expect(sitemap).toContain(
+          `/open-science/use-cases/${item.name}/replay</loc><lastmod>2026-10-09T00:00:00.000Z</lastmod>`
+        )
+        const detailHtml = await (await fetch(`${web}/open-science/use-cases/${item.name}`)).text()
+        expect(detailHtml).toContain(`href="/open-science/use-cases/${item.name}/replay"`)
+        expect(detailHtml).toContain('View the research session')
       }
+    } finally {
+      await browser.close()
+    }
+  }, 120000)
+
+  test('manifest replay links load essential and full transcripts and report API failures', async () => {
+    const browser = await chromium.launch()
+    try {
+      const page = await browser.newPage()
+      const item = manifestSample[0]
+      const transcriptPath = `/api/v1/open-science/use-cases/${item.name}/transcript`
+      await page.goto(`${web}/open-science/use-cases/${item.name}`)
+      const responsePromise = page.waitForResponse((response) =>
+        response.url().endsWith(transcriptPath)
+      )
+      await page.getByRole('link', { name: 'View the research session', exact: true }).click()
+      await page.waitForURL(`**/open-science/use-cases/${item.name}/replay`)
+      expect((await responsePromise).status()).toBe(200)
+      await page.getByText(`Local sample replay for ${item.title}.`, { exact: true }).waitFor()
+      expect(await page.title()).toBe(`Replay: ${item.title} | Open-Science Use Cases`)
+      const fullResponsePromise = page.waitForResponse((response) =>
+        response.url().endsWith(`${transcriptPath}/full`)
+      )
+      await page.getByRole('button', { name: 'View full version', exact: false }).click()
+      expect((await fullResponsePromise).status()).toBe(200)
+      await page
+        .getByText(`Additional full replay details for ${item.title}.`, { exact: true })
+        .waitFor()
+      await page.getByRole('button', { name: 'Back to essential', exact: false }).click()
+      await page.waitForURL(`**/open-science/use-cases/${item.name}/replay`)
+      expect(
+        await page
+          .getByText(`Additional full replay details for ${item.title}.`, { exact: true })
+          .count()
+      ).toBe(0)
+      await page.getByRole('link', { name: 'Back to overview', exact: false }).click()
+      await page.getByRole('link', { name: 'View the research session', exact: true }).waitFor()
+
+      const missingResponse = page.waitForResponse((response) =>
+        response.url().endsWith('/no-such-case/transcript')
+      )
+      await page.goto(`${web}/open-science/use-cases/no-such-case/replay`)
+      expect((await missingResponse).status()).toBe(404)
+      await page.getByText('This use case could not be loaded.', { exact: true }).waitFor()
+      expect(await page.getByRole('link', { name: 'Back to overview', exact: false }).count()).toBe(
+        1
+      )
     } finally {
       await browser.close()
     }

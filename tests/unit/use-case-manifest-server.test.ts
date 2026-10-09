@@ -42,7 +42,7 @@ test('uses the published CDN manifest outside mock development', async () => {
   expect(afterResponse).not.toHaveBeenCalled()
 })
 
-test('maps manifest detail without inventing dates, reports or replay support', async () => {
+test('maps manifest details without inventing dates or reports', async () => {
   process.env.NEXT_PUBLIC_API_MOCKING = 'enabled'
   globalThis.fetch = mock(async () =>
     Response.json(manifest, { headers: { ETag: '"v1"' } })
@@ -51,7 +51,20 @@ test('maps manifest detail without inventing dates, reports or replay support', 
     '../../service/open-science-use-cases.server'
   )
   const detail = await fetchUseCaseDetail(manifest[0].name)
-  expect(detail).toMatchObject({ slug: manifest[0].name, hasReplay: false })
+  expect(detail).toEqual({
+    slug: manifest[0].name,
+    title: manifest[0].title,
+    coverImage:
+      'http://127.0.0.1:3203/use-case-manifest/can-a-simple-algorithm-beat-ai-at-wordle/Can%20a%20Simple%20Algorithm%20Beat%20AI%20at%20Wordle.png',
+    package: {
+      url: 'http://127.0.0.1:3203/use-case-manifest/can-a-simple-algorithm-beat-ai-at-wordle/Can%20a%20Simple%20Algorithm%20Beat%20AI%20at%20Wordle.science',
+      filename: manifest[0].case.file_name,
+      sizeBytes: manifest[0].case.bytes,
+      sha256: manifest[0].case.sha256
+    },
+    introductionUrl:
+      'http://127.0.0.1:3203/use-case-manifest/can-a-simple-algorithm-beat-ai-at-wordle/Can%20a%20Simple%20Algorithm%20Beat%20AI%20at%20Wordle.md'
+  })
   expect(detail?.exportedAt).toBeUndefined()
   expect(detail?.report).toBeUndefined()
   expect(detail?.coverImage).toContain('Can%20a%20Simple')

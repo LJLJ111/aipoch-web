@@ -13,9 +13,9 @@ import { fetchOpenScienceWikiSitemap } from '@/service/wiki-sitemap'
 const AGENT_SKILLS_LAST_MODIFIED = '2026-09-11'
 const OPEN_SCIENCE_DOWNLOAD_LAST_MODIFIED = '2026-09-30'
 const OPEN_SCIENCE_USE_CASES_LAST_MODIFIED = '2026-10-09'
-// Detail recommendations changed independently of the gallery and replay pages.
+// Track overview and replay template changes separately from the gallery.
 const OPEN_SCIENCE_USE_CASE_DETAIL_LAST_MODIFIED = '2026-10-09'
-const OPEN_SCIENCE_USE_CASE_REPLAY_LAST_MODIFIED = '2026-09-30'
+const OPEN_SCIENCE_USE_CASE_REPLAY_LAST_MODIFIED = '2026-10-09'
 const BLOG_PAGE_LAST_MODIFIED = '2026-09-18'
 const HOMEPAGE_PAGE_LAST_MODIFIED = '2026-09-29'
 
@@ -176,7 +176,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })
   )
 
-  // Share the published manifest with SSR; raw .science files are not replay pages.
+  // Every published case has both an overview and an inspectable session.
   const useCaseRoutes: MetadataRoute.Sitemap = (await fetchUseCaseSitemapEntries()).flatMap(
     (useCase) => [
       withReliableLastModified({
@@ -185,16 +185,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         changeFrequency: 'monthly',
         priority: 0.7
       }),
-      ...(useCase.hasReplay === false
-        ? []
-        : [
-            withReliableLastModified({
-              url: `${SITE_DOMAIN}/open-science/use-cases/${useCase.slug}/replay`,
-              lastModified: OPEN_SCIENCE_USE_CASE_REPLAY_LAST_MODIFIED,
-              changeFrequency: 'monthly',
-              priority: 0.6
-            })
-          ])
+      withReliableLastModified({
+        url: `${SITE_DOMAIN}/open-science/use-cases/${useCase.slug}/replay`,
+        lastModified: OPEN_SCIENCE_USE_CASE_REPLAY_LAST_MODIFIED,
+        changeFrequency: 'monthly',
+        priority: 0.6
+      })
     ]
   )
 

@@ -1,5 +1,5 @@
 import type { LeaderboardEvaluationPayload } from '../app/(commonLayout)/leaderboard/items/[slug]/components/leaderboard-evaluation'
-import type { UseCaseManifestItem } from '../lib/use-case-types'
+import type { UseCaseIndexEntry, UseCaseManifestItem, UseCaseSession } from '../lib/use-case-types'
 import type { BlogPostDetail } from '../service/blog'
 import type { CommentItem, PostDetail } from '../service/community'
 import type { OverallLeaderboardItem } from '../service/leaderboard-overall'
@@ -11,6 +11,58 @@ export const useCaseManifest: UseCaseManifestItem[] = manifestSample
 
 // Fixed sample dates describe fixtures, never live product releases or page edits.
 export const fixtureDate = '2026-09-01T00:00:00.000Z'
+
+// Deterministic API samples for every published slug, not the real research transcripts.
+export const useCaseSessions: UseCaseSession[] = useCaseManifest.map((item) => ({
+  schemaVersion: 1,
+  slug: item.name,
+  title: item.title,
+  projectName: 'Local replay sample',
+  exportedAt: Date.parse(fixtureDate),
+  sessionCreatedAt: Date.parse(fixtureDate),
+  items: [
+    {
+      type: 'message',
+      id: `${item.name}-question`,
+      role: 'user',
+      content: item.title,
+      status: 'completed',
+      createdAt: Date.parse(fixtureDate)
+    },
+    {
+      type: 'message',
+      id: `${item.name}-answer`,
+      role: 'assistant',
+      content: `Local sample replay for ${item.title}.`,
+      status: 'completed',
+      createdAt: Date.parse(fixtureDate)
+    }
+  ],
+  assets: {},
+  omissions: [],
+  excludedFiles: []
+}))
+export const useCaseFullSessions: UseCaseSession[] = useCaseSessions.map((session) => ({
+  ...session,
+  items: [
+    ...session.items,
+    {
+      type: 'message',
+      id: `${session.slug}-full`,
+      role: 'assistant',
+      content: `Additional full replay details for ${session.title}.`,
+      status: 'completed',
+      createdAt: Date.parse(fixtureDate)
+    }
+  ]
+}))
+export const useCaseReplayIndex: UseCaseIndexEntry[] = useCaseFullSessions.map((session) => ({
+  slug: session.slug,
+  title: session.title,
+  hasFull: true,
+  fullSizeBytes: new TextEncoder().encode(JSON.stringify(session)).length
+}))
+
 export const categories = [
   { id: 'research', name: 'Medical Research' },
   { id: 'clinical', name: 'Clinical Practice' },

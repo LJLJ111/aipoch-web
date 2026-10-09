@@ -68,10 +68,7 @@ export const generateMetadata = async ({ params }: PageProps): Promise<Metadata>
   return createPageMetadata({
     title,
     description:
-      useCase.description ??
-      (useCase.hasReplay === false
-        ? `Explore "${useCase.title}" and download its Open-Science research package.`
-        : `Read-only replay of the Open-Science session "${useCase.title}".`),
+      useCase.description ?? `Read-only replay of the Open-Science session "${useCase.title}".`,
     canonical: `${SITE_DOMAIN}/open-science/use-cases/${encodeURIComponent(useCase.slug)}`,
     ...(coverImage
       ? {
@@ -209,14 +206,12 @@ export default async function OpenScienceUseCaseIntroPage({ params }: PageProps)
                 Download research package
               </a>
             ) : null}
-            {useCase.hasReplay !== false ? (
-              <Link
-                href={`/open-science/use-cases/${useCase.slug}/replay`}
-                className="inline-flex min-h-11 items-center border border-[#10110f] bg-white px-5 text-[13px] font-semibold text-[#10110f] transition-colors hover:bg-[#10110f] hover:text-white active:bg-white active:text-[#10110f]"
-              >
-                View the research session
-              </Link>
-            ) : null}
+            <Link
+              href={`/open-science/use-cases/${useCase.slug}/replay`}
+              className="inline-flex min-h-11 items-center border border-[#10110f] bg-white px-5 text-[13px] font-semibold text-[#10110f] transition-colors hover:bg-[#10110f] hover:text-white active:bg-white active:text-[#10110f]"
+            >
+              View the research session
+            </Link>
           </div>
 
           {heroImageUrl ? (
@@ -267,10 +262,8 @@ export default async function OpenScienceUseCaseIntroPage({ params }: PageProps)
           <p className="mt-3 max-w-[720px] text-[15px] leading-[1.7] text-[#5c5d57]">
             AIPOCH planned and ran this
             {category ? ` ${category.toLowerCase()}` : ''} investigation end to end — searching the
-            literature, producing the figures, and drafting the report.
-            {useCase.hasReplay === false
-              ? ' The research package is available to download and open in Open-Science.'
-              : ' The full session transcript is available to inspect.'}
+            literature, producing the figures, and drafting the report. The full session transcript
+            is available to inspect.
           </p>
           <div className="mt-5">
             <ShareRow

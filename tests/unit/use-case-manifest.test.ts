@@ -13,7 +13,7 @@ afterEach(() => {
 })
 
 describe('use-case manifest normalization', () => {
-  test('maps the supplied schema without inventing export or replay metadata', () => {
+  test('maps the supplied schema without inventing export dates', () => {
     const cases = parseUseCaseManifest(manifest, url)
     expect(cases).toHaveLength(9)
     expect(cases[0]).toMatchObject({
@@ -23,8 +23,7 @@ describe('use-case manifest normalization', () => {
         image:
           'https://objects.example.test/cases/can-a-simple-algorithm-beat-ai-at-wordle/Can%20a%20Simple%20Algorithm%20Beat%20AI%20at%20Wordle.png'
       },
-      package: { sizeBytes: manifest[0].case.bytes },
-      hasReplay: false
+      package: { sizeBytes: manifest[0].case.bytes }
     })
     expect(cases[0].exportedAt).toBeUndefined()
     expect(cases[0].introductionUrl).toEndWith('.md')

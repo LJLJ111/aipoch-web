@@ -72,7 +72,6 @@ export const parseUseCaseManifest = (
       slug: item.name,
       title: item.title,
       preview: { image: resourceUrl(cover) },
-      hasReplay: false,
       package: {
         url: releaseUrl ? httpUrl(releaseUrl).href : resourceUrl(archive),
         filename: archive.file_name,

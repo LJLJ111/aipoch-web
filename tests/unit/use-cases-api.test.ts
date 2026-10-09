@@ -1,14 +1,7 @@
 import { describe, expect, test } from 'bun:test'
-import { existsSync } from 'node:fs'
-import { join } from 'node:path'
 import { getResponse } from 'msw'
+import { useCaseManifest } from '../../mocks/fixtures'
 import { createHandlers } from '../../mocks/handlers'
-
-// These contract tests exercise the MSW handlers against the generated tier
-// files. public/use-cases/ is gitignored, so on a fresh checkout (CI) there
-// is nothing to serve — skip there instead of failing on the missing data.
-const hasGeneratedData = existsSync(join(process.cwd(), 'public', 'use-cases', 'index.json'))
-const testWithData = test.skipIf(!hasGeneratedData)
 
 const handle = async (path: string) => {
   const handlers = createHandlers('http://127.0.0.1:3203')
@@ -19,7 +12,7 @@ const handle = async (path: string) => {
 }
 
 describe('open-science use-case mock contracts', () => {
-  testWithData('serves the index plus essential and full transcript tiers', async () => {
+  test('serves the index plus essential and full transcript tiers', async () => {
     const listResponse = await handle('/api/v1/open-science/use-cases')
     expect(listResponse.status).toBe(200)
     const listBody = await listResponse.json()
@@ -51,7 +44,7 @@ describe('open-science use-case mock contracts', () => {
     )
   })
 
-  testWithData('returns the 404 envelope for unknown slugs', async () => {
+  test('returns the 404 envelope for unknown slugs', async () => {
     const response = await handle('/api/v1/open-science/use-cases/no-such-case/transcript')
     expect(response.status).toBe(404)
     const body = await response.json()
@@ -62,4 +55,15 @@ describe('open-science use-case mock contracts', () => {
     const detailBody = await detailResponse.json()
     expect(detailBody.data).toBeNull()
   })
+})
+
+test('every manifest case has deterministic replay data in mock development', async () => {
+  for (const item of useCaseManifest) {
+    const response = await handle(`/api/v1/open-science/use-cases/${item.name}/transcript`)
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body.data.slug).toBe(item.name)
+    expect(body.data.title).toBe(item.title)
+    expect(body.data.items.length).toBeGreaterThan(0)
+  }
 })

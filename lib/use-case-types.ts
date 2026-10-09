@@ -104,8 +104,6 @@ export interface UseCaseIndexEntry {
   title: string
   description?: string
   exportedAt?: number
-  /** Raw manifest packages are downloadable, but are not normalized replay tiers. */
-  hasReplay?: boolean
   /** Whether a heavier full tier exists beyond the essential transcript. */
   hasFull?: boolean
   /** Approximate download size of the full tier (json + full-only assets). */
@@ -145,7 +143,6 @@ export interface UseCaseDetail {
   title: string
   description?: string
   exportedAt?: number
-  hasReplay?: boolean
   package?: UseCasePackage
   introductionUrl?: string
   /** Taxonomy label shown as a pill in the detail header. */

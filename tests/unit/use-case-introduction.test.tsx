@@ -4,7 +4,6 @@ import { renderToReadableStream } from 'react-dom/server'
 const detail = {
   slug: 'sample-case',
   title: 'Sample case',
-  hasReplay: false,
   introductionUrl: 'https://cdn.example.test/intro.md',
   package: {
     url: 'https://cdn.example.test/sample.science',
@@ -13,12 +12,14 @@ const detail = {
     sha256: ''
   }
 }
+const fetchDetail = mock(async () => detail)
 mock.module('@/service/open-science-use-cases.server', () => ({
-  fetchUseCaseDetail: async () => detail,
+  fetchUseCaseDetail: fetchDetail,
   fetchUseCaseList: async () => [detail]
 }))
 const originalFetch = globalThis.fetch
 afterEach(() => {
+  fetchDetail.mockReset().mockResolvedValue(detail)
   globalThis.fetch = originalFetch
   mock.restore()
 })
@@ -59,5 +60,40 @@ test('keeps the case and download available when the optional introduction body 
   const html = await renderIntroduction()
   expect(html).toContain('Sample case')
   expect(html).toContain('Download research package')
+  expect(html).toContain('View the research session')
+  expect(html).toContain('href="/open-science/use-cases/sample-case/replay"')
   expect(html).not.toContain('What this research found')
+})
+
+test('describes every detail and replay page as an inspectable session', async () => {
+  const { generateMetadata: detailMetadata } = await import(
+    '../../app/(commonLayout)/open-science/use-cases/[id]/page'
+  )
+  const { generateMetadata: replayMetadata } = await import(
+    '../../app/(commonLayout)/open-science/use-cases/[id]/replay/page'
+  )
+  const params = Promise.resolve({ id: 'sample-case' })
+  globalThis.fetch = mock(
+    async () => new Response(null, { status: 404 })
+  ) as unknown as typeof fetch
+  expect((await detailMetadata({ params })).description).toBe(
+    'Read-only replay of the Open-Science session "Sample case".'
+  )
+  const replay = await replayMetadata({ params })
+  expect(replay.title).toBe('Replay: Sample case | Open-Science Use Cases')
+  expect(replay.alternates?.canonical?.toString()).toEndWith(
+    '/open-science/use-cases/sample-case/replay'
+  )
+  // Metadata comes from the catalog even if the separate transcript API is unavailable.
+  expect(globalThis.fetch).not.toHaveBeenCalled()
+})
+
+test('a cold manifest failure in metadata does not block the independent replay client', async () => {
+  fetchDetail.mockRejectedValueOnce(new Error('Manifest unavailable'))
+  const { generateMetadata } = await import(
+    '../../app/(commonLayout)/open-science/use-cases/[id]/replay/page'
+  )
+  await expect(
+    generateMetadata({ params: Promise.resolve({ id: 'sample-case' }) })
+  ).resolves.toEqual({})
 })

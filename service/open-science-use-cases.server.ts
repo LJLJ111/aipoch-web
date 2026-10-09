@@ -53,7 +53,6 @@ export const fetchUseCaseDetail = async (slug: string): Promise<UseCaseDetail | 
     slug: entry.slug,
     title: entry.title,
     coverImage: entry.preview?.image,
-    hasReplay: false,
     package: entry.package,
     introductionUrl: entry.introductionUrl
   }

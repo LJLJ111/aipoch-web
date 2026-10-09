@@ -9,8 +9,7 @@ const SUCCESS_CODE = 20000
  * Contract for the Open-Science use-case showcase. Server components call the
  * fetchers below; the client "load full version" flow calls
  * getUseCaseFullTranscriptUrl through apiClient (which awaits the mock worker).
- * MSW serves these routes from the generated files under public/use-cases/
- * until the real backend lands.
+ * MSW serves deterministic samples matching the manifest slugs in mock development.
  */
 export const USE_CASE_LIST_URL = '/v1/open-science/use-cases'
 export const getUseCaseDetailUrl = (slug: string) =>
