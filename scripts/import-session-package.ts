@@ -9,7 +9,7 @@
  *     Import a single package from an arbitrary path.
  *
  * Outputs:
- *   public/use-cases/index.json            list-page index (upserted in place, hasFull/fullSizeBytes)
+ *   public/use-cases/index.json            list-page metadata (upserted in place)
  *   public/use-cases/<slug>/detail.json    detail-page metadata: cover, figure count, report
  *                                          (markdown content + original file)
  *   public/use-cases/<slug>/essential.json SSR tier: full conversation, shortened payloads,
@@ -647,8 +647,6 @@ const importOne = (archivePath: string, slug: string): void => {
     title: model.title,
     description: model.description,
     exportedAt: model.exportedAt,
-    hasFull,
-    fullSizeBytes,
     ...(existing?.category ? { category: existing.category } : {}),
     ...(existing?.preview?.image ? { preview: { image: existing.preview.image } } : {}),
     ...(existing?.report ? { report: existing.report } : {})

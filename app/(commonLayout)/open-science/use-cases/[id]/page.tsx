@@ -1,12 +1,13 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { MarkdownRenderer } from '@/components/markdown'
 import { SITE_DOMAIN } from '@/lib/config'
 import { createPageMetadata } from '@/lib/page-metadata'
+import { selectRelatedUseCases } from '@/lib/related-use-cases'
 import type { UseCaseIndexEntry } from '@/lib/use-case-types'
 import { fetchUseCaseAssetText } from '@/service/open-science-use-case-assets'
-import { fetchUseCaseDetail, fetchUseCaseList } from '@/service/open-science-use-cases'
-import { SessionMarkdown } from '../_components/session-markdown'
+import { fetchUseCaseDetail, fetchUseCaseList } from '@/service/open-science-use-cases.server'
 import { ShareRow } from '../_components/share-row'
 
 // Markdown styles come from app/globals.css → session-transcript.css; do not
@@ -42,6 +43,13 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', {
   timeZone: 'UTC',
   year: 'numeric'
 })
+
+/** Use shared site typography for plain Markdown; keep replay-specific rendering separate. */
+const renderCaseMarkdown = async (content: string, introduction: boolean) => {
+  if (introduction) return <MarkdownRenderer content={content} mode="md" />
+  const { SessionMarkdown } = await import('../_components/session-markdown')
+  return <SessionMarkdown content={content} />
+}
 
 type PageProps = {
   params: Promise<{ id: string }>
@@ -112,21 +120,22 @@ const RelatedCard = ({ useCase }: { useCase: UseCaseIndexEntry }) => {
 export default async function OpenScienceUseCaseIntroPage({ params }: PageProps) {
   const { id } = await params
   // The detail payload is its own tier, split from the session package at
-  // publish time; the transcript tiers are only fetched by the replay page.
+  // publish time; the session package is only fetched by the replay page.
   const [useCase, index] = await Promise.all([fetchUseCaseDetail(id), fetchUseCaseList()])
   if (!useCase) notFound()
 
   const category = useCase.category
-  const figureCount = useCase.figureCount
+  const figureCount = useCase.figureCount ?? 0
   const heroImageUrl = useCase.coverImage
-  const related =
-    index?.filter((entry) => entry.slug !== useCase.slug).slice(0, 3) ?? ([] as UseCaseIndexEntry[])
+  const related = selectRelatedUseCases(useCase, index ?? [])
   // Report is data-side designated: the rendered markdown content and the
   // original file behind the button are separate fields, no frontend guessing.
   const reportUrl = useCase.report?.url
   const reportPageCount = useCase.report?.pageCount
-  const reportMarkdown = useCase.report?.contentUrl
-    ? await fetchUseCaseAssetText(useCase.report.contentUrl)
+  const contentUrl = useCase.introductionUrl ?? useCase.report?.contentUrl
+  const reportMarkdown = contentUrl ? await fetchUseCaseAssetText(contentUrl) : null
+  const markdownBody = reportMarkdown
+    ? await renderCaseMarkdown(reportMarkdown, Boolean(useCase.introductionUrl))
     : null
 
   return (
@@ -148,7 +157,9 @@ export default async function OpenScienceUseCaseIntroPage({ params }: PageProps)
                 <span aria-hidden="true">·</span>
               </>
             ) : null}
-            <span>{dateFormatter.format(new Date(useCase.exportedAt))}</span>
+            {useCase.exportedAt !== undefined ? (
+              <span>{dateFormatter.format(new Date(useCase.exportedAt))}</span>
+            ) : null}
             {reportPageCount ? (
               <>
                 <span aria-hidden="true">·</span>
@@ -187,6 +198,14 @@ export default async function OpenScienceUseCaseIntroPage({ params }: PageProps)
                 Read the full report
               </a>
             ) : null}
+            {useCase.package ? (
+              <a
+                href={useCase.package.url}
+                className="inline-flex min-h-11 items-center border border-[#10110f] bg-white px-5 text-[13px] font-semibold text-[#10110f] transition-colors hover:bg-[#10110f] hover:text-white"
+              >
+                Download research package
+              </a>
+            ) : null}
             <Link
               href={`/open-science/use-cases/${useCase.slug}/replay`}
               className="inline-flex min-h-11 items-center border border-[#10110f] bg-white px-5 text-[13px] font-semibold text-[#10110f] transition-colors hover:bg-[#10110f] hover:text-white active:bg-white active:text-[#10110f]"
@@ -218,7 +237,7 @@ export default async function OpenScienceUseCaseIntroPage({ params }: PageProps)
             <h2 className={`${headingClass} mb-6 text-[28px] leading-[1.2]`}>
               What this research found
             </h2>
-            <SessionMarkdown content={reportMarkdown} />
+            {markdownBody}
           </div>
         </section>
       ) : useCase.description ? (

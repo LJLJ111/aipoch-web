@@ -103,11 +103,7 @@ export interface UseCaseIndexEntry {
   slug: string
   title: string
   description?: string
-  exportedAt: number
-  /** Whether a heavier full tier exists beyond the essential transcript. */
-  hasFull?: boolean
-  /** Approximate download size of the full tier (json + full-only assets). */
-  fullSizeBytes?: number
+  exportedAt?: number
   /** Optional taxonomy label shown as a pill (e.g. "Agriculture"). */
   category?: string
   /** Gallery card visual on the list page. */
@@ -133,22 +129,20 @@ export interface UseCaseReportRef {
   contentUrl?: string
 }
 
-/**
- * Detail-page payload, split from the session package at publish time. The
- * CDN pipeline stores this as its own JSON per case; the session package
- * detail (transcript tiers) is fetched separately when entering replay.
- */
+/** Detail metadata derived from the shared manifest snapshot. */
 export interface UseCaseDetail {
   slug: string
   title: string
   description?: string
-  exportedAt: number
+  exportedAt?: number
+  package?: UseCasePackage
+  introductionUrl?: string
   /** Taxonomy label shown as a pill in the detail header. */
   category?: string
   /** Cover image for the hero card. */
   coverImage?: string
   /** Number of image figures the session produced. */
-  figureCount: number
+  figureCount?: number
   /** Publisher/data-side designated report; every field is optional. */
   report?: {
     /** Markdown source rendered as the page body ("What this research found"). */
@@ -158,4 +152,31 @@ export interface UseCaseDetail {
     /** Printed page count, shown as "N-page report" in the meta line. */
     pageCount?: number
   }
+}
+
+export interface UseCasePackage {
+  url: string
+  filename: string
+  sizeBytes: number
+  sha256: string
+}
+
+export interface UseCaseManifestEntry extends UseCaseIndexEntry {
+  package: UseCasePackage
+  introductionUrl?: string
+}
+
+export interface UseCaseManifestResource {
+  file_name: string
+  bytes: number
+  sha256: string
+  path: string
+}
+
+export interface UseCaseManifestItem {
+  title: string
+  name: string
+  cover: UseCaseManifestResource
+  case: UseCaseManifestResource & { release_url: string }
+  introduction?: UseCaseManifestResource
 }

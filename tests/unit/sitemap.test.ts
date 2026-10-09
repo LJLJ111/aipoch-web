@@ -7,6 +7,13 @@ const siteDomain = 'https://aipoch.com'
 const wikiSitemapUrlPrefix = 'http://openscience-wiki/'
 const wikiSitemapUrl = 'http://openscience-wiki/sitemap'
 
+mock.module('@/service/open-science-use-cases.server', () => ({
+  fetchUseCaseSitemapEntries: async () => [
+    { slug: 'manifest-case', title: 'Manifest case' },
+    { slug: 'existing-replay', title: 'Existing replay' }
+  ]
+}))
+
 mock.module('@/lib/config', () => ({
   AIPOCH_DESIGN_SYSTEM_URL: 'https://design-system.aipoch.com/',
   AIPOCH_GITHUB_URL: 'https://github.com/aipoch/medical-research-skills',
@@ -72,6 +79,22 @@ globalThis.fetch = mock(async (input) => {
 }) as unknown as typeof fetch
 
 describe('sitemap', () => {
+  test('includes detail and replay routes for every manifest case with their page dates', async () => {
+    const { default: sitemap } = await import('../../app/sitemap')
+    const routes = await sitemap()
+    expect(routes.some((route) => route.url.includes('/replay/dot-science'))).toBe(false)
+    for (const path of [
+      '/open-science/use-cases',
+      '/open-science/use-cases/manifest-case',
+      '/open-science/use-cases/existing-replay',
+      '/open-science/use-cases/manifest-case/replay',
+      '/open-science/use-cases/existing-replay/replay'
+    ]) {
+      expect(routes.find((route) => route.url === `${siteDomain}${path}`)?.lastModified).toEqual(
+        new Date('2026-10-09')
+      )
+    }
+  })
   test('merges Wiki entries under the canonical non-www origin', async () => {
     const { default: sitemap } = await import('../../app/sitemap')
 

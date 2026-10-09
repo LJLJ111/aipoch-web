@@ -1,45 +1,24 @@
-import { expect, test } from '@playwright/test'
-import {
-  COVERAGE_FIXTURE_SLUG,
-  coverageFixtureIndexEntry,
-  coverageFixtureSession
-} from '../../mocks/fixtures/use-case-coverage'
+import { expect, type Page } from '@playwright/test'
 
-const envelope = (data: unknown) => JSON.stringify({ code: 20000, msg: 'Success', data })
-
-// Renderer coverage matrix: every dedicated renderer branch, elicitation
-// state, artifact state, and edge case must leave a visible marker in the DOM.
-// A silently dropped component turns into an explicit failure here.
-// The first page hit pays the dev compile cost, so give the test headroom.
-test.setTimeout(240000)
-
-test.beforeEach(async ({ page }) => {
-  // The replay page is fully client-rendered, so browser-level route
-  // interception is enough — no MSW required.
-  await page.route('**/api/v1/open-science/use-cases', (route) => {
-    if (route.request().url().endsWith('/open-science/use-cases')) {
-      return route.fulfill({
-        contentType: 'application/json',
-        body: envelope([coverageFixtureIndexEntry])
-      })
-    }
-    return route.continue()
+// Run against the real mock Next server: package metadata now arrives in the RSC response.
+export async function verifyReplayCoverage(page: Page, url: string) {
+  let downloads = 0
+  page.context().on('request', (request) => {
+    if (!request.serviceWorker() && new URL(request.url()).pathname.endsWith('.science'))
+      downloads++
   })
-  await page.route(
-    `**/api/v1/open-science/use-cases/${COVERAGE_FIXTURE_SLUG}/transcript`,
-    (route) =>
-      route.fulfill({ contentType: 'application/json', body: envelope(coverageFixtureSession) })
-  )
-})
-
-test('replay renders every component type in the coverage fixture', async ({ page }) => {
   const pageErrors: string[] = []
   page.on('pageerror', (error) => pageErrors.push(error.message))
 
-  await page.goto(`/open-science/use-cases/${COVERAGE_FIXTURE_SLUG}/replay`, {
+  await page.goto(url, {
     timeout: 180000,
     waitUntil: 'domcontentloaded'
   })
+
+  // Wait for the real worker (including first-use compilation) before checking renderers.
+  await page
+    .getByText('Run the renderer coverage scenario.', { exact: true })
+    .waitFor({ timeout: 30000 })
 
   // -- user bubble -------------------------------------------------------------
   await expect(page.getByText('Run the renderer coverage scenario.')).toBeVisible()
@@ -102,9 +81,7 @@ test('replay renders every component type in the coverage fixture', async ({ pag
   await expandRow(/^Notebook run done$/)
   await expect(page.getByText('coverage stdout line')).toBeVisible()
   await expect(page.getByText('coverage stderr warning')).toBeVisible()
-  await expect(
-    page.locator('img[src*="/use-cases/coverage-fixture/figures/figure-01.png"]')
-  ).toBeVisible()
+  await expect(page.locator('img[src^="blob:"]').first()).toBeVisible()
 
   await expandRow(/^Notebook run\b.*coverage_cell/)
   await expect(page.getByText(/coverage_auc/)).toBeVisible()
@@ -143,7 +120,8 @@ test('replay renders every component type in the coverage fixture', async ({ pag
   await expect(page.getByRole('button', { name: 'Declined tool' })).toBeVisible()
 
   await expandRow('Truncated tool')
-  await expect(page.getByText(/shortened in the essential view/)).toBeVisible()
+  await expect(page.getByText(/Long payloads are shortened in the essential view/)).toHaveCount(0)
+  await expect(page.locator('pre').filter({ hasText: 'x'.repeat(30000) })).toBeVisible()
 
   // A tool with no payload renders as a one-line row with expansion disabled.
   await expect(page.getByRole('button', { name: 'Empty tool' })).toBeDisabled()
@@ -155,17 +133,92 @@ test('replay renders every component type in the coverage fixture', async ({ pag
   await expect(page.getByTitle('Preview coverage_chart.png')).toBeVisible()
   await expect(page.getByTitle('Preview coverage_report.md')).toBeVisible()
   await expect(page.getByTitle(/Download coverage_dataset\.zip/)).toBeVisible()
-  await expect(page.getByText('Full only')).toBeVisible()
+  await expect(page.getByText('Full only', { exact: true })).toHaveCount(0)
+  await expect(page.getByTitle(/Download coverage_huge.bin/)).toHaveAttribute('href', /^blob:/)
 
   // -- inline asset link in message content ---------------------------------------------
   await expect(page.getByRole('link', { name: 'coverage_report.md' }).first()).toHaveAttribute(
     'href',
-    '/use-cases/coverage-fixture/objects/report.md'
+    /^blob:/
   )
+
+  await page.getByRole('link', { name: 'coverage_report.md' }).first().click()
+  const preview = page.getByRole('dialog', { name: 'coverage_report.md', exact: true })
+  await expect(preview.getByText('Sample coverage_report.md', { exact: true })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(preview).not.toBeVisible()
+  await expect(
+    page.getByRole('button', { name: /View full version|Back to essential/ })
+  ).toHaveCount(0)
+  expect(downloads).toBe(1)
 
   // -- global hygiene ----------------------------------------------------------------------
   const bodyText = await page.locator('body').innerText()
   expect(bodyText).not.toContain('[object Object]')
   expect(bodyText).not.toContain('Could not render')
   expect(pageErrors).toEqual([])
-})
+}
+
+export async function verifyReplayLoading(page: Page, url: string) {
+  // Control worker timing to assert short-lived states without delaying production code.
+  await page.addInitScript(() => {
+    const workers: { onmessage?: (event: MessageEvent) => void; terminated: boolean }[] = []
+    Object.assign(window, { replayTestWorkers: workers })
+    class ControlledWorker {
+      onmessage?: (event: MessageEvent) => void
+      terminated = false
+      constructor() {
+        workers.push(this)
+      }
+      postMessage() {}
+      terminate() {
+        this.terminated = true
+      }
+    }
+    Object.assign(window, { Worker: ControlledWorker })
+  })
+  await page.goto(url)
+  await expect(page.getByRole('status')).toHaveText('Downloading research package…')
+  await expect(page.getByRole('progressbar')).not.toHaveAttribute('value')
+  await page.waitForFunction(
+    () => (window as unknown as { replayTestWorkers: unknown[] }).replayTestWorkers.length === 1
+  )
+  const emit = (data: unknown) =>
+    page.evaluate((data) => {
+      const workers = (
+        window as unknown as {
+          replayTestWorkers: { onmessage: (event: { data: unknown }) => void }[]
+        }
+      ).replayTestWorkers
+      workers.at(-1)?.onmessage({ data })
+    }, data)
+  await emit({ type: 'progress', progress: { stage: 'downloading', loaded: 20, total: 100 } })
+  await expect(page.getByRole('status')).toHaveText('Downloading research package…')
+  await expect(page.getByRole('progressbar')).toHaveAttribute('value', '20')
+  await expect(page.getByText('20%', { exact: true })).toBeVisible()
+  await emit({ type: 'progress', progress: { stage: 'downloading', loaded: 30 } })
+  await expect(page.getByRole('progressbar')).not.toHaveAttribute('value')
+  for (const [stage, label] of [
+    ['verifying', 'Verifying SHA-256…'],
+    ['parsing', 'Parsing research session…']
+  ]) {
+    await emit({ type: 'progress', progress: { stage } })
+    await expect(page.getByRole('status')).toHaveText(label)
+    await expect(page.getByRole('progressbar')).not.toHaveAttribute('value')
+  }
+  await emit({ type: 'error', message: 'Package SHA-256 verification failed.' })
+  await expect(page.locator('main').getByRole('alert')).toContainText(
+    'Package SHA-256 verification failed.'
+  )
+  await page.getByRole('button', { name: 'Retry', exact: true }).click()
+  await page.waitForFunction(
+    () => (window as unknown as { replayTestWorkers: unknown[] }).replayTestWorkers.length === 2
+  )
+  expect(
+    await page.evaluate(
+      () =>
+        (window as unknown as { replayTestWorkers: { terminated: boolean }[] }).replayTestWorkers[0]
+          .terminated
+    )
+  ).toBe(true)
+}
