@@ -10,15 +10,17 @@ test.setTimeout(240000)
 
 test.beforeEach(async ({ context }) => {
   const sample = buildCoveragePackage()
-  await context.route(`**/internal/use-cases/${COVERAGE_FIXTURE_SLUG}`, (route) =>
-    route.fulfill({
-      json: {
-        url: new URL('/coverage.science', route.request().url()).href,
-        filename: 'coverage.science',
-        sizeBytes: sample.sizeBytes,
-        sha256: sample.sha256
-      }
-    })
+  await context.route(
+    `**/open-science/use-cases/${COVERAGE_FIXTURE_SLUG}/replay/dot-science`,
+    (route) =>
+      route.fulfill({
+        json: {
+          url: new URL('/coverage.science', route.request().url()).href,
+          filename: 'coverage.science',
+          sizeBytes: sample.sizeBytes,
+          sha256: sample.sha256
+        }
+      })
   )
   await context.route('**/coverage.science', (route) =>
     route.fulfill({ body: Buffer.from(sample.bytes), contentType: 'application/octet-stream' })

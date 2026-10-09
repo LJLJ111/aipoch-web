@@ -10,13 +10,15 @@ const fetchDetail = mock(
   async (_slug: string): Promise<{ package: typeof info } | null> => ({ package: info })
 )
 mock.module('@/service/open-science-use-cases.server', () => ({ fetchUseCaseDetail: fetchDetail }))
-const { GET } = await import('../../app/internal/use-cases/[slug]/route')
+const { GET } = await import(
+  '../../app/(commonLayout)/open-science/use-cases/[id]/replay/dot-science/route'
+)
 afterEach(() => {
   fetchDetail.mockReset().mockResolvedValue({ package: info })
 })
 const request = () =>
-  GET(new Request('https://example.com/internal/use-cases/example'), {
-    params: Promise.resolve({ slug: 'example' })
+  GET(new Request('https://example.com/open-science/use-cases/example/replay/dot-science'), {
+    params: Promise.resolve({ id: 'example' })
   })
 test('returns cached package metadata without downloading the archive', async () => {
   const originalFetch = globalThis.fetch

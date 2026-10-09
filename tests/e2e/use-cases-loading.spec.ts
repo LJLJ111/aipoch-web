@@ -22,7 +22,7 @@ test('shows honest stage progress, error reasons and a fresh retry', async ({ pa
   const gate = new Promise<void>((resolve) => {
     releaseInfo = resolve
   })
-  await page.route('**/internal/use-cases/loading-sample', async (route) => {
+  await page.route('**/open-science/use-cases/loading-sample/replay/dot-science', async (route) => {
     await gate
     await route.fulfill({
       json: {

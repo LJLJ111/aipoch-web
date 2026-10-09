@@ -48,6 +48,10 @@ test('unmount terminates the worker, revokes assets and ignores late messages', 
   const update = mock(() => {})
   const cancel = loadReplay('case', update)
   await tick()
+  expect(globalThis.fetch).toHaveBeenCalledWith(
+    '/open-science/use-cases/case/replay/dot-science',
+    expect.objectContaining({ cache: 'no-store', signal: expect.any(AbortSignal) })
+  )
   const worker = TestWorker.instances[0]
   worker.emit({ type: 'resources', resources: [{ id: 'science-asset:0', blob: new Blob(['a']) }] })
   expect(worker.postMessage).toHaveBeenLastCalledWith({

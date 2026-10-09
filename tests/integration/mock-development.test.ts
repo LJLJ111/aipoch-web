@@ -201,6 +201,11 @@ describe('mock development end to end', () => {
       const context = await browser.newContext()
       const page = await context.newPage()
       const item = manifestSample[0]
+      // Exercise both URLs through Next: the removed endpoint has no alias or redirect.
+      expect((await fetch(`${web}/internal/use-cases/${item.name}`)).status).toBe(404)
+      expect(
+        (await fetch(`${web}/open-science/use-cases/no-such-case/replay/dot-science`)).status
+      ).toBe(404)
       const requests: string[] = []
       context.on('request', (request) => {
         if (!request.serviceWorker()) requests.push(request.url())
@@ -215,7 +220,7 @@ describe('mock development end to end', () => {
       })
       await page.goto(`${web}/open-science/use-cases/${item.name}`)
       const infoResponse = page.waitForResponse((response) =>
-        response.url().endsWith(`/internal/use-cases/${item.name}`)
+        response.url().endsWith(`/open-science/use-cases/${item.name}/replay/dot-science`)
       )
       await page.getByRole('link', { name: 'View the research session', exact: true }).click()
       const info = await (await infoResponse).json()
@@ -230,6 +235,7 @@ describe('mock development end to end', () => {
       ).toBe(0)
       expect(await page.getByText('Full only', { exact: true }).count()).toBe(0)
       expect(requests.some((url) => url.includes('/api/v1/open-science/use-cases'))).toBe(false)
+      expect(requests.some((url) => url.includes('/internal/use-cases/'))).toBe(false)
       const states = await page.evaluate(
         () => (window as typeof window & { replayStates: string[] }).replayStates
       )

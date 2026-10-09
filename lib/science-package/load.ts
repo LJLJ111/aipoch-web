@@ -32,10 +32,13 @@ export function loadReplay(slug: string, update: (state: ReplayState) => void) {
     try {
       await waitForBrowserMock()
       if (!active) return
-      const response = await fetch(`/internal/use-cases/${encodeURIComponent(slug)}`, {
-        signal: controller.signal,
-        cache: 'no-store'
-      })
+      const response = await fetch(
+        `/open-science/use-cases/${encodeURIComponent(slug)}/replay/dot-science`,
+        {
+          signal: controller.signal,
+          cache: 'no-store'
+        }
+      )
       if (!response.ok) {
         const body = await response.json().catch(() => null)
         throw new Error(body?.error ?? `Package information failed (HTTP ${response.status}).`)
