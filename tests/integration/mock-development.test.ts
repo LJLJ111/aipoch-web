@@ -153,6 +153,24 @@ describe('mock development end to end', () => {
       expect((await fetch(downloadUrl)).status).toBe(200)
       expect(await page.getByRole('link', { name: 'View the research session' }).count()).toBe(0)
       expect(await page.locator('main').innerText()).not.toContain('1970')
+      // Shared "AI" keywords promote the later data-center case before the first fallback.
+      const related = page.locator('main section').filter({
+        has: page.getByRole('heading', { name: 'Related research', exact: true })
+      })
+      expect(await related.locator('h3').allTextContents()).toEqual([
+        'Can AI Spot the Errors in a Spreadsheet',
+        'How Many Homes Could AI Data Centers Power',
+        'Can GLP-1 Drugs Really Help Us Live Longer'
+      ])
+      expect(
+        await related
+          .locator('a[href*="/use-cases/"]')
+          .evaluateAll((links) => links.map((link) => link.getAttribute('href')))
+      ).toEqual([
+        '/open-science/use-cases/can-ai-spot-the-errors-in-a-spreadsheet',
+        '/open-science/use-cases/how-many-homes-could-ai-data-centers-power',
+        '/open-science/use-cases/can-glp-1-drugs-really-help-us-live-longer'
+      ])
       await page.goto(`${web}/open-science/use-cases/${manifestSample[3].name}`)
       expect(
         await page.getByRole('heading', { name: manifestSample[3].title, exact: true }).count()

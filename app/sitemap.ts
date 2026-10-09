@@ -13,6 +13,8 @@ import { fetchOpenScienceWikiSitemap } from '@/service/wiki-sitemap'
 const AGENT_SKILLS_LAST_MODIFIED = '2026-09-11'
 const OPEN_SCIENCE_DOWNLOAD_LAST_MODIFIED = '2026-09-30'
 const OPEN_SCIENCE_USE_CASES_LAST_MODIFIED = '2026-10-09'
+// Detail recommendations changed independently of the gallery and replay pages.
+const OPEN_SCIENCE_USE_CASE_DETAIL_LAST_MODIFIED = '2026-10-09'
 const OPEN_SCIENCE_USE_CASE_REPLAY_LAST_MODIFIED = '2026-09-30'
 const BLOG_PAGE_LAST_MODIFIED = '2026-09-18'
 const HOMEPAGE_PAGE_LAST_MODIFIED = '2026-09-29'
@@ -179,7 +181,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     (useCase) => [
       withReliableLastModified({
         url: `${SITE_DOMAIN}/open-science/use-cases/${useCase.slug}`,
-        lastModified: OPEN_SCIENCE_USE_CASES_LAST_MODIFIED,
+        lastModified: OPEN_SCIENCE_USE_CASE_DETAIL_LAST_MODIFIED,
         changeFrequency: 'monthly',
         priority: 0.7
       }),

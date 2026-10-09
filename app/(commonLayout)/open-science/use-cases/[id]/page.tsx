@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { MarkdownRenderer } from '@/components/markdown'
 import { SITE_DOMAIN } from '@/lib/config'
 import { createPageMetadata } from '@/lib/page-metadata'
+import { selectRelatedUseCases } from '@/lib/related-use-cases'
 import type { UseCaseIndexEntry } from '@/lib/use-case-types'
 import { fetchUseCaseAssetText } from '@/service/open-science-use-case-assets'
 import { fetchUseCaseDetail, fetchUseCaseList } from '@/service/open-science-use-cases.server'
@@ -129,8 +130,7 @@ export default async function OpenScienceUseCaseIntroPage({ params }: PageProps)
   const category = useCase.category
   const figureCount = useCase.figureCount ?? 0
   const heroImageUrl = useCase.coverImage
-  const related =
-    index?.filter((entry) => entry.slug !== useCase.slug).slice(0, 3) ?? ([] as UseCaseIndexEntry[])
+  const related = selectRelatedUseCases(useCase, index ?? [])
   // Report is data-side designated: the rendered markdown content and the
   // original file behind the button are separate fields, no frontend guessing.
   const reportUrl = useCase.report?.url
