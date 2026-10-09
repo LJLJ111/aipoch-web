@@ -46,15 +46,26 @@ export const fetchUseCaseList = async (): Promise<UseCaseIndexEntry[] | null> =>
 }
 
 export const fetchUseCaseDetail = async (slug: string): Promise<UseCaseDetail | null> => {
-  const entries = await readManifest()
-  const entry = entries?.find((item) => item.slug === slug)
-  if (!entry) return null
-  return {
-    slug: entry.slug,
-    title: entry.title,
-    coverImage: entry.preview?.image,
-    package: entry.package,
-    introductionUrl: entry.introductionUrl
+  try {
+    const entries = await readManifest()
+    const entry = entries?.find((item) => item.slug === slug)
+    if (!entry) return null
+    return {
+      slug: entry.slug,
+      title: entry.title,
+      coverImage: entry.preview?.image,
+      package: entry.package,
+      introductionUrl: entry.introductionUrl,
+      ...(entry.description ? { description: entry.description } : {}),
+      ...(entry.category ? { category: entry.category } : {}),
+      ...(entry.exportedAt !== undefined ? { exportedAt: entry.exportedAt } : {}),
+      ...(entry.figureCount !== undefined ? { figureCount: entry.figureCount } : {}),
+      ...(entry.report ? { report: entry.report } : {})
+    }
+  } catch {
+    // Same contract as fetchUseCaseList: a manifest outage degrades the detail
+    // page to notFound instead of a 500.
+    return null
   }
 }
 

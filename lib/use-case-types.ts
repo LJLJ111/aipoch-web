@@ -110,6 +110,8 @@ export interface UseCaseIndexEntry {
   preview?: UseCasePreview
   /** Publisher-designated report file; the detail page prefers its own payload. */
   report?: UseCaseReportRef
+  /** Number of image figures the session produced; consumed by the detail page. */
+  figureCount?: number
 }
 
 export interface UseCasePreview {
@@ -119,7 +121,7 @@ export interface UseCasePreview {
 
 export interface UseCaseReportRef {
   /** Direct URL to the report file (PDF or markdown). */
-  url: string
+  url?: string
   /** Printed page count, shown as "19-page report" in the detail meta line. */
   pageCount?: number
   /**
@@ -179,4 +181,16 @@ export interface UseCaseManifestItem {
   cover: UseCaseManifestResource
   case: UseCaseManifestResource & { release_url: string }
   introduction?: UseCaseManifestResource
+  /** Optional detail metadata; absent on the current CDN manifest. */
+  description?: string
+  category?: string
+  /** Millisecond export timestamp. */
+  exported_at?: number
+  figure_count?: number
+  /** Publisher-designated report; resources resolve next to the case files. */
+  report?: {
+    file?: UseCaseManifestResource
+    content?: UseCaseManifestResource
+    page_count?: number
+  }
 }

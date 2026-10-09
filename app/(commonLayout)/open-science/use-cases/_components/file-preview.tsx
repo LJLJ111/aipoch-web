@@ -67,6 +67,12 @@ export const previewKindFor = (name: string, mimeType?: string): PreviewKind | n
   return null
 }
 
+// SVG blobs keep image/svg+xml so <img> renders them, but navigating to one as
+// a top-level document would run its scripts same-origin — downloads and inline
+// images are the only offered exits, never "open in a new tab".
+export const canOpenInNewTab = (file: PreviewFile): boolean =>
+  file.mimeType !== 'image/svg+xml' && extensionOf(file.name) !== 'svg'
+
 const isTextKind = (kind: PreviewKind | null): kind is 'markdown' | 'json' | 'csv' | 'text' =>
   kind === 'markdown' || kind === 'json' || kind === 'csv' || kind === 'text'
 
@@ -375,16 +381,18 @@ const FilePreviewDialog = ({ file, onClose }: { file: PreviewFile; onClose: () =
               )}
             </button>
           ) : null}
-          <a
-            href={file.url}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Open in a new tab"
-            title="Open in a new tab"
-            className={iconButtonClassName}
-          >
-            <ExternalLink className="size-3.5" aria-hidden="true" />
-          </a>
+          {canOpenInNewTab(file) ? (
+            <a
+              href={file.url}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Open in a new tab"
+              title="Open in a new tab"
+              className={iconButtonClassName}
+            >
+              <ExternalLink className="size-3.5" aria-hidden="true" />
+            </a>
+          ) : null}
           <a
             href={file.url}
             download={file.name}

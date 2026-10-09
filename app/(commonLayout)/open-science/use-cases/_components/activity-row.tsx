@@ -207,11 +207,11 @@ const notebookOutputSections = (output: NormalizedOutput): DetailSection[] => {
     if (typeof data['text/plain'] === 'string') {
       sections.push({ kind: 'code', label: 'Result', text: data['text/plain'] })
     }
-    if (
-      typeof data['image/png'] === 'string' &&
-      (data['image/png'].startsWith('/') || data['image/png'].startsWith('blob:'))
-    ) {
-      sections.push({ kind: 'image', label: 'Figure', url: data['image/png'] })
+    for (const mime of ['image/png', 'image/jpeg'] as const) {
+      const image = data[mime]
+      if (typeof image === 'string' && (image.startsWith('/') || image.startsWith('blob:'))) {
+        sections.push({ kind: 'image', label: 'Figure', url: image })
+      }
     }
   }
   if (sections.length === 0 && output.text) {

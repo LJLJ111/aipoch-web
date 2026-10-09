@@ -1,4 +1,8 @@
-import type { UseCaseManifestEntry, UseCaseManifestResource } from './use-case-types'
+import type {
+  UseCaseManifestEntry,
+  UseCaseManifestResource,
+  UseCaseReportRef
+} from './use-case-types'
 
 type ScheduleAfterResponse = (task: () => Promise<void>) => unknown
 type Snapshot = { entries: UseCaseManifestEntry[]; etag: string | null }
@@ -68,6 +72,33 @@ export const parseUseCaseManifest = (
     const archive = resource(item.case)
     const releaseUrl = record(item.case).release_url
     if (typeof releaseUrl !== 'string') throw new Error('Invalid release URL')
+
+    // Optional detail metadata. Malformed optional values are dropped rather
+    // than failing the whole catalog; resources still validate strictly.
+    const optionalText = (field: unknown): string | undefined =>
+      typeof field === 'string' && field.trim() ? field : undefined
+    const optionalCount = (field: unknown): number | undefined =>
+      typeof field === 'number' && Number.isSafeInteger(field) && field >= 0 ? field : undefined
+    let report: UseCaseReportRef | undefined
+    if (item.report !== undefined) {
+      const reportRecord = record(item.report)
+      const reportFile = reportRecord.file === undefined ? undefined : resource(reportRecord.file)
+      const reportContent =
+        reportRecord.content === undefined ? undefined : resource(reportRecord.content)
+      const pageCount = optionalCount(reportRecord.page_count)
+      const fields: UseCaseReportRef = {
+        ...(reportFile ? { url: resourceUrl(reportFile) } : {}),
+        ...(reportContent ? { contentUrl: resourceUrl(reportContent) } : {}),
+        ...(pageCount ? { pageCount } : {})
+      }
+      // A report object with no usable field is the same as no report.
+      if (Object.keys(fields).length > 0) report = fields
+    }
+    const description = optionalText(item.description)
+    const category = optionalText(item.category)
+    const exportedAt = optionalCount(item.exported_at)
+    const figureCount = optionalCount(item.figure_count)
+
     return {
       slug: item.name,
       title: item.title,
@@ -78,6 +109,11 @@ export const parseUseCaseManifest = (
         sizeBytes: archive.bytes,
         sha256: archive.sha256
       },
+      ...(description ? { description } : {}),
+      ...(category ? { category } : {}),
+      ...(exportedAt ? { exportedAt } : {}),
+      ...(figureCount !== undefined ? { figureCount } : {}),
+      ...(report ? { report } : {}),
       ...(item.introduction === undefined
         ? {}
         : {

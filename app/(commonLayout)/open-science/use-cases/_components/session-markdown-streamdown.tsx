@@ -6,7 +6,7 @@ import { createMathPlugin } from '@streamdown/math'
 import { useEffect, useMemo, useState } from 'react'
 import { type Components, defaultRehypePlugins, Streamdown } from 'streamdown'
 import type { PluggableList, Plugin } from 'unified'
-import { useFilePreview } from './file-preview'
+import { type PreviewFile, previewKindFor, useFilePreview } from './file-preview'
 import 'katex/dist/katex.min.css'
 
 // Static-mode Streamdown tuned like the app's AgentMarkdown: same plugins, controls, and
@@ -55,25 +55,53 @@ const controls = {
   }
 } as const
 
+/**
+ * Resolve an internal asset link to a preview target, or null when no in-site
+ * preview exists for the type. The package parser appends `#<filename>` to
+ * blob asset URLs (img/fetch ignore the fragment) so the real name survives
+ * even when the link label has no extension; strip it before fetching.
+ */
+export const resolveAssetLinkTarget = (href: string, label: string): PreviewFile | null => {
+  const hashIndex = href.indexOf('#')
+  const url = hashIndex === -1 ? href : href.slice(0, hashIndex)
+  let fragmentName = ''
+  if (hashIndex !== -1) {
+    const raw = href.slice(hashIndex + 1)
+    try {
+      fragmentName = decodeURIComponent(raw)
+    } catch {
+      fragmentName = raw
+    }
+  }
+  const urlName = url.split('/').pop() ?? ''
+  const name = fragmentName || label || urlName || href
+  if (previewKindFor(name)) return { name, url }
+  if (urlName && urlName !== name && previewKindFor(urlName)) return { name: urlName, url }
+  return null
+}
+
 const linkComponent: Components['a'] = ({ node: _node, href, children, ...props }) => {
   const openPreview = useFilePreview()
   // Intercept internal asset links only when a preview provider is mounted
-  // (the transcript); without one, fall through to a plain link so the click
-  // still opens the file instead of dying on preventDefault + no-op.
+  // (the transcript) and the type is previewable; otherwise fall through to a
+  // plain link so the click still opens the file instead of dying on
+  // preventDefault + "cannot preview".
   if ((href?.startsWith('/use-cases/') || href?.startsWith('blob:')) && openPreview) {
-    const name = typeof children === 'string' ? children : (href.split('/').pop() ?? href)
-    return (
-      <a
-        {...props}
-        href={href}
-        onClick={(event) => {
-          event.preventDefault()
-          openPreview({ name, url: href })
-        }}
-      >
-        {children}
-      </a>
-    )
+    const target = resolveAssetLinkTarget(href, typeof children === 'string' ? children : '')
+    if (target) {
+      return (
+        <a
+          {...props}
+          href={href}
+          onClick={(event) => {
+            event.preventDefault()
+            openPreview(target)
+          }}
+        >
+          {children}
+        </a>
+      )
+    }
   }
   return (
     <a {...props} href={href} target="_blank" rel="noreferrer">
