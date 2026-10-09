@@ -1,9 +1,9 @@
 import { HttpResponse, http } from 'msw'
 import { useCaseManifest } from '../fixtures'
-import { buildSciencePackage } from '../fixtures/science-package'
+import { buildCoveragePackage } from '../fixtures/science-coverage-package'
 
 const packages = new Map(
-  useCaseManifest.map((item) => [item.name, buildSciencePackage(item.title)])
+  useCaseManifest.map((item) => [item.name, buildCoveragePackage(item.title)])
 )
 
 /** The HTTP adapter owns mock revisions, so SSR and browsers see one object version. */

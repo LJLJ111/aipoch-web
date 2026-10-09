@@ -1,7 +1,14 @@
 import { afterEach, expect, mock, test } from 'bun:test'
 import type { WorkerReply } from '../../lib/science-package/protocol'
 
-mock.module('../../mocks/ready', () => ({ waitForBrowserMock: async () => {} }))
+const waitForMock = mock(async () => {})
+mock.module('../../mocks/ready', () => ({ waitForBrowserMock: waitForMock }))
+const info = {
+  url: 'https://cdn.test/a.science',
+  filename: 'a.science',
+  sizeBytes: 10,
+  sha256: 'a'.repeat(64)
+}
 const { loadReplay } = await import('../../lib/science-package/load')
 const original = {
   fetch: globalThis.fetch,
@@ -24,6 +31,7 @@ class TestWorker {
 }
 const prepare = () => {
   TestWorker.instances = []
+  waitForMock.mockReset().mockResolvedValue(undefined)
   globalThis.Worker = TestWorker as unknown as typeof Worker
   globalThis.fetch = mock(async () =>
     Response.json({
@@ -46,13 +54,11 @@ const tick = () => new Promise((resolve) => setTimeout(resolve, 0))
 test('unmount terminates the worker, revokes assets and ignores late messages', async () => {
   prepare()
   const update = mock(() => {})
-  const cancel = loadReplay('case', update)
+  const cancel = loadReplay('case', info, update)
   await tick()
-  expect(globalThis.fetch).toHaveBeenCalledWith(
-    '/open-science/use-cases/case/replay/dot-science',
-    expect.objectContaining({ cache: 'no-store', signal: expect.any(AbortSignal) })
-  )
+  expect(globalThis.fetch).not.toHaveBeenCalled()
   const worker = TestWorker.instances[0]
+  expect(worker.postMessage).toHaveBeenCalledWith({ type: 'load', slug: 'case', info })
   worker.emit({ type: 'resources', resources: [{ id: 'science-asset:0', blob: new Blob(['a']) }] })
   expect(worker.postMessage).toHaveBeenLastCalledWith({
     type: 'urls',
@@ -68,7 +74,7 @@ test('unmount terminates the worker, revokes assets and ignores late messages', 
 test('worker failures release assets and retry creates a fresh task', async () => {
   prepare()
   const update = mock(() => {})
-  const cancel = loadReplay('case', update)
+  const cancel = loadReplay('case', info, update)
   await tick()
   const worker = TestWorker.instances[0]
   worker.emit({ type: 'resources', resources: [{ id: 'science-asset:0', blob: new Blob(['a']) }] })
@@ -79,26 +85,26 @@ test('worker failures release assets and retry creates a fresh task', async () =
   worker.emit({ type: 'progress', progress: { stage: 'parsing' } })
   expect(update.mock.calls.length).toBe(count)
   cancel()
-  const cancelRetry = loadReplay('case', update)
+  const cancelRetry = loadReplay('case', info, update)
   await tick()
   expect(TestWorker.instances).toHaveLength(2)
   cancelRetry()
 })
-test('leaving during metadata fetch aborts and never starts a worker', async () => {
+test('leaving before mock readiness never starts a worker or performs a fetch', async () => {
   prepare()
-  let signal: AbortSignal | undefined
-  globalThis.fetch = mock((_url, init) => {
-    signal = init?.signal ?? undefined
-    return new Promise((_resolve, reject) =>
-      signal?.addEventListener('abort', () => reject(new Error('Aborted')))
-    )
-  }) as unknown as typeof fetch
+  let ready: () => void = () => {}
+  waitForMock.mockImplementationOnce(
+    () =>
+      new Promise<void>((resolve) => {
+        ready = resolve
+      })
+  )
   const update = mock(() => {})
-  const cancel = loadReplay('case', update)
-  await tick()
+  const cancel = loadReplay('case', info, update)
   cancel()
+  ready()
   await tick()
-  expect(signal?.aborted).toBe(true)
   expect(TestWorker.instances).toHaveLength(0)
+  expect(globalThis.fetch).not.toHaveBeenCalled()
   expect(update).toHaveBeenCalledTimes(1)
 })

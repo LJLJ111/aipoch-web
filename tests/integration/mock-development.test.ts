@@ -3,6 +3,7 @@ import { createServer } from 'node:net'
 import { chromium, devices } from '@playwright/test'
 import { COMMON_LAYOUT_LAST_MODIFIED } from '../../lib/common-layout-metadata'
 import manifestSample from '../../mocks/fixtures/use-case-manifest.json'
+import { verifyReplayCoverage, verifyReplayLoading } from './use-case-replay-browser'
 
 // Exercise the real launcher and browser/SSR consumers with ephemeral loopback ports.
 const availablePort = async (): Promise<number> => {
@@ -200,7 +201,7 @@ describe('mock development end to end', () => {
     try {
       const context = await browser.newContext()
       const page = await context.newPage()
-      const item = manifestSample[0]
+      const item = manifestSample[1]
       // Exercise both URLs through Next: the removed endpoint has no alias or redirect.
       expect((await fetch(`${web}/internal/use-cases/${item.name}`)).status).toBe(404)
       expect(
@@ -219,11 +220,21 @@ describe('mock development end to end', () => {
         }).observe(document, { subtree: true, childList: true, characterData: true })
       })
       await page.goto(`${web}/open-science/use-cases/${item.name}`)
-      const infoResponse = page.waitForResponse((response) =>
-        response.url().endsWith(`/open-science/use-cases/${item.name}/replay/dot-science`)
-      )
+      const manifest = await (await fetch(`${api}/use-case-manifest/manifest.json`)).json()
+      const resource = manifest.find((entry: { name: string }) => entry.name === item.name).case
+      const info = {
+        url: `${api}/use-case-manifest/${item.name}/${encodeURIComponent(resource.file_name)}`,
+        filename: resource.file_name,
+        sha256: resource.sha256,
+        sizeBytes: resource.bytes
+      }
+      const replayHtml = await (
+        await fetch(`${web}/open-science/use-cases/${item.name}/replay`)
+      ).text()
+      expect(replayHtml).toContain(info.sha256)
+      expect(replayHtml).toContain(encodeURIComponent(info.filename))
+      expect(replayHtml).not.toContain(`Local sample replay for ${item.title}.`)
       await page.getByRole('link', { name: 'View the research session', exact: true }).click()
-      const info = await (await infoResponse).json()
       expect(info.filename).toBe(item.case.file_name)
       expect(info.sha256).toMatch(/^[a-f0-9]{64}$/)
       await page.getByText(`Local sample replay for ${item.title}.`, { exact: true }).waitFor()
@@ -235,11 +246,14 @@ describe('mock development end to end', () => {
       ).toBe(0)
       expect(await page.getByText('Full only', { exact: true }).count()).toBe(0)
       expect(requests.some((url) => url.includes('/api/v1/open-science/use-cases'))).toBe(false)
-      expect(requests.some((url) => url.includes('/internal/use-cases/'))).toBe(false)
+      expect(
+        requests.some(
+          (url) => url.includes('/internal/use-cases/') || url.includes('/replay/dot-science')
+        )
+      ).toBe(false)
       const states = await page.evaluate(
         () => (window as typeof window & { replayStates: string[] }).replayStates
       )
-      expect(states).toContain('Fetching package information…')
       expect(states).toContain('Parsing research session…')
       // Retry the complete task after an actual checksum failure.
       await context.route(info.url, (route) =>
@@ -260,6 +274,60 @@ describe('mock development end to end', () => {
       await browser.close()
     }
   }, 120000)
+
+  test('retry refreshes server package information when the cached case becomes available', async () => {
+    const controlUrl = `${api}/__mock/use-case-manifest`
+    const update = (mode: string) =>
+      fetch(controlUrl, { method: 'PUT', body: JSON.stringify({ mode }) })
+    const waitForCatalog = async (text: string) => {
+      for (let attempt = 0; attempt < 60; attempt++) {
+        if ((await (await fetch(`${web}/open-science/use-cases`)).text()).includes(text)) return
+        await Bun.sleep(100)
+      }
+      throw new Error('Manifest refresh did not finish')
+    }
+    const browser = await chromium.launch()
+    try {
+      await update('empty')
+      await waitForCatalog('No published use cases yet.')
+      const page = await browser.newPage()
+      const item = manifestSample[1]
+      const requests: string[] = []
+      page.on('request', (request) => requests.push(request.url()))
+      await page.goto(`${web}/open-science/use-cases/${item.name}/replay`)
+      await page.getByRole('alert').filter({ hasText: 'Research package not found.' }).waitFor()
+      await update('normal')
+      await waitForCatalog(manifestSample[0].title)
+      await page.getByRole('button', { name: 'Retry', exact: true }).click()
+      await page.getByText(`Local sample replay for ${item.title}.`, { exact: true }).waitFor()
+      expect(
+        requests.some(
+          (url) => url.includes('/replay/dot-science') || url.includes('/internal/use-cases/')
+        )
+      ).toBe(false)
+    } finally {
+      await update('normal')
+      await browser.close()
+    }
+  }, 120000)
+
+  for (const mobile of [false, true]) {
+    for (const [name, verify] of [
+      ['renderer coverage', verifyReplayCoverage],
+      ['loading and retry', verifyReplayLoading]
+    ] as const) {
+      test(`${mobile ? 'mobile' : 'desktop'}: replay ${name} uses server-provided package information`, async () => {
+        const browser = await chromium.launch()
+        try {
+          const context = await browser.newContext(mobile ? devices['Pixel 5'] : {})
+          const page = await context.newPage()
+          await verify(page, `${web}/open-science/use-cases/${manifestSample[0].name}/replay`)
+        } finally {
+          await browser.close()
+        }
+      }, 120000)
+    }
+  }
 
   test('renders server data, linked details and sitemap without a business backend', async () => {
     // The state adapter intentionally cannot serve read-only business fixtures.

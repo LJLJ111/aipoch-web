@@ -4,12 +4,15 @@ import type { PackageProgress } from './archive'
 import type { WorkerReply } from './protocol'
 
 export type ReplayState =
-  | { status: 'loading'; progress: PackageProgress | { stage: 'metadata' } }
+  | { status: 'loading'; progress: PackageProgress }
   | { status: 'ready'; data: UseCaseSession }
   | { status: 'error'; message: string }
 
-export function loadReplay(slug: string, update: (state: ReplayState) => void) {
-  const controller = new AbortController()
+export function loadReplay(
+  slug: string,
+  info: UseCasePackage,
+  update: (state: ReplayState) => void
+) {
   const urls: string[] = []
   let worker: Worker | undefined
   let active = true
@@ -22,28 +25,14 @@ export function loadReplay(slug: string, update: (state: ReplayState) => void) {
   const fail = (message: string) => {
     if (!active) return
     active = false
-    controller.abort()
     release()
     console.error('[use-case-replay] load.failed', { slug, message })
     update({ status: 'error', message })
   }
-  update({ status: 'loading', progress: { stage: 'metadata' } })
+  update({ status: 'loading', progress: { stage: 'downloading' } })
   void (async () => {
     try {
       await waitForBrowserMock()
-      if (!active) return
-      const response = await fetch(
-        `/open-science/use-cases/${encodeURIComponent(slug)}/replay/dot-science`,
-        {
-          signal: controller.signal,
-          cache: 'no-store'
-        }
-      )
-      if (!response.ok) {
-        const body = await response.json().catch(() => null)
-        throw new Error(body?.error ?? `Package information failed (HTTP ${response.status}).`)
-      }
-      const info: UseCasePackage = await response.json()
       if (!active) return
       worker = new Worker(new URL('./replay.worker.ts', import.meta.url), { type: 'module' })
       worker.onerror = (event) =>
@@ -79,12 +68,11 @@ export function loadReplay(slug: string, update: (state: ReplayState) => void) {
       worker.postMessage({ type: 'load', slug, info })
     } catch (error) {
       if (active)
-        fail(error instanceof Error ? error.message : 'Could not load package information.')
+        fail(error instanceof Error ? error.message : 'Could not start the package worker.')
     }
   })()
   return () => {
     active = false
-    controller.abort()
     release()
   }
 }

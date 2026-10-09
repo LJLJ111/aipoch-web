@@ -1,41 +1,16 @@
-import { expect, test } from '@playwright/test'
-import { buildCoveragePackage } from '../../mocks/fixtures/science-coverage-package'
-import { COVERAGE_FIXTURE_SLUG } from '../../mocks/fixtures/use-case-coverage'
+import { expect, type Page } from '@playwright/test'
 
-// Renderer coverage matrix: every dedicated renderer branch, elicitation
-// state, artifact state, and edge case must leave a visible marker in the DOM.
-// A silently dropped component turns into an explicit failure here.
-// The first page hit pays the dev compile cost, so give the test headroom.
-test.setTimeout(240000)
-
-test.beforeEach(async ({ context }) => {
-  const sample = buildCoveragePackage()
-  await context.route(
-    `**/open-science/use-cases/${COVERAGE_FIXTURE_SLUG}/replay/dot-science`,
-    (route) =>
-      route.fulfill({
-        json: {
-          url: new URL('/coverage.science', route.request().url()).href,
-          filename: 'coverage.science',
-          sizeBytes: sample.sizeBytes,
-          sha256: sample.sha256
-        }
-      })
-  )
-  await context.route('**/coverage.science', (route) =>
-    route.fulfill({ body: Buffer.from(sample.bytes), contentType: 'application/octet-stream' })
-  )
-})
-
-test('replay renders every component type in the coverage fixture', async ({ page }) => {
+// Run against the real mock Next server: package metadata now arrives in the RSC response.
+export async function verifyReplayCoverage(page: Page, url: string) {
   let downloads = 0
   page.context().on('request', (request) => {
-    if (request.url().endsWith('/coverage.science')) downloads++
+    if (!request.serviceWorker() && new URL(request.url()).pathname.endsWith('.science'))
+      downloads++
   })
   const pageErrors: string[] = []
   page.on('pageerror', (error) => pageErrors.push(error.message))
 
-  await page.goto(`/open-science/use-cases/${COVERAGE_FIXTURE_SLUG}/replay`, {
+  await page.goto(url, {
     timeout: 180000,
     waitUntil: 'domcontentloaded'
   })
@@ -182,4 +157,68 @@ test('replay renders every component type in the coverage fixture', async ({ pag
   expect(bodyText).not.toContain('[object Object]')
   expect(bodyText).not.toContain('Could not render')
   expect(pageErrors).toEqual([])
-})
+}
+
+export async function verifyReplayLoading(page: Page, url: string) {
+  // Control worker timing to assert short-lived states without delaying production code.
+  await page.addInitScript(() => {
+    const workers: { onmessage?: (event: MessageEvent) => void; terminated: boolean }[] = []
+    Object.assign(window, { replayTestWorkers: workers })
+    class ControlledWorker {
+      onmessage?: (event: MessageEvent) => void
+      terminated = false
+      constructor() {
+        workers.push(this)
+      }
+      postMessage() {}
+      terminate() {
+        this.terminated = true
+      }
+    }
+    Object.assign(window, { Worker: ControlledWorker })
+  })
+  await page.goto(url)
+  await expect(page.getByRole('status')).toHaveText('Downloading research package…')
+  await expect(page.getByRole('progressbar')).not.toHaveAttribute('value')
+  await page.waitForFunction(
+    () => (window as unknown as { replayTestWorkers: unknown[] }).replayTestWorkers.length === 1
+  )
+  const emit = (data: unknown) =>
+    page.evaluate((data) => {
+      const workers = (
+        window as unknown as {
+          replayTestWorkers: { onmessage: (event: { data: unknown }) => void }[]
+        }
+      ).replayTestWorkers
+      workers.at(-1)?.onmessage({ data })
+    }, data)
+  await emit({ type: 'progress', progress: { stage: 'downloading', loaded: 20, total: 100 } })
+  await expect(page.getByRole('status')).toHaveText('Downloading research package…')
+  await expect(page.getByRole('progressbar')).toHaveAttribute('value', '20')
+  await expect(page.getByText('20%', { exact: true })).toBeVisible()
+  await emit({ type: 'progress', progress: { stage: 'downloading', loaded: 30 } })
+  await expect(page.getByRole('progressbar')).not.toHaveAttribute('value')
+  for (const [stage, label] of [
+    ['verifying', 'Verifying SHA-256…'],
+    ['parsing', 'Parsing research session…']
+  ]) {
+    await emit({ type: 'progress', progress: { stage } })
+    await expect(page.getByRole('status')).toHaveText(label)
+    await expect(page.getByRole('progressbar')).not.toHaveAttribute('value')
+  }
+  await emit({ type: 'error', message: 'Package SHA-256 verification failed.' })
+  await expect(page.locator('main').getByRole('alert')).toContainText(
+    'Package SHA-256 verification failed.'
+  )
+  await page.getByRole('button', { name: 'Retry', exact: true }).click()
+  await page.waitForFunction(
+    () => (window as unknown as { replayTestWorkers: unknown[] }).replayTestWorkers.length === 2
+  )
+  expect(
+    await page.evaluate(
+      () =>
+        (window as unknown as { replayTestWorkers: { terminated: boolean }[] }).replayTestWorkers[0]
+          .terminated
+    )
+  ).toBe(true)
+}

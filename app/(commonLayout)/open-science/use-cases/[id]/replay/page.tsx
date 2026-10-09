@@ -3,7 +3,7 @@ import { Suspense } from 'react'
 import { SITE_DOMAIN } from '@/lib/config'
 import { createPageMetadata } from '@/lib/page-metadata'
 import { fetchUseCaseDetail } from '@/service/open-science-use-cases.server'
-import { ReplayView } from '../../_components/replay-view'
+import { ReplayLoading, ReplayView } from '../../_components/replay-view'
 
 type PageProps = {
   params: Promise<{ id: string }>
@@ -11,7 +11,7 @@ type PageProps = {
 
 export const dynamic = 'force-dynamic'
 
-// Only metadata is server-rendered; the browser downloads and parses the package.
+// The server supplies package metadata; only the browser downloads and parses the archive.
 export const generateMetadata = async ({ params }: PageProps): Promise<Metadata> => {
   const { id } = await params
   // A catalog outage must not block the client loading UI or its error state.
@@ -29,8 +29,32 @@ export const generateMetadata = async ({ params }: PageProps): Promise<Metadata>
 export default async function OpenScienceUseCaseReplayPage({ params }: PageProps) {
   const { id } = await params
   return (
-    <Suspense fallback={null}>
-      <ReplayView slug={id} />
+    <Suspense fallback={<ReplayLoading slug={id} />}>
+      <ReplayPackage id={id} />
     </Suspense>
   )
+}
+
+async function ReplayPackage({ id }: { id: string }) {
+  try {
+    const entry = await fetchUseCaseDetail(id)
+    return (
+      <ReplayView
+        key={id}
+        slug={id}
+        packageInfo={entry?.package ?? null}
+        error={entry?.package ? undefined : 'Research package not found.'}
+      />
+    )
+  } catch (error) {
+    console.error('[use-case-package] metadata.failed', error)
+    return (
+      <ReplayView
+        key={id}
+        slug={id}
+        packageInfo={null}
+        error="Package information is temporarily unavailable."
+      />
+    )
+  }
 }

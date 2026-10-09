@@ -2,7 +2,7 @@ import { buildSciencePackage, digest } from './science-package'
 import { coverageFixtureSession } from './use-case-coverage'
 
 // Convert the renderer corpus into the real export schema, exercising the worker too.
-export function buildCoveragePackage() {
+export function buildCoveragePackage(title = coverageFixtureSession.title) {
   const sample = coverageFixtureSession
   const objects: Record<string, { bytes: Uint8Array; storageKey: string }> = {}
   const artifacts: Record<string, unknown>[] = []
@@ -28,10 +28,11 @@ export function buildCoveragePackage() {
     return [
       {
         ...item,
-        content: item.content.replace(
-          '/use-cases/coverage-fixture/objects/report.md',
-          'coverage_report.md'
-        ),
+        content:
+          item.content.replace(
+            '/use-cases/coverage-fixture/objects/report.md',
+            'coverage_report.md'
+          ) + (item.artifacts?.length ? `\n\nLocal sample replay for ${title}.` : ''),
         artifactIds
       }
     ]
@@ -62,7 +63,7 @@ export function buildCoveragePackage() {
   const runBytes = new TextEncoder().encode(JSON.stringify({ runs }))
   objects[`objects/${digest(runBytes)}`] = { bytes: runBytes, storageKey: 'notebook/run.json' }
   return buildSciencePackage(
-    sample.title,
+    title,
     { messages, artifacts, conversationGraph: { activities } },
     objects,
     { tables: { ArtifactVersion: records } }
