@@ -14,10 +14,20 @@ export const fetchUseCaseAssetText = async (url: string): Promise<string | null>
       const proto = requestHeaders.get('x-forwarded-proto') ?? 'http'
       absolute = `${proto}://${requestHeaders.get('host')}${url}`
     }
-    const response = await fetch(absolute, { cache: 'no-store' })
-    if (!response.ok) console.error('[use-cases] asset fetch failed', absolute, response.status)
-    return response.ok ? response.text() : null
+    // Bound both the request and body read so an optional introduction cannot stall SSR.
+    const response = await fetch(absolute, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(15_000)
+    })
+    if (!response.ok) {
+      // biome-ignore lint/suspicious/noConsole: Asset failures are intentionally console-only.
+      console.error('[use-cases] asset fetch failed', absolute, response.status)
+      return null
+    }
+    // Await inside the try block to catch connection failures after headers arrive.
+    return await response.text()
   } catch (error) {
+    // biome-ignore lint/suspicious/noConsole: Asset failures are intentionally console-only.
     console.error('[use-cases] asset fetch threw', url, error)
     return null
   }

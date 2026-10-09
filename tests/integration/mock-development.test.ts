@@ -129,6 +129,18 @@ describe('mock development end to end', () => {
       expect(await page.locator('main img').count()).toBe(3)
       await page.goto(`${web}/open-science/use-cases/${manifestSample[0].name}`)
       await page.getByText('Local sample introduction.', { exact: true }).waitFor()
+      // Shared typography must apply during SSR, even without client JavaScript.
+      const introduction = page.locator('main .markdown-body')
+      expect(await introduction.count()).toBe(1)
+      const [headingSize, paragraphSize] = await Promise.all(
+        ['h1', 'p'].map((selector) =>
+          introduction
+            .locator(selector)
+            .first()
+            .evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize))
+        )
+      )
+      expect(headingSize).toBeGreaterThan(paragraphSize)
       expect(await page.locator('meta[name="description"]').getAttribute('content')).toContain(
         'download its Open-Science research package'
       )

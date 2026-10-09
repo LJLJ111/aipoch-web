@@ -1,8 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import { MarkdownRenderer } from '@/components/markdown'
 import { SITE_DOMAIN } from '@/lib/config'
 import { createPageMetadata } from '@/lib/page-metadata'
 import type { UseCaseIndexEntry } from '@/lib/use-case-types'
@@ -44,9 +43,9 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', {
   year: 'numeric'
 })
 
-/** Catalog introductions do not need the transcript's client-side tool plugins. */
+/** Use shared site typography for plain Markdown; keep replay-specific rendering separate. */
 const renderCaseMarkdown = async (content: string, introduction: boolean) => {
-  if (introduction) return <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+  if (introduction) return <MarkdownRenderer content={content} mode="md" />
   const { SessionMarkdown } = await import('../_components/session-markdown')
   return <SessionMarkdown content={content} />
 }
