@@ -44,15 +44,40 @@ const ReplayProgress = ({ progress }: { progress: PackageProgress | { stage: 'me
       ? Math.min(100, Math.floor((progress.loaded / progress.total) * 100))
       : undefined
   return (
-    <div className="mx-auto max-w-4xl space-y-4 px-4 py-16 text-center">
-      <p role="status" aria-live="polite">
-        {labels[progress.stage]}
-      </p>
-      <progress aria-label={labels[progress.stage]} max={100} value={percent} className="w-64" />
-      {percent !== undefined && <p className="text-sm tabular-nums">{percent}%</p>}
-      <p className="text-sm text-[#777872]">
-        Loading the session and the files needed to display it.
-      </p>
+    <div className="mx-auto w-full max-w-4xl px-4 py-10 md:px-6">
+      <div className="mb-8 text-center">
+        <p role="status" aria-live="polite" className="text-sm text-[#777872]">
+          {labels[progress.stage]}
+          {percent !== undefined ? ` ${percent}%` : ''}
+        </p>
+        <progress
+          aria-label={labels[progress.stage]}
+          max={100}
+          value={percent}
+          className="sr-only"
+        />
+      </div>
+      {/* Skeleton mimics the conversation layout so the wait previews the
+          content; the stage line above keeps the download feedback. */}
+      <div aria-hidden="true" className="animate-pulse space-y-6">
+        <div className="ml-auto h-11 w-[38%] rounded-2xl bg-[#e9e9e6]" />
+        <div className="h-40 rounded-2xl bg-[#e9e9e6]" />
+        <div className="space-y-2.5">
+          <div className="h-3.5 w-3/4 rounded bg-[#e9e9e6]" />
+          <div className="h-3.5 w-2/3 rounded bg-[#e9e9e6]" />
+        </div>
+        <div className="h-12 rounded-xl bg-[#e9e9e6]" />
+        <div className="space-y-2.5">
+          <div className="h-3.5 w-4/5 rounded bg-[#e9e9e6]" />
+          <div className="h-3.5 w-3/5 rounded bg-[#e9e9e6]" />
+        </div>
+        <div className="ml-auto h-11 w-[30%] rounded-2xl bg-[#e9e9e6]" />
+        <div className="h-24 rounded-2xl bg-[#e9e9e6]" />
+        <div className="space-y-2.5">
+          <div className="h-3.5 w-2/3 rounded bg-[#e9e9e6]" />
+          <div className="h-3.5 w-1/2 rounded bg-[#e9e9e6]" />
+        </div>
+      </div>
     </div>
   )
 }
