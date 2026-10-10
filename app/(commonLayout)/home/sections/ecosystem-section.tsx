@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { HomeGithubLink } from '../home-github-link'
 import { homeContainer, homeSection } from '../home-styles'
 
 export const HomeEcosystemSection = ({ skillsCount }: { skillsCount: number }) => (
@@ -42,7 +43,8 @@ export const HomeEcosystemSection = ({ skillsCount }: { skillsCount: number }) =
             detail:
               'Access 550+ vetted medical research skills covering analysis, reporting, data ops, and study operations.',
             label: 'Skill library',
-            value: `${skillsCount} skills`
+            value: `${skillsCount} skills`,
+            showGithubStars: true
           },
           {
             title: 'MedSkillAudit',
@@ -79,11 +81,14 @@ export const HomeEcosystemSection = ({ skillsCount }: { skillsCount: number }) =
               {item.description}
             </p>
             <p className="text-sm leading-5 text-[#111]/78 md:min-h-[82px]">{item.detail}</p>
-            <p className="mt-6 flex min-h-9 items-center gap-2.5 py-2.5 text-xs font-medium leading-4 tracking-[.6px] md:mt-[34px]">
-              <span className="shrink-0 uppercase text-[#111]/32">{item.label}</span>
-              <span aria-hidden className="h-px w-[18px] shrink-0 bg-[#b6b7bb]/28" />
-              <span className="min-w-0 text-[#111]">{item.value}</span>
-            </p>
+            <div className="mt-6 flex min-h-9 flex-wrap items-center gap-x-4 gap-y-2 py-2.5 text-xs font-medium leading-4 tracking-[.6px] md:mt-[34px]">
+              <p className="flex min-w-0 items-center gap-2.5">
+                <span className="shrink-0 uppercase text-[#111]/32">{item.label}</span>
+                <span aria-hidden className="h-px w-[18px] shrink-0 bg-[#b6b7bb]/28" />
+                <span className="min-w-0 text-[#111]">{item.value}</span>
+              </p>
+              {item.showGithubStars ? <HomeGithubLink variant="compact" /> : null}
+            </div>
           </article>
         ))}
       </div>

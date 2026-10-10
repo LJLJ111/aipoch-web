@@ -138,7 +138,7 @@ describe('sitemap', () => {
       changeFrequency: 'weekly',
       priority: 0.8
     })
-    expect((openScienceRoute?.lastModified as Date).toISOString()).toBe('2026-10-09T00:00:00.000Z')
+    expect((openScienceRoute?.lastModified as Date).toISOString()).toBe('2026-10-10T00:00:00.000Z')
 
     expect(openScienceDownloadRoute).toMatchObject({
       changeFrequency: 'weekly',

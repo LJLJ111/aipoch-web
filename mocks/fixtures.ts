@@ -6,6 +6,11 @@ import type { OverallLeaderboardItem } from '../service/leaderboard-overall'
 import type { SkillDetail } from '../service/skills'
 import manifestSample from './fixtures/use-case-manifest.json'
 
+export const githubRepositories: Record<string, { stargazers_count: number }> = {
+  'open-science': { stargazers_count: 1234 },
+  'medical-research-skills': { stargazers_count: 9876 }
+}
+
 // Supplied publishing schema; resource bodies in mock development are small samples.
 export const useCaseManifest: UseCaseManifestItem[] = manifestSample
 
