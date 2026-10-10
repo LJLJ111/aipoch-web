@@ -145,3 +145,188 @@ test('unknown tools keep their raw provider identity', () => {
   expect(buildActivityDetails(activity({ toolKind: 'execute' }), {}).displayName).toBe('Terminal')
   expect(buildActivityDetails(activity({}), {}).displayName).toBe('Tool')
 })
+
+test('websearch query falls back from structured payloads to text to the title', () => {
+  const websearch = { providerToolName: 'WebSearch' }
+  // 1. Structured payload, including nested containers and alias keys.
+  expect(
+    buildActivityDetails(activity({ ...websearch, input: { query: 'GLP-1 microbiome' } }), {})
+      .subtitle
+  ).toBe('GLP-1 microbiome')
+  expect(
+    buildActivityDetails(
+      activity({ ...websearch, input: { request: { search_query: '"nested query"' } } }),
+      {}
+    ).subtitle
+  ).toBe('nested query')
+  // 2. Plain-text result summary.
+  expect(
+    buildActivityDetails(
+      activity({
+        ...websearch,
+        input: {},
+        output:
+          'Web search results for query: "GLP-1 drugs"\n\nCoverage Result One (https://example.com/r1)'
+      }),
+      {}
+    ).subtitle
+  ).toBe('GLP-1 drugs')
+  // 3. Activity title, quotes stripped.
+  expect(
+    buildActivityDetails(
+      activity({ ...websearch, title: '"title fallback query"', input: {}, output: '' }),
+      {}
+    ).subtitle
+  ).toBe('title fallback query')
+})
+
+test('generic tools subtitle from the first location path or the raw title', () => {
+  // A path location wins over the title.
+  const withPath = buildActivityDetails(
+    activity({
+      providerToolName: 'mcp__acme__mystery_tool',
+      title: 'Some other label',
+      locations: [{ path: '$DATA/results/summary.md' }]
+    }),
+    {}
+  )
+  expect(withPath.subtitle).toBe('$DATA/results/summary.md')
+  // Otherwise the raw title, dropped when it just repeats the display name.
+  const withTitle = buildActivityDetails(
+    activity({ providerToolName: 'Search', title: 'Open page: https://example.com/x' }),
+    {}
+  )
+  expect(withTitle.displayName).toBe('Search')
+  expect(withTitle.subtitle).toBe('Open page: https://example.com/x')
+  const repeated = buildActivityDetails(
+    activity({
+      providerToolName: 'mcp__acme__mystery_tool',
+      title: 'mcp__acme__mystery_tool'
+    }),
+    {}
+  )
+  expect(repeated.subtitle).toBeUndefined()
+})
+
+test('execute tools subtitle with the command text', () => {
+  const details = buildActivityDetails(
+    activity({ toolKind: 'execute', input: { command: '  ls -la  ' } }),
+    {}
+  )
+  expect(details.displayName).toBe('Terminal')
+  expect(details.subtitle).toBe('ls -la')
+  // Without a command field the title carries it.
+  const titled = buildActivityDetails(
+    activity({ toolKind: 'execute', title: 'python analyze.py' }),
+    {}
+  )
+  expect(titled.subtitle).toBe('python analyze.py')
+})
+
+test('dot-form artifact, library, and skill tools hit their dedicated renderers', () => {
+  const artifactWrite = buildActivityDetails(
+    activity({
+      providerToolName: 'mcp.open-science-artifacts.write_artifact_file',
+      input: { filename: 'euler_fifth_power_searches.py', mimeType: 'text/x-python' },
+      output: [
+        {
+          type: 'text',
+          text: '{"artifact": {"filename": "euler_fifth_power_searches.py", "size_bytes": 120}}'
+        }
+      ]
+    }),
+    {}
+  )
+  expect(artifactWrite.displayName).toBe('Write file')
+  expect(artifactWrite.subtitle).toBe('euler_fifth_power_searches.py')
+
+  const skill = buildActivityDetails(
+    activity({
+      providerToolName: 'mcp.skills.load_skill',
+      input: { skill: 'mcp-literature' },
+      contentBlocks: [{ type: 'content', content: { type: 'text', text: '# Skill doc' } }]
+    }),
+    {}
+  )
+  expect(skill.displayName).toBe('Skill')
+  expect(skill.subtitle).toBe('mcp-literature')
+
+  const inbox = buildActivityDetails(
+    activity({
+      providerToolName: 'mcp.open-science-library.save_to_inbox',
+      input: { refs: ['pmid:12345678'] }
+    }),
+    {}
+  )
+  expect(inbox.displayName).toBe('Save to library inbox')
+  expect(inbox.subtitle).toBe('1 refs')
+
+  // Lookalike servers stay on the generic fallback with their raw identity.
+  for (const providerToolName of [
+    'mcp.open-science-artifacts-other.write_artifact_file',
+    'mcp.skills-other.load_skill',
+    'mcp.open-science-library-staging.save_to_inbox'
+  ]) {
+    expect(classifyActivityRenderer(activity({ providerToolName }))).toBe('generic-fallback')
+  }
+})
+
+test('tools whose identity lives only in the title still hit their renderers', () => {
+  // Some packages carry no providerToolName at all; the raw tool id sits in
+  // the activity title (e.g. mcp.open-science-artifacts.write_artifact_file).
+  const artifactWrite = buildActivityDetails(
+    activity({
+      toolKind: 'execute',
+      title: 'mcp.open-science-artifacts.write_artifact_file',
+      input: { filename: 'euler_fifth_power_searches.py' }
+    }),
+    {}
+  )
+  expect(artifactWrite.displayName).toBe('Write file')
+  expect(artifactWrite.subtitle).toBe('euler_fifth_power_searches.py')
+
+  const skill = buildActivityDetails(
+    activity({
+      title: 'mcp.skills.load_skill',
+      input: { skill: 'mcp-literature' },
+      contentBlocks: [{ type: 'content', content: { type: 'text', text: '# Skill doc' } }]
+    }),
+    {}
+  )
+  expect(skill.displayName).toBe('Skill')
+  expect(skill.subtitle).toBe('mcp-literature')
+})
+
+test('reads fields through the MCP envelope in exported packages', () => {
+  // Exported packages wrap inputs as { server, tool, arguments }; field
+  // readers must see the arguments object.
+  const envelope = {
+    server: 'open-science-artifacts',
+    tool: 'write_artifact_file',
+    arguments: { filename: 'euler_fifth_power_searches.py' }
+  }
+  const artifactWrite = buildActivityDetails(
+    activity({
+      title: 'mcp.open-science-artifacts.write_artifact_file',
+      input: envelope
+    }),
+    {}
+  )
+  expect(artifactWrite.displayName).toBe('Write file')
+  expect(artifactWrite.subtitle).toBe('euler_fifth_power_searches.py')
+
+  const skill = buildActivityDetails(
+    activity({
+      title: 'mcp.skills.load_skill',
+      input: { server: 'skills', tool: 'load_skill', arguments: { skill: 'mcp-literature' } },
+      contentBlocks: [{ type: 'content', content: { type: 'text', text: '# Skill doc' } }]
+    }),
+    {}
+  )
+  expect(skill.subtitle).toBe('mcp-literature')
+
+  // A payload that merely looks like an envelope but has no tool string is
+  // not unwrapped.
+  const lookalike = buildActivityDetails(activity({ input: { arguments: { command: 'ls' } } }), {})
+  expect(lookalike.displayName).toBe('Tool')
+})

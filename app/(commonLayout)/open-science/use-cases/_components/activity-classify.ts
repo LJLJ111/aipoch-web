@@ -1,6 +1,6 @@
 import type { NormalizedActivity } from '@/lib/use-case-types'
 import { isNotebookExecutionActivity, isSkillLoadActivity } from './activity-group-title'
-import { isNotebookSummaryToolName } from './notebook-tool-names'
+import { isNotebookSummaryToolName, matchToolName } from './notebook-tool-names'
 
 // Single source of truth for "which renderer handles this tool activity".
 // buildActivityDetails (activity-row.tsx) dispatches on this, and
@@ -43,8 +43,20 @@ export const classifyActivityRenderer = (activity: NormalizedActivity): Activity
   if (providerName.includes('manage_packages') || providerName.includes('inspect_packages')) {
     return 'packages'
   }
-  if (providerName === 'mcp__open-science-artifacts__write_artifact_file') return 'artifact-write'
-  if (providerName === 'mcp__open-science-library__save_to_inbox') return 'library-inbox'
+  if (
+    [activity.providerToolName, activity.title].some((name) =>
+      matchToolName(name, 'open-science-artifacts', 'write_artifact_file')
+    )
+  ) {
+    return 'artifact-write'
+  }
+  if (
+    [activity.providerToolName, activity.title].some((name) =>
+      matchToolName(name, 'open-science-library', 'save_to_inbox')
+    )
+  ) {
+    return 'library-inbox'
+  }
   if (
     providerName.toLowerCase().replace(/[\s-]/g, '_') === 'websearch' ||
     providerName === 'WebSearch'

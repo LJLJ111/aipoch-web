@@ -36,8 +36,23 @@ type ActivityDetails = {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
 
-const getInput = (activity: NormalizedActivity): Record<string, unknown> | undefined =>
-  isRecord(activity.input) ? activity.input : undefined
+const trimDetail = (value: string | null | undefined): string | undefined => {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : undefined
+}
+
+// Removes the quote wrapper that ACP search titles often use around the raw query.
+const stripWrappingQuotes = (value: string): string => value.replace(/^["'](.+)["']$/u, '$1').trim()
+
+// Exported packages wrap tool inputs in the MCP envelope
+// ({ server, tool, arguments }); field readers want the arguments object.
+const getInput = (activity: NormalizedActivity): Record<string, unknown> | undefined => {
+  if (!isRecord(activity.input)) return undefined
+  const envelopeArguments = activity.input.arguments
+  return typeof activity.input.tool === 'string' && isRecord(envelopeArguments)
+    ? envelopeArguments
+    : activity.input
+}
 
 const getStringField = (
   record: Record<string, unknown> | undefined,
@@ -582,9 +597,43 @@ const parseWebSearchResults = (activity: NormalizedActivity): { title: string; u
   return results
 }
 
+// Recursively finds a query field in nested structured payloads (port of the
+// app's extractQueryFromUnknown in workspace-web-search-details.ts).
+const extractQueryFromUnknown = (value: unknown): string | undefined => {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const query = extractQueryFromUnknown(item)
+      if (query) return query
+    }
+  }
+  if (!isRecord(value)) return undefined
+  for (const key of ['query', 'q', 'searchQuery', 'search_query']) {
+    const raw = value[key]
+    if (typeof raw === 'string' && raw.trim()) return stripWrappingQuotes(raw)
+  }
+  for (const property of Object.values(value)) {
+    const nestedQuery = extractQueryFromUnknown(property)
+    if (nestedQuery) return nestedQuery
+  }
+  return undefined
+}
+
+// Claude-style plain-text search summaries carry the query in their first line.
+const WEB_SEARCH_QUERY_PATTERN = /Web search results for query:\s*["“]([^"”\n]+)["”]/iu
+
+const extractQueryFromText = (value: string): string | undefined => {
+  const match = value.match(WEB_SEARCH_QUERY_PATTERN)
+  return match?.[1] ? stripWrappingQuotes(match[1]) : undefined
+}
+
 const buildWebSearchDetails = (activity: NormalizedActivity): ActivityDetails => {
-  const input = getInput(activity)
-  const query = getStringField(input, 'query') ?? ''
+  // Prefer explicit payload queries, then plain-text summaries, then the title.
+  const query =
+    extractQueryFromUnknown(activity.input) ??
+    extractQueryFromUnknown(activity.output) ??
+    extractQueryFromUnknown(activity.contentBlocks) ??
+    extractQueryFromText(getOutputText(activity) ?? '') ??
+    (trimDetail(activity.title) ? stripWrappingQuotes(activity.title.trim()) : undefined)
   const results = parseWebSearchResults(activity)
   const sections: DetailSection[] = []
   if (query) sections.push({ kind: 'code', label: 'Query', text: query, language: 'text' })
@@ -602,6 +651,12 @@ const buildWebSearchDetails = (activity: NormalizedActivity): ActivityDetails =>
     metaLabel: results.length > 0 ? `${results.length} results` : undefined,
     sections
   }
+}
+
+// Resolves the command string for execute tools from raw input or the activity title.
+const getCommandText = (activity: NormalizedActivity): string | undefined => {
+  const command = getStringField(getInput(activity), 'command')?.trim()
+  return command || trimDetail(activity.title)
 }
 
 // Exported for tests; the audit script shares the classifier it dispatches on.
@@ -627,12 +682,23 @@ export const buildActivityDetails = (
       return buildSaveToInboxDetails(activity)
     case 'websearch':
       return buildWebSearchDetails(activity)
-    default:
+    default: {
+      const displayName = getToolDisplayName(activity)
+      // App rule (workspace-tool-activity-details.ts): execute tools lead with
+      // the command; everything else takes the first location path, else the
+      // raw title. A subtitle that just repeats the tool name is dropped.
+      const candidateSubtitle =
+        activity.toolKind === 'execute'
+          ? getCommandText(activity)
+          : (trimDetail(activity.locations?.[0]?.path) ?? trimDetail(activity.title))
       return {
-        displayName: getToolDisplayName(activity),
+        displayName,
+        subtitle:
+          candidateSubtitle && candidateSubtitle !== displayName ? candidateSubtitle : undefined,
         metaLabel: activity.status === 'failed' ? 'failed' : undefined,
         sections: fallbackGenericSections(activity)
       }
+    }
   }
 }
 

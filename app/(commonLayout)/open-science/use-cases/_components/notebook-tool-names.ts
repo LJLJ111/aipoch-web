@@ -20,16 +20,17 @@ const NOTEBOOK_CONTROL_TOOL_SUFFIXES = [
 // open_science_notebook; we normalize `_`→`-` before the exact comparison so both forms match.
 const NOTEBOOK_SERVER_SEGMENT = 'open-science-notebook'
 
-// Returns the matched suffix when a tool name belongs to the notebook server, else undefined.
+// Returns the matched suffix when a tool name belongs to the given server, else undefined.
 // Frameworks namespace tools as mcp__<server>__<tool> (Claude Code / responses bridge),
 // <server>.<tool> or mcp.<server>.<tool> (dotted), or the broker-projected <server>/<tool>
 // identity, so only `__`, `.`, and `/` are treated as segment delimiters — single underscores
-// occur inside both the tool suffix (notebook_execute) and the sanitized server name
+// occur inside both tool suffixes (notebook_execute) and sanitized server names
 // (open_science_notebook) and must not split. The segment immediately before the suffix must
-// equal the notebook server exactly, so a lookalike (open-science-notebook-staging) or an
+// equal the server exactly after normalizing `_`→`-`, so a lookalike (…-staging) or an
 // unrelated server that merely contains the phrase is rejected, and a bare leaf name too.
-const matchNotebookTool = (
+const matchServerTool = (
   toolName: string | undefined | null,
+  server: string,
   suffixes: readonly string[]
 ): string | undefined => {
   const name = toolName?.trim().toLowerCase() ?? ''
@@ -39,24 +40,35 @@ const matchNotebookTool = (
   if (segments.length >= 2) {
     const suffix = segments[segments.length - 1]
     if (suffixes.some((known) => known === suffix)) {
-      const server = segments[segments.length - 2].replace(/_/gu, '-')
-      if (server === NOTEBOOK_SERVER_SEGMENT) return suffix
+      const serverSegment = segments[segments.length - 2].replace(/_/gu, '-')
+      if (serverSegment === server) return suffix
     }
   }
 
   // opencode joins server and tool with a single `_` (<server>_<tool>). A single `_` also occurs
   // inside the server name and the suffix, so it can't be used as a split delimiter — instead match
   // the exact known server spellings (hyphenated or sanitized) concatenated with each known suffix.
+  const sanitizedServer = server.replace(/-/gu, '_')
   for (const suffix of suffixes) {
-    if (
-      name === `${NOTEBOOK_SERVER_SEGMENT}_${suffix}` ||
-      name === `open_science_notebook_${suffix}`
-    ) {
+    if (name === `${server}_${suffix}` || name === `${sanitizedServer}_${suffix}`) {
       return suffix
     }
   }
   return undefined
 }
+
+// True when a tool name is exactly <server>'s <tool> in any provider namespacing form
+// (mcp__server__tool / mcp.server.tool / server/tool / server_tool).
+const matchToolName = (
+  toolName: string | undefined | null,
+  server: string,
+  tool: string
+): boolean => matchServerTool(toolName, server, [tool]) !== undefined
+
+const matchNotebookTool = (
+  toolName: string | undefined | null,
+  suffixes: readonly string[]
+): string | undefined => matchServerTool(toolName, NOTEBOOK_SERVER_SEGMENT, suffixes)
 
 const matchNotebookRunTool = (toolName: string | undefined | null): string | undefined =>
   matchNotebookTool(toolName, NOTEBOOK_RUN_TOOL_SUFFIXES)
@@ -139,5 +151,6 @@ export {
   matchNotebookControlTool,
   matchNotebookRunTool,
   matchNotebookTool,
+  matchToolName,
   resolveNotebookLanguage
 }
