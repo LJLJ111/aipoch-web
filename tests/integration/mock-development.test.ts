@@ -81,6 +81,54 @@ afterAll(async () => {
 }, 15000)
 
 describe('mock development end to end', () => {
+  test('server-renders both GitHub counts and loads independent browser-intercepted results', async () => {
+    const html = await renderedHtml(await fetch(web))
+    expect(html.match(/aria-label="Open-Science on GitHub, 3\.5K stars"/g)).toHaveLength(1)
+    expect(html).toContain('aria-label="Medical Research Skills on GitHub, 1.9K stars"')
+    expect(html).toContain('data-testid="ecosystem-github-stars"')
+
+    const browser = await chromium.launch()
+    try {
+      for (const device of ['desktop', 'mobile']) {
+        const context = await browser.newContext(
+          device === 'mobile' ? devices['Pixel 5'] : { viewport: { width: 1440, height: 900 } }
+        )
+        const page = await context.newPage()
+        const errors: string[] = []
+        page.on('pageerror', (error) => errors.push(error.message))
+        const githubResponses: Record<string, boolean[]> = {
+          'open-science': [],
+          'medical-research-skills': []
+        }
+        page.on('response', (response) => {
+          for (const repository of Object.keys(githubResponses)) {
+            if (response.url().startsWith(`https://api.github.com/repos/aipoch/${repository}?`)) {
+              githubResponses[repository].push(response.fromServiceWorker())
+            }
+          }
+        })
+        await page.goto(web)
+        await browserExpect(page.getByTestId('home-github-stars')).toHaveText('1.2K')
+        await browserExpect(page.getByTestId('ecosystem-github-stars')).toHaveText('9.9K')
+        expect(githubResponses).toEqual({
+          'open-science': [true],
+          'medical-research-skills': [true]
+        })
+        await page.reload()
+        await browserExpect(page.getByTestId('home-github-stars')).toHaveText('1.2K')
+        await browserExpect(page.getByTestId('ecosystem-github-stars')).toHaveText('9.9K')
+        expect(githubResponses).toEqual({
+          'open-science': [true, true],
+          'medical-research-skills': [true, true]
+        })
+        expect(errors).toEqual([])
+        await context.close()
+      }
+    } finally {
+      await browser.close()
+    }
+  }, 60000)
+
   test('serves cached manifest data before conditional refresh and retains it through failures', async () => {
     const pageUrl = `${web}/open-science/use-cases`
     const controlUrl = `${api}/__mock/use-case-manifest`
