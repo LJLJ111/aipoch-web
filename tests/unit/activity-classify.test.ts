@@ -594,9 +594,13 @@ test('manage_packages resolves from the title and renders the install row', () =
   expect(details.displayName).toBe('Installed 2 packages')
   expect(details.subtitle).toBe('Python · coverage-env · conda')
   expect(details.metaLabel).toBeUndefined()
+  // No packageChanges in the result: ledger rows fall back to the requested specs.
   expect(details.sections[0]).toMatchObject({
-    kind: 'packages',
-    packages: ['pandas', 'scikit-learn']
+    kind: 'packageLedger',
+    packages: [{ name: 'pandas' }, { name: 'scikit-learn' }],
+    related: [],
+    failed: false,
+    warning: false
   })
   // The log is cleaned (libmamba trace dropped, blank runs collapsed) and collapsed.
   const logSection = details.sections.find((s) => s.kind === 'code' && s.label === 'Log')
@@ -621,7 +625,14 @@ test('manage_packages resolves from the title and renders the install row', () =
   expect(failed.displayName).toBe('Installing 1 package')
   expect(failed.subtitle).toBe('R · conda')
   expect(failed.metaLabel).toBe('failed · restart needed')
-  expect(failed.sections.map((s) => s.kind === 'code' && s.label)).toContain('Error')
+  // The failure message sits on the ledger (red text below the table, app-style).
+  const failedLedger = failed.sections.find((s) => s.kind === 'packageLedger')
+  if (failedLedger?.kind !== 'packageLedger') throw new Error('expected a package ledger')
+  expect(failedLedger.error).toBe('Solving environment failed')
+  expect(failedLedger.failed).toBe(true)
+  expect(failedLedger.warning).toBe(true)
+  // R spec prefixes are stripped for display (app: packageNameFromSpec).
+  expect(failedLedger.packages[0].name).toBe('ggplot2')
 
   // inspect_packages keeps its previous shape (Result JSON, "Inspect packages").
   const inspect = buildActivityDetails(
@@ -660,6 +671,89 @@ test('manage_packages resolves from the title and renders the install row', () =
   expect(
     classifyActivityRenderer(activity({ providerToolName: 'mcp.other-server.manage_packages' }))
   ).toBe('generic-fallback')
+})
+
+test('manage_packages joins packageChanges into the ledger with versions and related rows', () => {
+  const details = buildActivityDetails(
+    activity({
+      providerToolName: 'mcp__open-science-notebook__manage_packages',
+      input: { packages: ['pandas', 'numpy'], language: 'python' },
+      output: JSON.stringify({
+        ok: true,
+        method: 'conda',
+        packageChanges: [
+          {
+            name: 'pandas',
+            change: 'updated',
+            beforeVersion: '2.1.0',
+            afterVersion: '2.2.3',
+            relationship: 'requested'
+          },
+          {
+            name: 'numpy',
+            change: 'installed',
+            afterVersion: '1.26.4',
+            relationship: 'requested'
+          },
+          {
+            name: 'tzdata',
+            change: 'installed',
+            afterVersion: '2024.1',
+            relationship: 'dependency'
+          },
+          { name: 'pip', change: 'unchanged', relationship: 'dependency' }
+        ]
+      })
+    }),
+    {}
+  )
+  const ledger = details.sections.find((s) => s.kind === 'packageLedger')
+  if (ledger?.kind !== 'packageLedger') throw new Error('expected a package ledger')
+  // Updated packages show the before → after transition; installs the new version.
+  expect(ledger.packages).toEqual([
+    { name: 'pandas', source: undefined, change: 'updated', version: '2.1.0 → 2.2.3' },
+    { name: 'numpy', source: undefined, change: 'installed', version: '1.26.4' }
+  ])
+  // Dependencies land in Related changes; unchanged entries are dropped.
+  expect(ledger.related).toEqual([
+    { name: 'tzdata', source: undefined, change: 'installed', version: '2024.1' }
+  ])
+  expect(ledger.failed).toBe(false)
+})
+
+test('manage_packages resolves R GitHub specs to the repository name', () => {
+  const details = buildActivityDetails(
+    activity({
+      providerToolName: 'mcp__open-science-notebook__manage_packages',
+      input: { packages: ['tidyverse/ggplot2@v3.5.0'], language: 'r' },
+      output: JSON.stringify({
+        ok: true,
+        method: 'github',
+        packageChanges: [
+          {
+            name: 'ggplot2',
+            change: 'installed',
+            afterVersion: '3.5.0',
+            relationship: 'requested',
+            source: { type: 'github', repository: 'tidyverse/ggplot2', ref: 'v3.5.0' }
+          }
+        ]
+      })
+    }),
+    {}
+  )
+  const ledger = details.sections.find((s) => s.kind === 'packageLedger')
+  if (ledger?.kind !== 'packageLedger') throw new Error('expected a package ledger')
+  // The spec matches the change by repository, and the source label keeps repo@ref.
+  expect(ledger.packages).toEqual([
+    {
+      name: 'ggplot2',
+      source: 'tidyverse/ggplot2@v3.5.0',
+      change: 'installed',
+      version: '3.5.0'
+    }
+  ])
+  expect(details.subtitle).toBe('R · GitHub')
 })
 
 test('bash_execute falls back to input.command when the run document is absent', () => {

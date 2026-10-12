@@ -34,6 +34,14 @@ import {
 // adapted to the normalized export model. Every branch degrades to raw input/output JSON
 // instead of throwing on unknown shapes.
 
+// A row in the manage-packages ledger table (app: PackageDetail).
+type PackageLedgerRow = {
+  name: string
+  source?: string
+  change?: string
+  version?: string
+}
+
 type DetailSection =
   | {
       kind: 'code'
@@ -49,6 +57,14 @@ type DetailSection =
   | { kind: 'summary'; summary: ToolSummary; file?: boolean }
   | { kind: 'markdown'; label: string; text: string }
   | { kind: 'packages'; label: string; packages: string[] }
+  | {
+      kind: 'packageLedger'
+      packages: PackageLedgerRow[]
+      related: PackageLedgerRow[]
+      failed: boolean
+      warning: boolean
+      error?: string
+    }
   | { kind: 'image'; label: string; url: string; mimeType: string }
   | { kind: 'plan'; projection: PlanProjection }
   | { kind: 'diff'; label: string; language?: string; oldText: string | null; newText: string }
@@ -659,6 +675,24 @@ const cleanInstallLog = (log: string): string =>
     .replace(/\n{3,}/gu, '\n\n')
     .trim()
 
+// Package spec derivation mirrors the app row (WorkspaceManagePackagesActivityRow):
+// R GitHub specs name the repository, conda-style prefixes are stripped for R.
+const githubRepositoryFromSpec = (spec: string): string | undefined => {
+  const repository = spec.trim().split('@', 1)[0]
+  return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(repository) ? repository : undefined
+}
+
+const packageNameFromSpec = (spec: string, language: unknown): string => {
+  const repository = language === 'r' ? githubRepositoryFromSpec(spec) : undefined
+  if (repository) return repository.split('/').at(-1) ?? spec
+  const unqualified = spec.trim().split('::').at(-1) ?? spec.trim()
+  const name = unqualified.match(/^[A-Za-z0-9_.-]+/u)?.[0] ?? unqualified
+  if (language !== 'r') return name
+  if (name.toLowerCase().startsWith('r-')) return name.slice(2)
+  if (name.toLowerCase().startsWith('bioconductor-')) return name.slice('bioconductor-'.length)
+  return name
+}
+
 const buildPackagesDetails = (activity: NormalizedActivity): ActivityDetails => {
   const args = getInput(activity) ?? {}
   const isManage = [activity.providerToolName, activity.title].some(
@@ -720,11 +754,85 @@ const buildPackagesDetails = (activity: NormalizedActivity): ActivityDetails => 
             : 'conda'
 
   const sections: DetailSection[] = []
-  if (packages.length > 0) {
-    sections.push({ kind: 'packages', label: 'Packages', packages })
-  }
   const error = typeof result?.error === 'string' ? trimDetail(result.error) : undefined
-  if (error) sections.push({ kind: 'code', label: 'Error', text: error, muted: true })
+  // App row: "Installed N packages" once settled, "Installing N packages"
+  // while running or failed; subtitle is language · environment · installer.
+  const failed = activity.status === 'failed' || result?.ok === false
+  const isRemoving = args.operation === 'uninstall'
+
+  // Ledger rows join the requested specs with the reported packageChanges so
+  // each package shows its change and version (app: detailFromChange).
+  const typedChanges = packageChanges.filter(isRecord)
+  const detailFromChange = (change: Record<string, unknown>): PackageLedgerRow => {
+    const name = typeof change.name === 'string' ? change.name : ''
+    const source = isRecord(change.source) ? change.source : undefined
+    const sourceLabel =
+      source?.type === 'github' && typeof source.repository === 'string'
+        ? `${source.repository}${typeof source.ref === 'string' ? `@${source.ref}` : ''}`
+        : source?.type === 'bioconductor'
+          ? ['Bioconductor', typeof source.version === 'string' ? source.version : null]
+              .filter(Boolean)
+              .join(' ')
+          : undefined
+    const beforeVersion =
+      typeof change.beforeVersion === 'string' ? change.beforeVersion.trim() : undefined
+    const afterVersion =
+      typeof change.afterVersion === 'string' ? change.afterVersion.trim() : undefined
+    const version =
+      change.change === 'updated' && beforeVersion && afterVersion
+        ? `${beforeVersion} → ${afterVersion}`
+        : isRemoving
+          ? beforeVersion
+          : afterVersion
+    return {
+      name,
+      source: sourceLabel,
+      change: typeof change.change === 'string' ? change.change : undefined,
+      version: version || undefined
+    }
+  }
+  const ledgerPackages: PackageLedgerRow[] = packages.map((spec) => {
+    const name = packageNameFromSpec(spec, args.language)
+    const repository = args.language === 'r' ? githubRepositoryFromSpec(spec) : undefined
+    const change = typedChanges.find((candidate) => {
+      if (typeof candidate.name !== 'string') return false
+      if (candidate.name.toLowerCase() === name.toLowerCase()) return true
+      if (!repository || !isRecord(candidate.source)) return false
+      return (
+        candidate.source.type === 'github' &&
+        typeof candidate.source.repository === 'string' &&
+        candidate.source.repository.toLowerCase() === repository.toLowerCase()
+      )
+    })
+    return change ? detailFromChange(change) : { name }
+  })
+  for (const change of typedChanges) {
+    if (change.relationship !== 'requested') continue
+    const detail = detailFromChange(change)
+    if (
+      detail.name &&
+      !ledgerPackages.some((row) => row.name.toLowerCase() === detail.name.toLowerCase())
+    ) {
+      ledgerPackages.push(detail)
+    }
+  }
+  const relatedPackages = typedChanges
+    .filter((change) => change.relationship !== 'requested' && change.change !== 'unchanged')
+    .map(detailFromChange)
+    .filter((detail) => detail.name)
+
+  if (ledgerPackages.length > 0 || relatedPackages.length > 0) {
+    sections.push({
+      kind: 'packageLedger',
+      packages: ledgerPackages,
+      related: relatedPackages,
+      failed,
+      warning: result?.needsRestart === true,
+      error
+    })
+  } else if (error) {
+    sections.push({ kind: 'code', label: 'Error', text: error, muted: true })
+  }
   // Plain-text provider output only masquerades as a log when no structured
   // result was found at all (app: getManagePackagesFallbackText); a parsed
   // result without a log field shows no Log section.
@@ -737,16 +845,25 @@ const buildPackagesDetails = (activity: NormalizedActivity): ActivityDetails => 
   if (log) sections.push({ kind: 'code', label: 'Log', text: log, collapsible: true })
   if (sections.length === 0) sections.push(...fallbackGenericSections(activity))
 
-  // App row: "Installed N packages" once settled, "Installing N packages"
-  // while running or failed; subtitle is language · environment · installer.
-  const failed = activity.status === 'failed' || result?.ok === false
-  const displayName = failed
-    ? packages.length > 0
-      ? `Installing ${packages.length} ${packages.length === 1 ? 'package' : 'packages'}`
-      : 'Installing packages'
-    : packages.length > 0
-      ? `Installed ${packages.length} ${packages.length === 1 ? 'package' : 'packages'}`
-      : 'Installed packages'
+  const countLabel =
+    packages.length > 0
+      ? `${packages.length} ${packages.length === 1 ? 'package' : 'packages'}`
+      : undefined
+  const displayName = isRemoving
+    ? failed
+      ? countLabel
+        ? `Removing ${countLabel}`
+        : 'Removing packages'
+      : countLabel
+        ? `Removed ${countLabel}`
+        : 'Removed packages'
+    : failed
+      ? countLabel
+        ? `Installing ${countLabel}`
+        : 'Installing packages'
+      : countLabel
+        ? `Installed ${countLabel}`
+        : 'Installed packages'
   const metaLabel =
     [failed ? 'failed' : undefined, result?.needsRestart === true ? 'restart needed' : undefined]
       .filter(Boolean)
@@ -1144,6 +1261,104 @@ export const buildActivityDetails = (
   }
 }
 
+// Static port of the app's manage-packages ledger (WorkspaceManagePackagesActivityRow):
+// Package/Status/Version grid, status under the name on narrow screens, related
+// changes behind a toggle, and the failure message in red below the table.
+const PackageLedgerTable = ({
+  section
+}: {
+  section: Extract<DetailSection, { kind: 'packageLedger' }>
+}) => {
+  const statusClass = section.failed
+    ? 'text-status-failure-foreground'
+    : section.warning
+      ? 'text-status-warning-foreground'
+      : 'text-status-success-foreground'
+  const changeLabel = (row: PackageLedgerRow): string =>
+    row.change === 'updated'
+      ? 'Updated'
+      : row.change === 'removed'
+        ? 'Removed'
+        : row.change === 'unchanged'
+          ? 'Unchanged'
+          : row.change === 'installed'
+            ? 'Installed'
+            : section.failed
+              ? 'Failed'
+              : 'Installed'
+  const gridClass =
+    'grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-x-3 sm:grid-cols-[minmax(0,1fr)_minmax(76px,auto)_minmax(88px,auto)]'
+  return (
+    <div>
+      {section.packages.length > 0 ? (
+        <div className="border-y border-border-200">
+          <div
+            className={`${gridClass} border-b border-border-200 px-2.5 py-1.5 text-[11px] font-medium text-text-200`}
+          >
+            <span>Package</span>
+            <span className="hidden sm:block">Status</span>
+            <span className="text-right">Version</span>
+          </div>
+          <div className="divide-y divide-border-200">
+            {section.packages.map((row, index) => (
+              <div
+                key={`${row.name}-${index}`}
+                className={`${gridClass} items-center px-2.5 py-2 text-[12px]`}
+              >
+                <div className="min-w-0" title={row.name}>
+                  <span className="block truncate font-medium text-text-000">{row.name}</span>
+                  {row.source ? (
+                    <span className="block truncate text-[11px] text-text-200">{row.source}</span>
+                  ) : null}
+                  <span className={`mt-0.5 block text-[11px] sm:hidden ${statusClass}`}>
+                    {changeLabel(row)}
+                  </span>
+                </div>
+                <span className={`hidden sm:block ${statusClass}`}>{changeLabel(row)}</span>
+                <span className="block truncate text-right font-mono tabular-nums text-text-100">
+                  {row.version ?? '—'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {section.related.length > 0 ? (
+        <details className="border-b border-border-200 text-[12px]">
+          <summary className={`${sectionLabelClassName} cursor-pointer select-none`}>
+            Related changes ({section.related.length})
+          </summary>
+          <div className="divide-y divide-border-200 border-t border-border-200">
+            {section.related.map((row, index) => (
+              <div key={`${row.name}-${index}`} className={`${gridClass} items-center px-2.5 py-2`}>
+                <span className="block min-w-0 truncate font-medium text-text-000">{row.name}</span>
+                <span className="hidden text-text-100 sm:block">
+                  {row.change === 'updated'
+                    ? 'Updated'
+                    : row.change === 'removed'
+                      ? 'Removed'
+                      : 'Installed'}
+                </span>
+                <span className="block truncate text-right font-mono tabular-nums text-text-100">
+                  {row.version ?? '—'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </details>
+      ) : null}
+      {section.error ? (
+        <p
+          className="mt-2 line-clamp-2 break-words text-[12px] text-status-failure-foreground"
+          title={section.error}
+        >
+          {section.error}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
 const SectionBody = ({ section }: { section: DetailSection }) => {
   const openPreview = useFilePreview()
   switch (section.kind) {
@@ -1181,6 +1396,8 @@ const SectionBody = ({ section }: { section: DetailSection }) => {
           ))}
         </div>
       )
+    case 'packageLedger':
+      return <PackageLedgerTable section={section} />
     case 'image':
       return (
         <button
@@ -1285,7 +1502,9 @@ export const ActivityRow = ({
           >
             <div id={detailsDomId} className="mx-1 mb-1.5 space-y-2.5 md:ml-[30px]">
               {collapsibleSections.map((section, index) =>
-                section.kind === 'summary' || section.kind === 'plan' ? (
+                section.kind === 'summary' ||
+                section.kind === 'plan' ||
+                section.kind === 'packageLedger' ? (
                   <SectionBody key={`${section.kind}-${index}`} section={section} />
                 ) : section.kind === 'code' && section.collapsible ? (
                   // Notebook outputs start collapsed (app: WorkspaceToolDetailsRow).

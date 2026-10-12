@@ -201,3 +201,37 @@ test('plan groups without a generate_plan row fall back to the generic title', a
   )
   expect(withPlan).toContain('Created execution plan')
 })
+
+test('failed package installs render the app ledger table with per-package status', async () => {
+  const failedInstall = activity({
+    providerToolName: 'mcp__open-science-notebook__manage_packages',
+    status: 'failed',
+    input: {
+      server: 'open-science-notebook',
+      tool: 'manage_packages',
+      arguments: { packages: ['pandas', 'yfinance'], language: 'python' }
+    },
+    output: JSON.stringify({
+      ok: false,
+      method: 'conda',
+      error: 'conda install failed.',
+      packageChanges: [
+        { name: 'pandas', relationship: 'requested' },
+        { name: 'yfinance', relationship: 'requested' }
+      ]
+    })
+  })
+  const html = await render(<ActivityRow activity={failedInstall} assets={{}} defaultExpanded />)
+  // Ledger header and rows (app: WorkspaceManagePackagesActivityRow grid).
+  expect(html).toContain('Package')
+  expect(html).toContain('Status')
+  expect(html).toContain('Version')
+  expect(html).toContain('pandas')
+  expect(html).toContain('yfinance')
+  // Failed rows carry the failure color and label; missing versions show a dash.
+  expect(html.match(/text-status-failure-foreground/g)?.length).toBeGreaterThanOrEqual(2)
+  expect(html.replace(/<!-- -->/g, '')).toContain('Failed')
+  expect(html).toContain('—')
+  // The failure message renders as red prose below the table, not a code block.
+  expect(html).toContain('conda install failed.')
+})
