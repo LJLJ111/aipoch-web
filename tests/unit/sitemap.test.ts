@@ -91,12 +91,19 @@ describe('sitemap', () => {
     for (const path of [
       '/open-science/use-cases',
       '/open-science/use-cases/nvda-all-at-once-or-four-weeks',
-      '/open-science/use-cases/can-a-simple-algorithm-beat-ai-at-wordle',
+      '/open-science/use-cases/can-a-simple-algorithm-beat-ai-at-wordle'
+    ]) {
+      expect(routes.find((route) => route.url === `${siteDomain}${path}`)?.lastModified).toEqual(
+        new Date('2026-10-10')
+      )
+    }
+    // The replay transcript rendering was reworked after the gallery pages.
+    for (const path of [
       '/open-science/use-cases/nvda-all-at-once-or-four-weeks/replay',
       '/open-science/use-cases/can-a-simple-algorithm-beat-ai-at-wordle/replay'
     ]) {
       expect(routes.find((route) => route.url === `${siteDomain}${path}`)?.lastModified).toEqual(
-        new Date('2026-10-10')
+        new Date('2026-10-12')
       )
     }
   })

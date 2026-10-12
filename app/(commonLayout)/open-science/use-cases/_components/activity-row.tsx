@@ -207,7 +207,13 @@ const NOTEBOOK_OUTPUT_LANGUAGE = new Set(['stream', 'display', 'execute_result',
 const buildNotebookDetails = (activity: NormalizedActivity): ActivityDetails => {
   const input = getInput(activity)
   const run = activity.run
-  const script = run?.script ?? run?.text ?? getStringField(input, 'code')
+  // Input field order mirrors the app: code, then command (bash_execute), then script.
+  const script =
+    run?.script ??
+    run?.text ??
+    (['code', 'command', 'script'] as const)
+      .map((key) => getStringField(input, key))
+      .find((value) => value !== undefined)
   const toolName = [activity.providerToolName, activity.title].find(
     (name) => matchNotebookRunTool(name) !== undefined
   )
@@ -599,10 +605,6 @@ const buildReadDetails = (activity: NormalizedActivity): ActivityDetails => {
 // Port of the app's manage-packages rendering (workspace-tool-activity-details.ts
 // + WorkspaceManagePackagesActivityRow) reduced to the static replay model.
 
-// MCP envelopes wrap the real input in { server, tool, arguments }.
-const unwrapMcpInput = (input: Record<string, unknown> | undefined): Record<string, unknown> =>
-  input && isRecord(input.arguments) ? input.arguments : (input ?? {})
-
 const isManagePackagesResult = (value: unknown): value is Record<string, unknown> =>
   isRecord(value) &&
   ['ok', 'needsRestart', 'method', 'environmentName', 'packageChanges', 'error'].some(
@@ -658,7 +660,7 @@ const cleanInstallLog = (log: string): string =>
     .trim()
 
 const buildPackagesDetails = (activity: NormalizedActivity): ActivityDetails => {
-  const args = unwrapMcpInput(getInput(activity))
+  const args = getInput(activity) ?? {}
   const isManage = [activity.providerToolName, activity.title].some(
     (name) => matchNotebookControlTool(name) === 'manage_packages'
   )
@@ -723,10 +725,15 @@ const buildPackagesDetails = (activity: NormalizedActivity): ActivityDetails => 
   }
   const error = typeof result?.error === 'string' ? trimDetail(result.error) : undefined
   if (error) sections.push({ kind: 'code', label: 'Error', text: error, muted: true })
+  // Plain-text provider output only masquerades as a log when no structured
+  // result was found at all (app: getManagePackagesFallbackText); a parsed
+  // result without a log field shows no Log section.
   const log =
     typeof result?.log === 'string'
       ? cleanInstallLog(result.log)
-      : cleanInstallLog(getOutputText(activity) ?? '')
+      : result
+        ? ''
+        : cleanInstallLog(getOutputText(activity) ?? '')
   if (log) sections.push({ kind: 'code', label: 'Log', text: log, collapsible: true })
   if (sections.length === 0) sections.push(...fallbackGenericSections(activity))
 

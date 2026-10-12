@@ -227,6 +227,7 @@ const ImageContent = ({ file }: { file: PreviewFile }) => {
     const panzoom = Panzoom(imageRef.current, {
       maxScale: 8,
       minScale: 0.5,
+      contain: 'outside',
       cursor: 'grab'
     })
     panzoomRef.current = panzoom

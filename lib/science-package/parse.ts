@@ -429,6 +429,8 @@ function normalizeSession(
       output: deep(activity.rawOutput),
       contentBlocks: deep(activity.toolContent) as unknown[] | undefined,
       locations: deep(activity.toolLocations) as NormalizedActivity['locations'],
+      // The essential tier shortens oversized payloads; the row discloses it.
+      essentialTruncated: activity.essentialTruncated === true ? true : undefined,
       run: invocationId ? runsByInvocation.get(invocationId) : undefined
     }
     activityItems.push({

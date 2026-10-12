@@ -265,7 +265,7 @@ describe('mock development end to end', () => {
           `/open-science/use-cases/${item.name}</loc><lastmod>2026-10-10T00:00:00.000Z</lastmod>`
         )
         expect(sitemap).toContain(
-          `/open-science/use-cases/${item.name}/replay</loc><lastmod>2026-10-10T00:00:00.000Z</lastmod>`
+          `/open-science/use-cases/${item.name}/replay</loc><lastmod>2026-10-12T00:00:00.000Z</lastmod>`
         )
         const detailHtml = await (await fetch(`${web}/open-science/use-cases/${item.name}`)).text()
         expect(detailHtml).toContain(`href="/open-science/use-cases/${item.name}/replay"`)
@@ -462,7 +462,7 @@ describe('mock development end to end', () => {
     const sitemap = await (await fetch(`${web}/sitemap.xml`)).text()
     expect(sitemap).toContain('/agent-skills/literature-review</loc>')
     for (const [path, date] of [
-      ['', '2026-10-09'],
+      ['', '2026-10-10'],
       ['/agent-skills/list', '2026-10-09'],
       ['/agent-skills/literature-review', '2026-10-09'],
       ['/blog', '2026-10-09'],

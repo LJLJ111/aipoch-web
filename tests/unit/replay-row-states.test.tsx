@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test'
 import { renderToReadableStream } from 'react-dom/server'
+import { SessionActivityGroup } from '../../app/(commonLayout)/open-science/use-cases/_components/activity-group'
 import { ActivityRow } from '../../app/(commonLayout)/open-science/use-cases/_components/activity-row'
 import { SessionMessageItem } from '../../app/(commonLayout)/open-science/use-cases/_components/message-item'
 import type { NormalizedActivity } from '../../lib/use-case-types'
@@ -176,4 +177,27 @@ test('plan card starts compact: clamped summary, five steps, collapsed descripti
   // Descriptions start collapsed behind the step toggle.
   expect(html).not.toContain('Coverage step 1 description.')
   expect(html).toContain('High confidence')
+})
+
+test('plan groups without a generate_plan row fall back to the generic title', async () => {
+  const stepUpdate = activity({
+    providerToolName: 'mcp.open-science-plan.update_step_status',
+    input: { step_id: 'p3', status: 'completed' }
+  })
+  // A plan group holding only step updates is not a "created plan" event.
+  const withoutPlan = await render(
+    <SessionActivityGroup activities={[stepUpdate]} assets={{}} planGroup />
+  )
+  expect(withoutPlan).not.toContain('Created execution plan')
+  const withPlan = await render(
+    <SessionActivityGroup
+      activities={[
+        activity({ providerToolName: 'mcp.open-science-plan.generate_plan', input: planInput }),
+        stepUpdate
+      ]}
+      assets={{}}
+      planGroup
+    />
+  )
+  expect(withPlan).toContain('Created execution plan')
 })

@@ -448,3 +448,18 @@ test('a session without plan tools groups exactly as before', async () => {
   ])
   expect(groups[0].type === 'activity-group' && groups[0].planGroup).toBeUndefined()
 })
+
+test('essentialTruncated survives package parsing', async () => {
+  const sample = buildSciencePackage('Truncated', {
+    conversationGraph: {
+      activities: [
+        { id: 't1', title: 'Big output', createdAt: 1, essentialTruncated: true },
+        { id: 't2', title: 'Small output', createdAt: 2 }
+      ]
+    }
+  })
+  const result = await parsePackage(new Blob([sample.bytes as BlobPart]), 'truncated')
+  const group = result.session.items.find((item) => item.type === 'activity-group')
+  expect(group?.type === 'activity-group' && group.activities[0].essentialTruncated).toBe(true)
+  expect(group?.type === 'activity-group' && group.activities[1].essentialTruncated).toBeUndefined()
+})

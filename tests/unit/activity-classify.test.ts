@@ -609,7 +609,11 @@ test('manage_packages resolves from the title and renders the install row', () =
     activity({
       providerToolName: 'mcp__open-science-notebook__manage_packages',
       status: 'failed',
-      input: { arguments: { packages: ['r-ggplot2'], language: 'r' } },
+      input: {
+        server: 'open-science-notebook',
+        tool: 'manage_packages',
+        arguments: { packages: ['r-ggplot2'], language: 'r' }
+      },
       output: '{"ok": false, "error": "Solving environment failed", "needsRestart": true}'
     }),
     {}
@@ -623,7 +627,11 @@ test('manage_packages resolves from the title and renders the install row', () =
   const inspect = buildActivityDetails(
     activity({
       providerToolName: 'mcp.open-science-notebook.inspect_packages',
-      input: { arguments: { language: 'python' } },
+      input: {
+        server: 'open-science-notebook',
+        tool: 'inspect_packages',
+        arguments: { language: 'python' }
+      },
       output: [{ type: 'text', text: '{"installed": ["numpy"]}' }]
     }),
     {}
@@ -652,4 +660,48 @@ test('manage_packages resolves from the title and renders the install row', () =
   expect(
     classifyActivityRenderer(activity({ providerToolName: 'mcp.other-server.manage_packages' }))
   ).toBe('generic-fallback')
+})
+
+test('bash_execute falls back to input.command when the run document is absent', () => {
+  // Extracted mode can lack run.json; the command must survive as the Command section.
+  const details = buildActivityDetails(
+    activity({
+      providerToolName: 'mcp.open-science-notebook.bash_execute',
+      input: {
+        server: 'open-science-notebook',
+        tool: 'bash_execute',
+        arguments: { command: 'tar -xzf coverage.tar.gz' }
+      }
+    }),
+    {}
+  )
+  expect(details.displayName).toBe('Shell')
+  expect(details.sections[0]).toMatchObject({
+    kind: 'code',
+    label: 'Command',
+    text: 'tar -xzf coverage.tar.gz',
+    language: 'bash'
+  })
+
+  // Field priority: code beats command, command beats script.
+  const priority = buildActivityDetails(
+    activity({
+      providerToolName: 'mcp.open-science-notebook.bash_execute',
+      input: { code: 'code-value', command: 'command-value', script: 'script-value' }
+    }),
+    {}
+  )
+  const first = priority.sections[0]
+  if (first.kind !== 'code') throw new Error('expected a code section')
+  expect(first.text).toBe('code-value')
+  const second = buildActivityDetails(
+    activity({
+      providerToolName: 'mcp.open-science-notebook.bash_execute',
+      input: { command: 'command-value', script: 'script-value' }
+    }),
+    {}
+  )
+  const secondFirst = second.sections[0]
+  if (secondFirst.kind !== 'code') throw new Error('expected a code section')
+  expect(secondFirst.text).toBe('command-value')
 })
