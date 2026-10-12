@@ -3,7 +3,7 @@
 // hooks are browser-only (IntersectionObserver + fetch).
 
 import { type RefObject, useEffect, useRef, useState } from 'react'
-import { previewKindFor } from './file-preview'
+import { previewKindFor } from './preview-kind'
 
 // Formats a byte count as a compact human-readable size (B/KB/MB), or undefined when unknown.
 export const formatByteSize = (size: number | undefined): string | undefined => {
@@ -43,25 +43,48 @@ const fetchTextPreview = (url: string): Promise<string | undefined> => {
   let cached = textPreviewCache.get(url)
   if (!cached) {
     cached = (async () => {
-      try {
-        if (url.startsWith('blob:')) {
-          const response = await fetch(url)
-          if (!response.ok) return undefined
-          return await (await response.blob()).slice(0, PREVIEW_BYTE_LIMIT).text()
-        }
-        const response = await fetch(url, {
-          headers: { Range: `bytes=0-${PREVIEW_BYTE_LIMIT - 1}` },
-          credentials: 'omit'
-        })
-        if (!response.ok) return undefined
-        return await (await response.blob()).slice(0, PREVIEW_BYTE_LIMIT).text()
-      } catch {
-        return undefined
-      }
+      const result = await fetchTextWithLimit(url, PREVIEW_BYTE_LIMIT)
+      return result?.text
     })()
     textPreviewCache.set(url, cached)
   }
   return cached
+}
+
+// Fetches at most `limit` bytes of a text resource. blob: URLs slice the blob;
+// http(s) sends a Range request (credentials omitted) and still caps client-side
+// when the server ignores it. `truncated` follows the byte count, or the
+// Content-Range total when the server answered 206.
+export const fetchTextWithLimit = async (
+  url: string,
+  limit: number,
+  signal?: AbortSignal
+): Promise<{ text: string; truncated: boolean } | undefined> => {
+  try {
+    if (url.startsWith('blob:')) {
+      const response = await fetch(url, { signal })
+      if (!response.ok) return undefined
+      const blob = await response.blob()
+      const truncated = blob.size > limit
+      const bytes = new Uint8Array(await blob.slice(0, limit).arrayBuffer())
+      // A streaming decode withholds a partial UTF-8 character at the cut.
+      return { text: new TextDecoder().decode(bytes, { stream: truncated }), truncated }
+    }
+    const response = await fetch(url, {
+      headers: { Range: `bytes=0-${limit - 1}` },
+      credentials: 'omit',
+      signal
+    })
+    if (!response.ok) return undefined
+    const blob = await response.blob()
+    const contentRange = response.headers.get('content-range')
+    const total = contentRange ? Number(contentRange.split('/')[1]) : Number.NaN
+    const truncated = Number.isFinite(total) ? total > limit : blob.size > limit
+    const bytes = new Uint8Array(await blob.slice(0, limit).arrayBuffer())
+    return { text: new TextDecoder().decode(bytes, { stream: truncated }), truncated }
+  } catch {
+    return undefined
+  }
 }
 
 export const useArtifactTextPreview = (

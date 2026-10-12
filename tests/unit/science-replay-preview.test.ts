@@ -1,4 +1,5 @@
-import { expect, test } from 'bun:test'
+import { expect, mock, test } from 'bun:test'
+import { fetchTextWithLimit } from '../../app/(commonLayout)/open-science/use-cases/_components/artifact-preview'
 import {
   buildCsvPreviewModel,
   canOpenInNewTab,
@@ -72,4 +73,53 @@ test('csv preview model caps rows and columns and flags hidden ones', () => {
   expect(ragged?.headers).toEqual(['a', 'b', 'c', ''])
 
   expect(buildCsvPreviewModel('')).toBeUndefined()
+})
+
+test('fetchTextWithLimit caps bytes, sends a Range request, and reports truncation', async () => {
+  const originalFetch = globalThis.fetch
+  try {
+    // Small http body inside the limit: full text, not truncated.
+    globalThis.fetch = mock(async () => new Response('hello')) as unknown as typeof fetch
+    expect(await fetchTextWithLimit('https://cdn.test/small.txt', 1024)).toEqual({
+      text: 'hello',
+      truncated: false
+    })
+    expect((globalThis.fetch as unknown as ReturnType<typeof mock>).mock.calls[0][1]).toMatchObject(
+      {
+        credentials: 'omit',
+        headers: { Range: 'bytes=0-1023' }
+      }
+    )
+
+    // A 200 that ignored the Range header: capped client-side.
+    globalThis.fetch = mock(async () => new Response('x'.repeat(5000))) as unknown as typeof fetch
+    const capped = await fetchTextWithLimit('https://cdn.test/big.txt', 1024)
+    expect(capped?.truncated).toBe(true)
+    expect(capped?.text.length).toBe(1024)
+
+    // A 206 discloses the total through Content-Range.
+    globalThis.fetch = mock(
+      async () =>
+        new Response('x'.repeat(1024), {
+          status: 206,
+          headers: { 'Content-Range': 'bytes 0-1023/5000' }
+        })
+    ) as unknown as typeof fetch
+    expect((await fetchTextWithLimit('https://cdn.test/big.txt', 1024))?.truncated).toBe(true)
+
+    // Failures degrade to undefined.
+    globalThis.fetch = mock(
+      async () => new Response(null, { status: 404 })
+    ) as unknown as typeof fetch
+    expect(await fetchTextWithLimit('https://cdn.test/missing.txt', 1024)).toBeUndefined()
+
+    // blob: URLs slice the blob client-side.
+    globalThis.fetch = mock(async () => new Response('y'.repeat(10))) as unknown as typeof fetch
+    expect(await fetchTextWithLimit('blob:https://site.test/uuid', 4)).toEqual({
+      text: 'yyyy',
+      truncated: true
+    })
+  } finally {
+    globalThis.fetch = originalFetch
+  }
 })
