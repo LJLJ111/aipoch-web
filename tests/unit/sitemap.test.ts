@@ -88,13 +88,14 @@ describe('sitemap', () => {
     const { default: sitemap } = await import('../../app/sitemap')
     const routes = await sitemap()
     expect(routes.some((route) => route.url.includes('/replay/dot-science'))).toBe(false)
-    for (const path of [
-      '/open-science/use-cases',
-      '/open-science/use-cases/nvda-all-at-once-or-four-weeks',
-      '/open-science/use-cases/can-a-simple-algorithm-beat-ai-at-wordle'
+    // The gallery page was refreshed on October 12; detail pages keep their earlier date.
+    for (const [path, date] of [
+      ['/open-science/use-cases', '2026-10-12'],
+      ['/open-science/use-cases/nvda-all-at-once-or-four-weeks', '2026-10-10'],
+      ['/open-science/use-cases/can-a-simple-algorithm-beat-ai-at-wordle', '2026-10-10']
     ]) {
       expect(routes.find((route) => route.url === `${siteDomain}${path}`)?.lastModified).toEqual(
-        new Date('2026-10-10')
+        new Date(date)
       )
     }
     // The replay transcript rendering was reworked after the gallery pages.
@@ -142,7 +143,7 @@ describe('sitemap', () => {
       (route) => route.url === `${siteDomain}/guides/what-is-a-skill`
     )
 
-    expect((homepageRoute?.lastModified as Date).toISOString()).toBe('2026-10-10T00:00:00.000Z')
+    expect((homepageRoute?.lastModified as Date).toISOString()).toBe('2026-10-12T00:00:00.000Z')
 
     expect(openScienceRoute).toMatchObject({
       changeFrequency: 'weekly',

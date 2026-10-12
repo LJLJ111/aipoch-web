@@ -19,7 +19,12 @@ export const formatCompactGithubCount = (value: number): string => {
 export const homeHeroStats = [
   { value: '25', label: 'OFFICIAL MODEL APIs', detail: '+ CUSTOM GATEWAY' },
   { value: '4', label: 'AGENT FRAMEWORKS' },
-  { value: '597', label: 'SKILLS', testId: 'home-hero-stat-skills' },
+  {
+    value: '548',
+    label: 'marketplace',
+    detail: '+ built in',
+    testId: 'home-hero-stat-skills'
+  },
   { value: '36', label: 'SCIENCE CONNECTORS' }
 ] as const
 

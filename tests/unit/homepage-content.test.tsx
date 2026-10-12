@@ -112,7 +112,7 @@ describe('Figma homepage with existing live data contracts', () => {
     expect([...hero.matchAll(/<strong[^>]*>([^<]+)<\/strong>/g)].map((match) => match[1])).toEqual([
       '25',
       '4',
-      '597',
+      '548',
       '36'
     ])
   })

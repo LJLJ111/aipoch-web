@@ -201,8 +201,8 @@ describe('mock development end to end', () => {
           .first()
           .evaluate((image) => (image as HTMLImageElement).naturalWidth)
       ).toBeGreaterThan(0)
-      await page.getByRole('link', { name: 'Next', exact: true }).click()
-      expect(await page.locator('main img').count()).toBe(3)
+      await page.getByRole('link', { name: 'Load more use cases', exact: true }).click()
+      expect(await page.locator('main img').count()).toBe(9)
       await page.goto(`${web}/open-science/use-cases/${manifestSample[0].name}`)
       await page.getByText('Local sample introduction.', { exact: true }).waitFor()
       // Shared typography must apply during SSR, even without client JavaScript.
@@ -462,7 +462,7 @@ describe('mock development end to end', () => {
     const sitemap = await (await fetch(`${web}/sitemap.xml`)).text()
     expect(sitemap).toContain('/agent-skills/literature-review</loc>')
     for (const [path, date] of [
-      ['', '2026-10-10'],
+      ['', '2026-10-12'],
       ['/agent-skills/list', '2026-10-09'],
       ['/agent-skills/literature-review', '2026-10-09'],
       ['/blog', '2026-10-09'],
@@ -480,29 +480,85 @@ describe('mock development end to end', () => {
     expect(sitemap).not.toContain('/open-science/overview</loc>')
   }, 120000)
 
-  test('mobile navigation renders manifest cards without downloading the manifest in the browser', async () => {
+  for (const mobile of [false, true]) {
+    test(`gallery appends cases on scroll with ${mobile ? 'mobile' : 'desktop'} layout and no browser manifest fetch`, async () => {
+      const browser = await chromium.launch()
+      try {
+        const context = await browser.newContext(
+          mobile ? devices['Pixel 5'] : { viewport: { width: 1440, height: 700 } }
+        )
+        const page = await context.newPage()
+        const requests: string[] = []
+        page.on('request', (request) => requests.push(request.url()))
+        await page.goto(`${web}/open-science/use-cases`)
+        const grid = page.getByTestId('use-case-grid')
+        await browserExpect(grid.locator('h2')).toHaveCount(6)
+        await browserExpect(page.getByRole('navigation', { name: 'Use case pages' })).toHaveCount(0)
+        const geometry = await grid.evaluate((element) => {
+          const cards = Array.from(element.children).map((card) => card.getBoundingClientRect())
+          const title = element.querySelector('h2')
+          const style = title ? getComputedStyle(title) : null
+          return {
+            columns: new Set(cards.map((card) => Math.round(card.x))).size,
+            cardWidth: cards[0].width,
+            cardHeight: cards[0].height,
+            clamp: style?.webkitLineClamp,
+            fontSize: style?.fontSize,
+            lineHeight: style?.lineHeight,
+            overflow: document.documentElement.scrollWidth > innerWidth
+          }
+        })
+        expect(geometry.columns).toBe(mobile ? 1 : 3)
+        expect(geometry.clamp).toBe('2')
+        expect(geometry.fontSize).toBe('22px')
+        expect(geometry.lineHeight).toBe('30px')
+        expect(geometry.overflow).toBe(false)
+        if (!mobile) {
+          expect(geometry.cardWidth).toBeCloseTo(408, 0)
+          expect(geometry.cardHeight).toBeCloseTo(288, 0)
+        }
+        await page.getByRole('link', { name: 'Load more use cases' }).scrollIntoViewIfNeeded()
+        await browserExpect(grid.locator('h2')).toHaveText(manifestSample.map((item) => item.title))
+        await browserExpect(page.getByText('All use cases loaded', { exact: true })).toBeVisible()
+        await browserExpect(page.getByRole('status')).toContainText('Showing 9 of 9 use cases')
+        expect(
+          new Set(
+            await grid
+              .locator('a')
+              .evaluateAll((links) => links.map((link) => link.getAttribute('href')))
+          ).size
+        ).toBe(9)
+        expect(page.url()).toBe(`${web}/open-science/use-cases`)
+        expect(requests.some((url) => url.includes('/use-case-manifest/manifest.json'))).toBe(false)
+        expect(requests.some((url) => url.endsWith('.science'))).toBe(false)
+        await page.screenshot({
+          path: `${reviewArtifacts}/use-case-scroll-${mobile ? 'mobile' : 'desktop'}.png`,
+          fullPage: true
+        })
+        await grid.getByRole('link', { name: manifestSample[6].title, exact: true }).click()
+        await browserExpect(
+          page.locator('main > section').first().getByRole('heading', { level: 1 })
+        ).toHaveText(manifestSample[6].title)
+      } finally {
+        await browser.close()
+      }
+    }, 60000)
+  }
+
+  test('gallery supports keyboard loading without IntersectionObserver', async () => {
     const browser = await chromium.launch()
     try {
-      const context = await browser.newContext(devices['Pixel 5'])
-      const page = await context.newPage()
-      const requests: string[] = []
-      page.on('request', (request) => requests.push(request.url()))
+      const page = await browser.newPage({ viewport: { width: 1440, height: 700 } })
+      await page.addInitScript(() => {
+        Reflect.deleteProperty(window, 'IntersectionObserver')
+      })
       await page.goto(`${web}/open-science/use-cases`)
-      await page.getByRole('heading', { name: manifestSample[0].title, exact: true }).waitFor()
-      await page.getByRole('link', { name: 'Next', exact: true }).click()
-      await page.waitForURL('**/open-science/use-cases?page=2')
-      await page.getByRole('heading', { name: manifestSample[6].title, exact: true }).waitFor()
-      expect(await page.locator('main img').count()).toBe(3)
-      expect(
-        await page.getByRole('heading', { name: manifestSample[0].title, exact: true }).count()
-      ).toBe(0)
-      await page.goBack()
-      await page.getByRole('heading', { name: manifestSample[0].title, exact: true }).waitFor()
-      expect(await page.locator('main img').count()).toBe(6)
-      await page.goForward()
-      await page.getByRole('heading', { name: manifestSample[6].title, exact: true }).waitFor()
-      expect(await page.locator('main img').count()).toBe(3)
-      expect(requests.some((url) => url.includes('/use-case-manifest/manifest.json'))).toBe(false)
+      await browserExpect(page.getByTestId('use-case-grid').locator('h2')).toHaveCount(6)
+      const more = page.getByRole('link', { name: 'Load more use cases' })
+      await more.focus()
+      await more.press('Enter')
+      await browserExpect(page.getByTestId('use-case-grid').locator('h2')).toHaveCount(9)
+      expect(page.url()).toBe(`${web}/open-science/use-cases`)
     } finally {
       await browser.close()
     }
