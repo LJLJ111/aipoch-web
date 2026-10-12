@@ -330,3 +330,93 @@ test('reads fields through the MCP envelope in exported packages', () => {
   const lookalike = buildActivityDetails(activity({ input: { arguments: { command: 'ls' } } }), {})
   expect(lookalike.displayName).toBe('Tool')
 })
+
+test('plan tools classify and render friendly plan details', () => {
+  // Both namespacing forms hit the plan renderer; lookalikes do not.
+  for (const providerToolName of [
+    'mcp.open-science-plan.generate_plan',
+    'mcp__open-science-plan__generate_plan',
+    'mcp.open-science-plan.update_step_status',
+    'open_science_plan_update_step_status'
+  ]) {
+    expect(classifyActivityRenderer(activity({ providerToolName }))).toBe('plan')
+  }
+  expect(
+    classifyActivityRenderer(
+      activity({ providerToolName: 'mcp.open-science-plan-staging.generate_plan' })
+    )
+  ).toBe('generic-fallback')
+
+  const generated = buildActivityDetails(
+    activity({
+      providerToolName: 'mcp.open-science-plan.generate_plan',
+      input: {
+        task_summary: 'Backtest the strategy.',
+        phases: [
+          {
+            name: 'P1',
+            delegations: [
+              {
+                name: 'D1',
+                steps: [
+                  { title: 'Collect inputs', description: 'Gather datasets.' },
+                  { title: 'Run backtest', description: 'Capture metrics.' }
+                ]
+              }
+            ]
+          }
+        ],
+        desired_outputs: [],
+        feasibility: { confidence: 'medium', rationale: 'Some data may be missing.' }
+      }
+    }),
+    {}
+  )
+  expect(generated.displayName).toBe('Created execution plan')
+  expect(generated.metaLabel).toBe('2 steps')
+  expect(generated.sections[0].kind).toBe('plan')
+
+  // Malformed plan input degrades to the generic input/output sections.
+  const malformed = buildActivityDetails(
+    activity({ providerToolName: 'mcp.open-science-plan.generate_plan', input: { foo: 1 } }),
+    {}
+  )
+  expect(malformed.displayName).toBe('Created execution plan')
+  expect(malformed.sections.every((section) => section.kind === 'code')).toBe(true)
+
+  const failed = buildActivityDetails(
+    activity({
+      providerToolName: 'mcp__open-science-plan__generate_plan',
+      status: 'failed',
+      input: { foo: 1 }
+    }),
+    {}
+  )
+  expect(failed.displayName).toBe('Failed to create execution plan')
+  expect(failed.metaLabel).toBe('failed')
+
+  const stepUpdate = buildActivityDetails(
+    activity({
+      providerToolName: 'mcp.open-science-plan.update_step_status',
+      input: { title: 'Collect inputs', status: 'completed', notes: 'checksums verified' }
+    }),
+    {}
+  )
+  expect(stepUpdate.displayName).toBe('Plan step update')
+  expect(stepUpdate.subtitle).toBe('Collect inputs')
+  const stepSection = stepUpdate.sections[0]
+  if (stepSection.kind !== 'summary') throw new Error('expected a summary section')
+  expect(stepSection.summary.fields).toEqual([
+    { label: 'Step', value: 'Collect inputs' },
+    { label: 'Status', value: 'Completed' },
+    { label: 'Notes', value: 'checksums verified' }
+  ])
+
+  // Malformed update input degrades to generic sections under the same name.
+  const badUpdate = buildActivityDetails(
+    activity({ providerToolName: 'mcp.open-science-plan.update_step_status', input: {} }),
+    {}
+  )
+  expect(badUpdate.displayName).toBe('Plan step update')
+  expect(badUpdate.sections.every((section) => section.kind === 'code')).toBe(true)
+})

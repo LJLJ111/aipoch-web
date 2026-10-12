@@ -1,6 +1,6 @@
 import type { NormalizedActivity } from '@/lib/use-case-types'
 import { isNotebookExecutionActivity, isSkillLoadActivity } from './activity-group-title'
-import { isNotebookSummaryToolName, matchToolName } from './notebook-tool-names'
+import { isNotebookSummaryToolName, isPlanToolName, matchToolName } from './notebook-tool-names'
 
 // Single source of truth for "which renderer handles this tool activity".
 // buildActivityDetails (activity-row.tsx) dispatches on this, and
@@ -9,6 +9,7 @@ export type ActivityRenderer =
   | 'skill'
   | 'notebook'
   | 'notebook-control'
+  | 'plan'
   | 'read'
   | 'packages'
   | 'artifact-write'
@@ -22,6 +23,7 @@ export const ALL_ACTIVITY_RENDERERS: ActivityRenderer[] = [
   'skill',
   'notebook',
   'notebook-control',
+  'plan',
   'read',
   'packages',
   'artifact-write',
@@ -36,6 +38,9 @@ export const classifyActivityRenderer = (activity: NormalizedActivity): Activity
   if (isNotebookExecutionActivity(activity)) return 'notebook'
   if ([activity.providerToolName, activity.title].some(isNotebookSummaryToolName)) {
     return 'notebook-control'
+  }
+  if ([activity.providerToolName, activity.title].some(isPlanToolName)) {
+    return 'plan'
   }
   if (providerName === 'Read' || (activity.toolKind === 'read' && activity.locations?.length)) {
     return 'read'

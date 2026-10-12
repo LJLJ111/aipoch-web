@@ -10,8 +10,16 @@ import { useFilePreview } from './file-preview'
 import {
   matchNotebookControlTool,
   matchNotebookRunTool,
+  matchToolName,
   resolveNotebookLanguage
 } from './notebook-tool-names'
+import { PlanCard } from './plan-card'
+import {
+  PLAN_STEP_STATUS_LABELS,
+  type PlanProjection,
+  parsePlanStepUpdate,
+  projectGeneratePlanActivity
+} from './plan-projection'
 import { SessionMarkdown } from './session-markdown'
 import { SectionLabel, ToolCodeBlock, type ToolSummary, ToolSummaryCard } from './tool-blocks'
 
@@ -25,6 +33,7 @@ type DetailSection =
   | { kind: 'markdown'; label: string; text: string }
   | { kind: 'packages'; label: string; packages: string[] }
   | { kind: 'image'; label: string; url: string; mimeType: string }
+  | { kind: 'plan'; projection: PlanProjection }
 
 type ActivityDetails = {
   displayName: string
@@ -659,6 +668,65 @@ const getCommandText = (activity: NormalizedActivity): string | undefined => {
   return command || trimDetail(activity.title)
 }
 
+// --- plan tools (generate_plan / update_step_status) -------------------------
+// Static port of the app's generate-plan projection; the replay timeline is a
+// stateless single-activity view, so update_step_status renders as its own
+// friendly row instead of folding into a plan card like the app does.
+const buildPlanDetails = (activity: NormalizedActivity): ActivityDetails => {
+  const isGeneratePlan = [activity.providerToolName, activity.title].some((name) =>
+    matchToolName(name, 'open-science-plan', 'generate_plan')
+  )
+
+  if (!isGeneratePlan) {
+    const update = parsePlanStepUpdate(activity)
+    if (!update) {
+      return {
+        displayName: 'Plan step update',
+        metaLabel: activity.status === 'failed' ? 'failed' : undefined,
+        sections: fallbackGenericSections(activity)
+      }
+    }
+    const summary: ToolSummary = {
+      title: 'Plan step update',
+      fields: [
+        { label: 'Step', value: update.title },
+        ...(update.status
+          ? [{ label: 'Status', value: PLAN_STEP_STATUS_LABELS[update.status] ?? update.status }]
+          : []),
+        ...(update.notes ? [{ label: 'Notes', value: update.notes }] : [])
+      ]
+    }
+    return {
+      displayName: 'Plan step update',
+      subtitle: update.title,
+      metaLabel: activity.status === 'failed' ? 'failed' : undefined,
+      sections: [{ kind: 'summary', summary }]
+    }
+  }
+
+  const projection = projectGeneratePlanActivity(activity)
+  const sections: DetailSection[] = []
+  if (projection.kind === 'content') {
+    sections.push({ kind: 'plan', projection })
+  } else if (projection.kind === 'revision-conflict') {
+    sections.push({ kind: 'markdown', label: 'Detail', text: projection.detail })
+  } else if (projection.kind === 'unavailable' || projection.kind === 'failed') {
+    // Malformed/missing plan documents degrade to the raw input/output view.
+    sections.push(...fallbackGenericSections(activity))
+  }
+  // approved / rejected / already-pending are heading-only rows.
+  return {
+    displayName: projection.heading,
+    metaLabel:
+      projection.kind === 'content'
+        ? `${projection.steps.length} ${projection.steps.length === 1 ? 'step' : 'steps'}`
+        : activity.status === 'failed'
+          ? 'failed'
+          : undefined,
+    sections
+  }
+}
+
 // Exported for tests; the audit script shares the classifier it dispatches on.
 export const buildActivityDetails = (
   activity: NormalizedActivity,
@@ -682,6 +750,8 @@ export const buildActivityDetails = (
       return buildSaveToInboxDetails(activity)
     case 'websearch':
       return buildWebSearchDetails(activity)
+    case 'plan':
+      return buildPlanDetails(activity)
     default: {
       const displayName = getToolDisplayName(activity)
       // App rule (workspace-tool-activity-details.ts): execute tools lead with
@@ -715,6 +785,8 @@ const SectionBody = ({ section }: { section: DetailSection }) => {
       )
     case 'summary':
       return <ToolSummaryCard summary={section.summary} file={section.file} />
+    case 'plan':
+      return <PlanCard projection={section.projection} />
     case 'markdown':
       return (
         <div className="max-h-[320px] overflow-auto rounded-md border border-border-200 bg-bg-000 px-3 py-2.5">
@@ -818,8 +890,8 @@ export const ActivityRow = ({
           >
             <div id={detailsDomId} className="mx-1 mb-1.5 space-y-2.5 md:ml-[30px]">
               {details.sections.map((section, index) =>
-                section.kind === 'summary' ? (
-                  <SectionBody key={`summary-${index}`} section={section} />
+                section.kind === 'summary' || section.kind === 'plan' ? (
+                  <SectionBody key={`${section.kind}-${index}`} section={section} />
                 ) : (
                   <div key={`${section.kind}-${section.label}-${index}`} className="space-y-1">
                     <SectionLabel>{section.label}</SectionLabel>

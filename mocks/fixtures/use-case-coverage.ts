@@ -19,6 +19,7 @@ export const COVERAGE_FIXTURE_RENDERERS: ActivityRenderer[] = [
   'skill',
   'notebook',
   'notebook-control',
+  'plan',
   'read',
   'packages',
   'artifact-write',
@@ -231,6 +232,61 @@ export const coverageFixtureSession: UseCaseSession = {
           output: [
             { type: 'text', text: '{"status": "restarted", "kernelStatus": "idle", "cells": 3}' }
           ]
+        },
+        {
+          id: 'cov-act-plan-generate',
+          // Dotted provider form on purpose: exercises the multi-form tool
+          // matching (mcp.server.tool) for the plan renderer.
+          title: 'mcp.open-science-plan.generate_plan',
+          providerToolName: 'mcp.open-science-plan.generate_plan',
+          toolKind: 'other',
+          status: 'completed',
+          createdAt: 1790133061900,
+          updatedAt: 1790133061950,
+          input: {
+            task_summary: 'Coverage plan: collect inputs, analyze them, and publish the report.',
+            phases: [
+              {
+                name: 'Analysis',
+                delegations: [
+                  {
+                    name: 'Coverage delegation',
+                    steps: [
+                      {
+                        title: 'Collect coverage inputs',
+                        description: 'Gather the coverage corpus inputs and verify checksums.'
+                      },
+                      {
+                        title: 'Publish coverage report',
+                        description: 'Write the coverage report artifact and link it.'
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            desired_outputs: ['coverage report'],
+            feasibility: {
+              confidence: 'high',
+              rationale: 'All inputs are bundled with the coverage fixture.'
+            }
+          },
+          output: [{ type: 'text', text: '{"ok": true}' }]
+        },
+        {
+          id: 'cov-act-plan-step',
+          title: 'mcp__open-science-plan__update_step_status',
+          providerToolName: 'mcp__open-science-plan__update_step_status',
+          toolKind: 'other',
+          status: 'completed',
+          createdAt: 1790133061960,
+          updatedAt: 1790133061980,
+          input: {
+            title: 'Collect coverage inputs',
+            status: 'completed',
+            notes: 'Coverage step notes: checksums verified.'
+          },
+          output: [{ type: 'text', text: '{"ok": true}' }]
         },
         {
           id: 'cov-act-read',
