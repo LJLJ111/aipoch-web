@@ -13,6 +13,14 @@ import {
 } from './activity-group-title'
 import { ActivityRow } from './activity-row'
 import { RowErrorBoundary } from './error-boundary'
+import { matchToolName } from './notebook-tool-names'
+
+// Inside a plan block, only the generate_plan row (the plan card itself)
+// starts expanded; step updates stay collapsed, matching the app.
+const isGeneratePlanActivity = (activity: NormalizedActivity): boolean =>
+  [activity.providerToolName, activity.title].some((name) =>
+    matchToolName(name, 'open-science-plan', 'generate_plan')
+  )
 
 // Port of WorkspaceActivityGroup: adjacent tool calls as one collapsible transcript row group,
 // collapsed by default, with the app's chevron header and natural-language summary.
@@ -66,7 +74,11 @@ export const SessionActivityGroup = ({
               {activities.map((activity) => (
                 <div key={activity.id} className="w-full overflow-hidden">
                   <RowErrorBoundary label={activity.providerToolName ?? activity.title}>
-                    <ActivityRow activity={activity} assets={assets} defaultExpanded={planGroup} />
+                    <ActivityRow
+                      activity={activity}
+                      assets={assets}
+                      defaultExpanded={planGroup && isGeneratePlanActivity(activity)}
+                    />
                   </RowErrorBoundary>
                 </div>
               ))}
