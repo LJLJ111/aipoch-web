@@ -1234,7 +1234,12 @@ export const ActivityRow = ({
         disabled={!canExpand}
         onClick={() => setIsExpanded((current) => !current)}
       >
-        <span className="mt-0.5 inline-flex shrink-0 items-center md:mt-0">
+        <span
+          className={cn(
+            'mt-0.5 inline-flex shrink-0 items-center md:mt-0',
+            (details.failed || activity.status === 'failed') && 'text-status-failure-foreground'
+          )}
+        >
           <ActivityIcon activity={activity} failed={details.failed} />
         </span>
         <span className="min-w-0 flex-1 text-left md:flex md:items-center md:gap-2">
