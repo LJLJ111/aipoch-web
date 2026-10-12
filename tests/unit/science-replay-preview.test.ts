@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test'
 import {
+  buildCsvPreviewModel,
   canOpenInNewTab,
   previewKindFor
 } from '../../app/(commonLayout)/open-science/use-cases/_components/file-preview'
@@ -44,4 +45,31 @@ test('markdown asset links fall back to the URL name, then to nothing', () => {
   // previewed: return null so the click keeps the browser default behavior.
   expect(resolveAssetLinkTarget('blob:https://site.test/uuid', '点这里看结果')).toBeNull()
   expect(resolveAssetLinkTarget('blob:https://site.test/uuid#archive.zip', '下载')).toBeNull()
+})
+
+test('csv preview model caps rows and columns and flags hidden ones', () => {
+  const wide =
+    `${Array.from({ length: 26 }, (_, i) => `col${i + 1}`).join(',')}\n` +
+    `${Array.from({ length: 26 }, (_, i) => `v${i + 1}`).join(',')}\n`.repeat(3)
+  const wideModel = buildCsvPreviewModel(wide)
+  expect(wideModel?.headers).toHaveLength(24)
+  expect(wideModel?.columnCount).toBe(26)
+  expect(wideModel?.hiddenColumnCount).toBe(2)
+  expect(wideModel?.rowCount).toBe(3)
+  expect(wideModel?.totalKnown).toBe(true)
+
+  const tall = `a,b\n${'1,2\n'.repeat(105)}`
+  const tallModel = buildCsvPreviewModel(tall)
+  expect(tallModel?.rows).toHaveLength(100)
+  expect(tallModel?.rowCount).toBe(105)
+  expect(tallModel?.totalKnown).toBe(false)
+  expect(tallModel?.headers).toEqual(['a', 'b'])
+  expect(tallModel?.hiddenColumnCount).toBe(0)
+
+  // Ragged rows: the column count follows the widest row; short rows pad out.
+  const ragged = buildCsvPreviewModel('a,b,c\n1\n2,2,2,2')
+  expect(ragged?.columnCount).toBe(4)
+  expect(ragged?.headers).toEqual(['a', 'b', 'c', ''])
+
+  expect(buildCsvPreviewModel('')).toBeUndefined()
 })

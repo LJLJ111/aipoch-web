@@ -121,47 +121,104 @@ const parseCsv = (text: string): string[][] => {
 }
 
 const CSV_PREVIEW_ROWS = 100
+const CSV_PREVIEW_COLUMNS = 24
 
-const CsvPreview = ({ text }: { text: string }) => {
+export interface CsvPreviewModel {
+  /** Visible header labels (first row), capped at CSV_PREVIEW_COLUMNS. */
+  headers: string[]
+  /** Visible body rows, capped at CSV_PREVIEW_ROWS. */
+  rows: string[][]
+  rowCount: number
+  columnCount: number
+  hiddenColumnCount: number
+  /** False when the row cap hid the tail, so the total is unknown. */
+  totalKnown: boolean
+}
+
+// First row is treated as column headers (CSV does not mark them); the UI
+// discloses the convention in the footer, like the app's CsvPreviewRenderer.
+export const buildCsvPreviewModel = (text: string): CsvPreviewModel | undefined => {
   const rows = parseCsv(text)
   const [header, ...body] = rows
-  const visible = body.slice(0, CSV_PREVIEW_ROWS)
-  if (!header) return <pre className="whitespace-pre-wrap break-words text-xs">{text}</pre>
+  if (!header) return undefined
+  const columnCount = Math.max(0, ...rows.map((row) => row.length))
+  const visibleColumnCount = Math.min(columnCount, CSV_PREVIEW_COLUMNS)
+  return {
+    headers: Array.from({ length: visibleColumnCount }, (_, index) => header[index] ?? ''),
+    rows: body.slice(0, CSV_PREVIEW_ROWS),
+    rowCount: body.length,
+    columnCount,
+    hiddenColumnCount: Math.max(columnCount - visibleColumnCount, 0),
+    totalKnown: body.length <= CSV_PREVIEW_ROWS
+  }
+}
+
+const CsvPreview = ({ text }: { text: string }) => {
+  const model = buildCsvPreviewModel(text)
+  if (!model) return <pre className="whitespace-pre-wrap break-words text-xs">{text}</pre>
   return (
-    <div className="max-h-[60vh] overflow-auto rounded-md border border-border-200">
-      <table className="w-full min-w-max border-separate border-spacing-0 text-xs">
-        <thead>
-          <tr>
-            {header.map((cell, index) => (
-              <th
-                key={`h-${index}`}
-                className="sticky top-0 border-b border-border-200 bg-bg-100 px-3 py-2 text-left font-medium text-text-100"
-              >
-                {cell}
+    <div className="flex max-h-[60vh] flex-col overflow-hidden rounded-md border border-border-200">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border-200 bg-bg-000 px-3 py-2 text-[12px] text-text-300">
+        {model.totalKnown ? (
+          <span>
+            {model.rowCount} rows · {model.columnCount} columns
+          </span>
+        ) : (
+          <span />
+        )}
+        <span className="shrink-0">
+          Showing {model.rows.length} rows · {model.headers.length} columns
+        </span>
+      </div>
+      <div className="min-h-0 flex-1 overflow-auto">
+        <table className="w-full min-w-max border-separate border-spacing-0 text-xs">
+          <thead>
+            <tr>
+              <th className="sticky left-0 top-0 z-20 w-12 border-b border-r border-border-200 bg-bg-100 px-3 py-2 text-right font-mono font-medium text-text-300">
+                #
               </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {visible.map((cells, rowIndex) => (
-            <tr key={`r-${rowIndex}`}>
-              {cells.map((cell, cellIndex) => (
-                <td
-                  key={`c-${cellIndex}`}
-                  className="border-b border-border-200/50 px-3 py-1.5 align-top text-text-000"
+              {model.headers.map((cell, index) => (
+                <th
+                  key={`h-${index}`}
+                  className="sticky top-0 max-w-[180px] border-b border-border-200 bg-bg-100 px-3 py-2 text-left font-medium text-text-100"
                 >
-                  {cell}
-                </td>
+                  <span className="block truncate" title={cell || `Column ${index + 1}`}>
+                    {cell || `Column ${index + 1}`}
+                  </span>
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
-      {body.length > CSV_PREVIEW_ROWS ? (
-        <p className="px-3 py-2 text-[11px] text-text-300">
-          Showing the first {CSV_PREVIEW_ROWS} of {body.length} rows — download for the full file.
-        </p>
-      ) : null}
+          </thead>
+          <tbody>
+            {model.rows.map((cells, rowIndex) => (
+              <tr key={`r-${rowIndex}`}>
+                <td className="sticky left-0 w-12 border-b border-r border-border-200/50 bg-bg-000 px-3 py-1.5 text-right font-mono text-text-300">
+                  {rowIndex + 1}
+                </td>
+                {model.headers.map((_, cellIndex) => (
+                  <td
+                    key={`c-${cellIndex}`}
+                    className="max-w-[180px] border-b border-border-200/50 px-3 py-1.5 align-top text-text-000"
+                  >
+                    <span className="block truncate" title={cells[cellIndex] ?? ''}>
+                      {cells[cellIndex] ?? ''}
+                    </span>
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="shrink-0 border-t border-border-200 bg-bg-000 px-3 py-2 text-[11px] text-text-300">
+        <p>First row is used as column headers.</p>
+        {model.hiddenColumnCount > 0 ? (
+          <p>
+            {model.hiddenColumnCount} more {model.hiddenColumnCount === 1 ? 'column' : 'columns'}{' '}
+            hidden in this preview.
+          </p>
+        ) : null}
+      </div>
     </div>
   )
 }
