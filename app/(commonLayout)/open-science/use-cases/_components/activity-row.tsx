@@ -592,24 +592,160 @@ const buildReadDetails = (activity: NormalizedActivity): ActivityDetails => {
   }
 }
 
+// --- package installs (manage_packages / inspect_packages) -------------------
+// Port of the app's manage-packages rendering (workspace-tool-activity-details.ts
+// + WorkspaceManagePackagesActivityRow) reduced to the static replay model.
+
+// MCP envelopes wrap the real input in { server, tool, arguments }.
+const unwrapMcpInput = (input: Record<string, unknown> | undefined): Record<string, unknown> =>
+  input && isRecord(input.arguments) ? input.arguments : (input ?? {})
+
+const isManagePackagesResult = (value: unknown): value is Record<string, unknown> =>
+  isRecord(value) &&
+  ['ok', 'needsRestart', 'method', 'environmentName', 'packageChanges', 'error'].some(
+    (key) => key in value
+  )
+
+// ACP providers retain MCP results in different envelopes; unwrap only the
+// known result/content fields (app: parseManagePackagesResultValue, depth
+// limit +1 here because web outputs may be a stringified envelope).
+const parseManagePackagesResultValue = (
+  value: unknown,
+  depth = 0
+): Record<string, unknown> | undefined => {
+  if (depth > 4) return undefined
+  if (typeof value === 'string') {
+    try {
+      return parseManagePackagesResultValue(JSON.parse(value), depth + 1)
+    } catch {
+      return undefined
+    }
+  }
+  if (!isRecord(value)) return undefined
+  for (const key of ['structuredContent', 'result'] as const) {
+    const nested = parseManagePackagesResultValue(value[key], depth + 1)
+    if (nested) return nested
+  }
+  if (Array.isArray(value.content)) {
+    for (const block of value.content) {
+      if (!isRecord(block) || block.type !== 'text') continue
+      const nested = parseManagePackagesResultValue(block.text, depth + 1)
+      if (nested) return nested
+    }
+  }
+  return isManagePackagesResult(value) ? value : undefined
+}
+
+const parseManagePackagesResult = (activity: NormalizedActivity) =>
+  parseManagePackagesResultValue(activity.output) ??
+  parseManagePackagesResultValue(getOutputText(activity))
+
+// Trims libmamba trace/debug verbosity and backtrace decoration from install
+// logs, and collapses blank-line runs (app: cleanInstallLog).
+const cleanInstallLog = (log: string): string =>
+  log
+    .split('\n')
+    .filter(
+      (line) =>
+        !/^\s*(trace|debug)\s+libmamba\b/u.test(line) &&
+        !/libmamba.*Backtrace (Start|End)/u.test(line)
+    )
+    .join('\n')
+    .replace(/\n{3,}/gu, '\n\n')
+    .trim()
+
 const buildPackagesDetails = (activity: NormalizedActivity): ActivityDetails => {
-  const input = getInput(activity)
-  const isManage = (activity.providerToolName ?? '').includes('manage_packages')
-  const packages = Array.isArray(input?.packages)
-    ? input.packages.filter((pkg): pkg is string => typeof pkg === 'string')
+  const args = unwrapMcpInput(getInput(activity))
+  const isManage = [activity.providerToolName, activity.title].some(
+    (name) => matchNotebookControlTool(name) === 'manage_packages'
+  )
+  const packages = Array.isArray(args.packages)
+    ? args.packages.filter((pkg): pkg is string => typeof pkg === 'string')
     : []
+
+  if (!isManage) {
+    // inspect_packages keeps its previous shape.
+    const sections: DetailSection[] = []
+    if (packages.length > 0) {
+      sections.push({ kind: 'packages', label: 'Packages', packages })
+    }
+    const resultText = getOutputText(activity)
+    if (resultText)
+      sections.push({ kind: 'code', label: 'Result', text: pretty(resultText), language: 'json' })
+    if (sections.length === 0) sections.push(...fallbackGenericSections(activity))
+    return {
+      displayName: 'Inspect packages',
+      subtitle: getStringField(args, 'language'),
+      metaLabel: activity.status === 'failed' ? 'failed' : undefined,
+      sections
+    }
+  }
+
+  const result = parseManagePackagesResult(activity)
+
+  const languageLabel =
+    args.language === 'r' ? 'R' : args.language === 'python' ? 'Python' : undefined
+  const environmentName = trimDetail(
+    typeof result?.environmentName === 'string'
+      ? result.environmentName
+      : typeof args.environment === 'string'
+        ? args.environment
+        : undefined
+  )
+  const packageChanges = Array.isArray(result?.packageChanges) ? result.packageChanges : []
+  const noInstallerNeeded =
+    result?.ok === true &&
+    !result.method &&
+    packageChanges.length > 0 &&
+    packageChanges.every((change) => isRecord(change) && change.change === 'unchanged')
+  const installer = noInstallerNeeded
+    ? undefined
+    : typeof result?.method === 'string' && result.method.trim()
+      ? result.method === 'biocmanager'
+        ? 'Bioconductor'
+        : result.method === 'github'
+          ? 'GitHub'
+          : result.method.trim()
+      : args.installer === 'biocmanager'
+        ? 'Bioconductor'
+        : args.installer === 'github'
+          ? 'GitHub'
+          : args.usePip === true
+            ? 'pip'
+            : 'conda'
+
   const sections: DetailSection[] = []
   if (packages.length > 0) {
     sections.push({ kind: 'packages', label: 'Packages', packages })
   }
-  const result = getOutputText(activity)
-  if (result)
-    sections.push({ kind: 'code', label: 'Result', text: pretty(result), language: 'json' })
+  const error = typeof result?.error === 'string' ? trimDetail(result.error) : undefined
+  if (error) sections.push({ kind: 'code', label: 'Error', text: error, muted: true })
+  const log =
+    typeof result?.log === 'string'
+      ? cleanInstallLog(result.log)
+      : cleanInstallLog(getOutputText(activity) ?? '')
+  if (log) sections.push({ kind: 'code', label: 'Log', text: log, collapsible: true })
   if (sections.length === 0) sections.push(...fallbackGenericSections(activity))
+
+  // App row: "Installed N packages" once settled, "Installing N packages"
+  // while running or failed; subtitle is language · environment · installer.
+  const failed = activity.status === 'failed' || result?.ok === false
+  const displayName = failed
+    ? packages.length > 0
+      ? `Installing ${packages.length} ${packages.length === 1 ? 'package' : 'packages'}`
+      : 'Installing packages'
+    : packages.length > 0
+      ? `Installed ${packages.length} ${packages.length === 1 ? 'package' : 'packages'}`
+      : 'Installed packages'
+  const metaLabel =
+    [failed ? 'failed' : undefined, result?.needsRestart === true ? 'restart needed' : undefined]
+      .filter(Boolean)
+      .join(' · ') || undefined
+
   return {
-    displayName: isManage ? 'Manage packages' : 'Inspect packages',
-    subtitle: getStringField(input, 'language'),
-    metaLabel: activity.status === 'failed' ? 'failed' : undefined,
+    displayName,
+    subtitle: [languageLabel, environmentName, installer].filter(Boolean).join(' · ') || undefined,
+    metaLabel,
     sections
   }
 }

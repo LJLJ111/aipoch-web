@@ -565,3 +565,91 @@ test('notebook meta counts figures and output lines; completed adds no status wo
   )
   expect(quiet.metaLabel).toBeUndefined()
 })
+
+test('manage_packages resolves from the title and renders the install row', () => {
+  // Real export shape: providerToolName null, identity in the dotted title,
+  // input is an MCP envelope.
+  const installResult = JSON.stringify({
+    ok: true,
+    method: 'conda',
+    environmentName: 'coverage-env',
+    log: 'trace libmamba loading\n\n\nInstalling pandas'
+  })
+  const details = buildActivityDetails(
+    activity({
+      providerToolName: undefined,
+      title: 'mcp.open-science-notebook.manage_packages',
+      input: {
+        server: 'open-science-notebook',
+        tool: 'manage_packages',
+        arguments: { packages: ['pandas', 'scikit-learn'], language: 'python' }
+      },
+      output: {
+        result: { content: [{ type: 'text', text: installResult }], structuredContent: null },
+        error: null
+      }
+    }),
+    {}
+  )
+  expect(details.displayName).toBe('Installed 2 packages')
+  expect(details.subtitle).toBe('Python · coverage-env · conda')
+  expect(details.metaLabel).toBeUndefined()
+  expect(details.sections[0]).toMatchObject({
+    kind: 'packages',
+    packages: ['pandas', 'scikit-learn']
+  })
+  // The log is cleaned (libmamba trace dropped, blank runs collapsed) and collapsed.
+  const logSection = details.sections.find((s) => s.kind === 'code' && s.label === 'Log')
+  expect(logSection).toMatchObject({ collapsible: true })
+  if (logSection?.kind !== 'code') throw new Error('expected a code log section')
+  expect(logSection.text).toBe('Installing pandas')
+
+  // A failed install keeps the in-progress wording and flags both labels.
+  const failed = buildActivityDetails(
+    activity({
+      providerToolName: 'mcp__open-science-notebook__manage_packages',
+      status: 'failed',
+      input: { arguments: { packages: ['r-ggplot2'], language: 'r' } },
+      output: '{"ok": false, "error": "Solving environment failed", "needsRestart": true}'
+    }),
+    {}
+  )
+  expect(failed.displayName).toBe('Installing 1 package')
+  expect(failed.subtitle).toBe('R · conda')
+  expect(failed.metaLabel).toBe('failed · restart needed')
+  expect(failed.sections.map((s) => s.kind === 'code' && s.label)).toContain('Error')
+
+  // inspect_packages keeps its previous shape (Result JSON, "Inspect packages").
+  const inspect = buildActivityDetails(
+    activity({
+      providerToolName: 'mcp.open-science-notebook.inspect_packages',
+      input: { arguments: { language: 'python' } },
+      output: [{ type: 'text', text: '{"installed": ["numpy"]}' }]
+    }),
+    {}
+  )
+  expect(inspect.displayName).toBe('Inspect packages')
+  expect(inspect.subtitle).toBe('python')
+
+  // Malformed output degrades to generic sections without throwing.
+  const degraded = buildActivityDetails(
+    activity({
+      providerToolName: 'mcp.open-science-notebook.manage_packages',
+      input: {},
+      output: 42
+    }),
+    {}
+  )
+  expect(degraded.displayName).toBe('Installed packages')
+  expect(degraded.sections.every((s) => s.kind === 'code')).toBe(true)
+
+  // Classifier: title fallback hits; unrelated servers with a same-named tool miss.
+  expect(
+    classifyActivityRenderer(
+      activity({ providerToolName: undefined, title: 'mcp.open-science-notebook.manage_packages' })
+    )
+  ).toBe('packages')
+  expect(
+    classifyActivityRenderer(activity({ providerToolName: 'mcp.other-server.manage_packages' }))
+  ).toBe('generic-fallback')
+})
