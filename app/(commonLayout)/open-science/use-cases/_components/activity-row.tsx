@@ -57,6 +57,9 @@ type ActivityDetails = {
   displayName: string
   subtitle?: string
   metaLabel?: string
+  /** The activity reports failure in its result payload despite a completed
+   * status (e.g. a package install whose tool call succeeded but ok:false). */
+  failed?: boolean
   sections: DetailSection[]
 }
 
@@ -746,6 +749,7 @@ const buildPackagesDetails = (activity: NormalizedActivity): ActivityDetails => 
     displayName,
     subtitle: [languageLabel, environmentName, installer].filter(Boolean).join(' · ') || undefined,
     metaLabel,
+    failed,
     sections
   }
 }
@@ -1231,7 +1235,7 @@ export const ActivityRow = ({
         onClick={() => setIsExpanded((current) => !current)}
       >
         <span className="mt-0.5 inline-flex shrink-0 items-center md:mt-0">
-          <ActivityIcon activity={activity} />
+          <ActivityIcon activity={activity} failed={details.failed} />
         </span>
         <span className="min-w-0 flex-1 text-left md:flex md:items-center md:gap-2">
           <span className="block shrink-0 text-text-000">{details.displayName}</span>
