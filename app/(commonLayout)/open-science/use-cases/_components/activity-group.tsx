@@ -66,7 +66,7 @@ export const SessionActivityGroup = ({
               {activities.map((activity) => (
                 <div key={activity.id} className="w-full overflow-hidden">
                   <RowErrorBoundary label={activity.providerToolName ?? activity.title}>
-                    <ActivityRow activity={activity} assets={assets} />
+                    <ActivityRow activity={activity} assets={assets} defaultExpanded={planGroup} />
                   </RowErrorBoundary>
                 </div>
               ))}

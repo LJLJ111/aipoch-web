@@ -420,3 +420,92 @@ test('plan tools classify and render friendly plan details', () => {
   expect(badUpdate.displayName).toBe('Plan step update')
   expect(badUpdate.sections.every((section) => section.kind === 'code')).toBe(true)
 })
+
+test('edit tools render per-file diff sections with +A −R meta', () => {
+  const details = buildActivityDetails(
+    activity({
+      providerToolName: 'Edit',
+      toolKind: 'edit',
+      contentBlocks: [
+        {
+          type: 'diff',
+          path: '$DATA/src/analyze.py',
+          oldText: 'a = 1\nb = 2',
+          newText: 'a = 1\nb = 3\nc = 4'
+        },
+        { type: 'diff', path: '$DATA/notes.md', oldText: null, newText: '# Notes' }
+      ]
+    }),
+    {}
+  )
+  expect(details.displayName).toBe('Edit')
+  expect(details.subtitle).toBe('2 files')
+  expect(details.metaLabel).toBe('+4 −2')
+  expect(details.sections.map((section) => section.kind)).toEqual(['diff', 'diff'])
+  expect(details.sections[0]).toMatchObject({
+    label: 'analyze.py',
+    language: 'python',
+    oldText: 'a = 1\nb = 2',
+    newText: 'a = 1\nb = 3\nc = 4'
+  })
+
+  // A single diff shows its full path; a Write by name only is also an edit.
+  const single = buildActivityDetails(
+    activity({
+      providerToolName: 'Write',
+      contentBlocks: [{ type: 'diff', path: '$DATA/new.py', oldText: null, newText: 'x = 1' }]
+    }),
+    {}
+  )
+  expect(single.displayName).toBe('Write')
+  expect(single.subtitle).toBe('$DATA/new.py')
+  expect(single.metaLabel).toBe('+1')
+
+  // Edit tools without diff payloads keep the generic input/output view.
+  const noDiff = buildActivityDetails(
+    activity({ providerToolName: 'Edit', toolKind: 'edit', input: { file_path: 'a.py' } }),
+    {}
+  )
+  expect(noDiff.sections.every((section) => section.kind === 'code')).toBe(true)
+})
+
+test('execute tools show Command/Output sections and exit-code meta', () => {
+  const details = buildActivityDetails(
+    activity({
+      toolKind: 'execute',
+      input: { command: 'python analyze.py' },
+      output: [{ type: 'text', text: '{"exitCode": 2, "stdout": "boom"}' }]
+    }),
+    {}
+  )
+  expect(details.displayName).toBe('Terminal')
+  expect(details.subtitle).toBe('python analyze.py')
+  expect(details.metaLabel).toBe('exit 2')
+  expect(details.sections).toEqual([
+    { kind: 'code', label: 'Command', text: 'python analyze.py', language: 'bash' },
+    { kind: 'code', label: 'Output', text: '{"exitCode": 2, "stdout": "boom"}' }
+  ])
+
+  // Exit code buried in an MCP-style envelope is still found.
+  const enveloped = buildActivityDetails(
+    activity({
+      toolKind: 'execute',
+      input: { command: 'make test' },
+      output: { result: { structuredContent: { exit_code: 0 } } }
+    }),
+    {}
+  )
+  expect(enveloped.metaLabel).toBe('exit 0')
+
+  // No exit code anywhere: no meta label.
+  const plain = buildActivityDetails(
+    activity({ toolKind: 'execute', input: { command: 'ls' }, output: 'file1\nfile2' }),
+    {}
+  )
+  expect(plain.metaLabel).toBeUndefined()
+  expect(plain.sections.map((section) => section.kind)).toEqual(['code', 'code'])
+
+  // Nothing to show at all: generic input/output fallback.
+  const empty = buildActivityDetails(activity({ toolKind: 'execute', input: { a: 1 } }), {})
+  expect(empty.subtitle).toBeUndefined()
+})

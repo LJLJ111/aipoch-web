@@ -380,6 +380,34 @@ export const coverageFixtureSession: UseCaseSession = {
       id: 'cov-group-edge',
       activities: [
         {
+          id: 'cov-act-edit',
+          title: 'Edit',
+          providerToolName: 'Edit',
+          toolKind: 'edit',
+          status: 'completed',
+          createdAt: 1790133073500,
+          updatedAt: 1790133073600,
+          contentBlocks: [
+            {
+              type: 'diff',
+              path: '$DATA/coverage_analysis.py',
+              oldText: 'coverage_threshold = 0.8\nlimit = 100',
+              newText: 'coverage_threshold = 0.9\nlimit = 200\nmargin = 0.05'
+            }
+          ]
+        },
+        {
+          id: 'cov-act-execute',
+          title: 'Bash',
+          providerToolName: 'Bash',
+          toolKind: 'execute',
+          status: 'completed',
+          createdAt: 1790133073700,
+          updatedAt: 1790133073800,
+          input: { command: 'python coverage_analysis.py --check' },
+          output: [{ type: 'text', text: '{"exitCode": 0, "stdout": "coverage ok"}' }]
+        },
+        {
           id: 'cov-act-generic',
           title: 'mcp__acme__mystery_tool',
           providerToolName: 'mcp__acme__mystery_tool',

@@ -326,7 +326,17 @@ export const SessionMessageItem = ({
             <div className="flex items-center gap-0.5">
               <CopyButton text={message.content} />
             </div>
-            {message.completedAt ? (
+            {message.status === 'failed' || message.status === 'error' ? (
+              // Failed turns settle at completedAt when recorded, else createdAt.
+              <span>
+                Failed ·{' '}
+                {formatCompleted(
+                  Number.isFinite(message.completedAt)
+                    ? (message.completedAt as number)
+                    : message.createdAt
+                )}
+              </span>
+            ) : message.completedAt ? (
               <span>Completed · {formatCompleted(message.completedAt)}</span>
             ) : null}
           </div>

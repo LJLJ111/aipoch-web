@@ -21,7 +21,13 @@ import {
   projectGeneratePlanActivity
 } from './plan-projection'
 import { SessionMarkdown } from './session-markdown'
-import { SectionLabel, ToolCodeBlock, type ToolSummary, ToolSummaryCard } from './tool-blocks'
+import {
+  SectionLabel,
+  ToolCodeBlock,
+  ToolDiffBlock,
+  type ToolSummary,
+  ToolSummaryCard
+} from './tool-blocks'
 
 // Port of the buildToolActivityDetails priority chain (workspace-tool-activity-details.ts)
 // adapted to the normalized export model. Every branch degrades to raw input/output JSON
@@ -34,6 +40,7 @@ type DetailSection =
   | { kind: 'packages'; label: string; packages: string[] }
   | { kind: 'image'; label: string; url: string; mimeType: string }
   | { kind: 'plan'; projection: PlanProjection }
+  | { kind: 'diff'; label: string; language?: string; oldText: string | null; newText: string }
 
 type ActivityDetails = {
   displayName: string
@@ -668,6 +675,142 @@ const getCommandText = (activity: NormalizedActivity): string | undefined => {
   return command || trimDetail(activity.title)
 }
 
+// --- edit (diff) tools -------------------------------------------------------
+// Port of the app's buildDiffDetails: per-file diff sections from ACP diff
+// content blocks, "+A −R" meta, path or file-count subtitle.
+
+// Detects file-editing tools by ACP kind or a known editor tool name (Edit, Write, str_replace…).
+const EDIT_PROVIDER_TOOL_NAMES = new Set([
+  'edit',
+  'multiedit',
+  'write',
+  'write_file',
+  'edit_file',
+  'create_file',
+  'str_replace',
+  'strreplace',
+  'str_replace_editor',
+  'apply_patch',
+  'fswrite',
+  'fsappend',
+  'notebookedit'
+])
+
+const isEditActivity = (activity: NormalizedActivity): boolean => {
+  if (activity.toolKind === 'edit') return true
+  const providerName = trimDetail(activity.providerToolName)?.toLowerCase() ?? ''
+  return EDIT_PROVIDER_TOOL_NAMES.has(providerName)
+}
+
+type DiffContent = { path: string; oldText: string | null; newText: string }
+
+const collectDiffs = (activity: NormalizedActivity): DiffContent[] =>
+  (activity.contentBlocks ?? []).flatMap((block) => {
+    if (!isRecord(block) || block.type !== 'diff') return []
+    if (typeof block.path !== 'string' || typeof block.newText !== 'string') return []
+    return [
+      {
+        path: block.path,
+        oldText: typeof block.oldText === 'string' ? block.oldText : null,
+        newText: block.newText
+      }
+    ]
+  })
+
+const countLines = (value: string | null): number =>
+  value ? value.replace(/\n$/u, '').split('\n').length : 0
+
+// Formats the compact "+A −R" summary shown on the right side of an edit row.
+const formatDiffMeta = (added: number, removed: number): string | undefined => {
+  const parts: string[] = []
+  if (added > 0) parts.push(`+${added}`)
+  if (removed > 0) parts.push(`−${removed}`)
+  return parts.length > 0 ? parts.join(' ') : undefined
+}
+
+const buildDiffDetails = (activity: NormalizedActivity): ActivityDetails | undefined => {
+  const diffs = collectDiffs(activity)
+  if (diffs.length === 0) return undefined
+
+  let totalAdded = 0
+  let totalRemoved = 0
+  const sections: DetailSection[] = diffs.map((diff) => {
+    const added = countLines(diff.newText)
+    const removed = countLines(diff.oldText)
+    totalAdded += added
+    totalRemoved += removed
+    return {
+      kind: 'diff',
+      label: basename(diff.path),
+      language: EXTENSION_LANGUAGES[diff.path.split('.').pop()?.toLowerCase() ?? ''],
+      oldText: diff.oldText,
+      newText: diff.newText
+    }
+  })
+
+  return {
+    displayName: getToolDisplayName(activity),
+    // A single diff shows its path; several collapse to a count.
+    subtitle: diffs.length === 1 ? diffs[0].path : `${diffs.length} files`,
+    metaLabel: formatDiffMeta(totalAdded, totalRemoved),
+    sections
+  }
+}
+
+// --- execute tools (Bash / scripts) ------------------------------------------
+// Port of the app's buildExecuteDetails: Command + Output sections, exit-code meta.
+
+// Extracts a terminal exit code from known output envelope shapes (bare JSON,
+// MCP result/structuredContent wrappers, arrays of text parts).
+const extractExitCode = (value: unknown, depth = 0): number | undefined => {
+  if (depth > 5 || value === null || value === undefined) return undefined
+  if (typeof value === 'string') {
+    try {
+      return extractExitCode(JSON.parse(value), depth + 1)
+    } catch {
+      return undefined
+    }
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const code = extractExitCode(
+        isRecord(item) && typeof item.text === 'string' ? item.text : item,
+        depth + 1
+      )
+      if (code !== undefined) return code
+    }
+    return undefined
+  }
+  if (isRecord(value)) {
+    for (const key of ['exitCode', 'exit_code', 'exitStatus', 'exit_status']) {
+      const code = value[key]
+      if (typeof code === 'number' && Number.isFinite(code)) return code
+    }
+    for (const nested of [value.result, value.structuredContent]) {
+      const code = extractExitCode(nested, depth + 1)
+      if (code !== undefined) return code
+    }
+  }
+  return undefined
+}
+
+const buildExecuteDetails = (activity: NormalizedActivity): ActivityDetails | undefined => {
+  const command = getCommandText(activity)
+  const output = getOutputText(activity)
+  const sections: DetailSection[] = []
+  if (command) sections.push({ kind: 'code', label: 'Command', text: command, language: 'bash' })
+  if (output) sections.push({ kind: 'code', label: 'Output', text: output })
+  if (sections.length === 0) return undefined
+
+  const exitCode = extractExitCode(activity.output)
+  return {
+    displayName: getToolDisplayName(activity),
+    subtitle: command,
+    metaLabel: exitCode !== undefined ? `exit ${exitCode}` : undefined,
+    sections
+  }
+}
+
 // --- plan tools (generate_plan / update_step_status) -------------------------
 // Static port of the app's generate-plan projection; the replay timeline is a
 // stateless single-activity view, so update_step_status renders as its own
@@ -753,6 +896,16 @@ export const buildActivityDetails = (
     case 'plan':
       return buildPlanDetails(activity)
     default: {
+      // Edit tools with diff payloads get per-file diff sections; execute
+      // tools get Command/Output with an exit-code meta (both app behaviors).
+      if (isEditActivity(activity)) {
+        const diffDetails = buildDiffDetails(activity)
+        if (diffDetails) return diffDetails
+      }
+      if (activity.toolKind === 'execute') {
+        const executeDetails = buildExecuteDetails(activity)
+        if (executeDetails) return executeDetails
+      }
       const displayName = getToolDisplayName(activity)
       // App rule (workspace-tool-activity-details.ts): execute tools lead with
       // the command; everything else takes the first location path, else the
@@ -787,6 +940,8 @@ const SectionBody = ({ section }: { section: DetailSection }) => {
       return <ToolSummaryCard summary={section.summary} file={section.file} />
     case 'plan':
       return <PlanCard projection={section.projection} />
+    case 'diff':
+      return <ToolDiffBlock oldText={section.oldText} newText={section.newText} />
     case 'markdown':
       return (
         <div className="max-h-[320px] overflow-auto rounded-md border border-border-200 bg-bg-000 px-3 py-2.5">
@@ -834,14 +989,22 @@ const createRowDetailsDomId = (activityId: string): string =>
 
 export const ActivityRow = ({
   activity,
-  assets
+  assets,
+  defaultExpanded = false
 }: {
   activity: NormalizedActivity
   assets: Record<string, UseCaseAsset>
+  /** Plan rows inside a plan group start expanded so the plan card is visible. */
+  defaultExpanded?: boolean
 }) => {
   const details = useMemo(() => buildActivityDetails(activity, assets), [activity, assets])
-  const [isExpanded, setIsExpanded] = useState(false)
-  const canExpand = details.sections.length > 0
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded)
+  // Figure outputs render beside the row, not inside the collapsible details,
+  // so collapsing the row never hides a produced chart (app:
+  // NotebookToolFigureOutputs sits outside the row's detail panel).
+  const figures = details.sections.filter((section) => section.kind === 'image')
+  const collapsibleSections = details.sections.filter((section) => section.kind !== 'image')
+  const canExpand = collapsibleSections.length > 0
   const detailsDomId = createRowDetailsDomId(activity.id)
   const failed = activity.status === 'failed'
 
@@ -878,6 +1041,13 @@ export const ActivityRow = ({
           </span>
         ) : null}
       </button>
+      {figures.length > 0 ? (
+        <div className="mx-1 mb-1.5 space-y-2.5 md:ml-[30px]">
+          {figures.map((section, index) => (
+            <SectionBody key={`figure-${index}`} section={section} />
+          ))}
+        </div>
+      ) : null}
       <AnimatePresence initial={false}>
         {canExpand && isExpanded ? (
           <motion.div
@@ -889,7 +1059,7 @@ export const ActivityRow = ({
             className="overflow-hidden"
           >
             <div id={detailsDomId} className="mx-1 mb-1.5 space-y-2.5 md:ml-[30px]">
-              {details.sections.map((section, index) =>
+              {collapsibleSections.map((section, index) =>
                 section.kind === 'summary' || section.kind === 'plan' ? (
                   <SectionBody key={`${section.kind}-${index}`} section={section} />
                 ) : (
