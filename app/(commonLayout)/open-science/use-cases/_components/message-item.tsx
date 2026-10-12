@@ -1,7 +1,7 @@
 'use client'
 
 import { Download, Eye, FileImage, FileSpreadsheet, FileText } from 'lucide-react'
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import type { MessageArtifact, MessageUpload, TranscriptItem } from '@/lib/use-case-types'
 import { cn } from '@/lib/utils'
 import {
@@ -38,8 +38,21 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
 
 // Structured parts drive styled pills; anything unrecognized falls back to plain text.
-const MessagePartsContent = ({ parts, content }: { parts: unknown[]; content: string }) => (
-  <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+const MessagePartsContent = ({
+  parts,
+  content,
+  className,
+  ref
+}: {
+  parts: unknown[]
+  content: string
+  className?: string
+  ref?: React.Ref<HTMLParagraphElement>
+}) => (
+  <p
+    ref={ref}
+    className={cn('whitespace-pre-wrap break-words [overflow-wrap:anywhere]', className)}
+  >
     {parts.map((part, index) => {
       if (!isRecord(part)) return null
       if (part.type === 'text' && typeof part.text === 'string') {
@@ -274,6 +287,70 @@ const ArtifactGallery = ({ artifacts }: { artifacts: MessageArtifact[] }) => {
   )
 }
 
+// Collapses long user messages past ~12 lines behind a toggle, like the app's
+// CollapsibleUserMessageContent (max-h 12.5lh there; line-clamp here).
+const CollapsibleUserMessage = ({ message }: { message: TranscriptMessage }) => {
+  const contentRef = useRef<HTMLParagraphElement>(null)
+  const [expanded, setExpanded] = useState(false)
+  const [overflows, setOverflows] = useState(false)
+  const expandedRef = useRef(expanded)
+  expandedRef.current = expanded
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: new message content must trigger re-measurement
+  useLayoutEffect(() => {
+    const element = contentRef.current
+    if (!element) return
+    const measureOverflow = (): void => {
+      // Only the clamped layout reveals overflow; once expanded, keep the toggle.
+      if (expandedRef.current) return
+      setOverflows(element.scrollHeight > element.clientHeight + 1)
+    }
+    measureOverflow()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(measureOverflow)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [message.content, message.parts])
+
+  const contentClassName = cn(
+    'whitespace-pre-wrap break-words [overflow-wrap:anywhere]',
+    !expanded && 'line-clamp-[12]'
+  )
+  return (
+    <div>
+      {message.parts && message.parts.length > 0 ? (
+        <MessagePartsContent
+          parts={message.parts}
+          content={message.content}
+          className={contentClassName}
+          ref={contentRef}
+        />
+      ) : (
+        <p ref={contentRef} className={contentClassName}>
+          {message.content}
+        </p>
+      )}
+      {overflows ? (
+        <>
+          {expanded ? null : (
+            <div aria-hidden="true" className="mt-1 text-[13px] leading-5 text-text-200">
+              …
+            </div>
+          )}
+          <button
+            type="button"
+            aria-expanded={expanded}
+            className="mt-1 text-[12px] font-medium text-text-100 transition-colors hover:text-text-000"
+            onClick={() => setExpanded((current) => !current)}
+          >
+            {expanded ? 'Show less' : 'Show more'}
+          </button>
+        </>
+      ) : null}
+    </div>
+  )
+}
+
 export const SessionMessageItem = ({
   message,
   showTurnCompletion = false
@@ -297,13 +374,7 @@ export const SessionMessageItem = ({
                   ))}
                 </div>
               ) : null}
-              {message.parts && message.parts.length > 0 ? (
-                <MessagePartsContent parts={message.parts} content={message.content} />
-              ) : (
-                <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
-                  {message.content}
-                </p>
-              )}
+              <CollapsibleUserMessage message={message} />
             </div>
           </div>
           {Number.isFinite(message.createdAt) ? (

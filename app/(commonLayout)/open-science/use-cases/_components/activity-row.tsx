@@ -23,6 +23,7 @@ import {
 import { SessionMarkdown } from './session-markdown'
 import {
   SectionLabel,
+  sectionLabelClassName,
   ToolCodeBlock,
   ToolDiffBlock,
   type ToolSummary,
@@ -34,7 +35,17 @@ import {
 // instead of throwing on unknown shapes.
 
 type DetailSection =
-  | { kind: 'code'; label: string; text: string; language?: string; muted?: boolean }
+  | {
+      kind: 'code'
+      label: string
+      text: string
+      language?: string
+      muted?: boolean
+      /** Notebook outputs start collapsed so the code stays the focus. */
+      collapsible?: boolean
+      /** Notebook code shows line numbers matching the cell source. */
+      lineNumbers?: boolean
+    }
   | { kind: 'summary'; summary: ToolSummary; file?: boolean }
   | { kind: 'markdown'; label: string; text: string }
   | { kind: 'packages'; label: string; packages: string[] }
@@ -207,7 +218,9 @@ const buildNotebookDetails = (activity: NormalizedActivity): ActivityDetails => 
       kind: 'code',
       label: language === 'bash' ? 'Command' : 'Code',
       text: script,
-      language
+      language,
+      // Transcript line numbers match the cell source (app: showLineNumbers).
+      lineNumbers: true
     })
   }
 
@@ -224,11 +237,32 @@ const buildNotebookDetails = (activity: NormalizedActivity): ActivityDetails => 
 
   const statusLabel = run
     ? run.status === 'completed'
-      ? 'done'
+      ? undefined
       : run.status || undefined
     : activity.status === 'failed'
       ? 'failed'
       : undefined
+
+  // App meta (WorkspaceToolDetailsRow + notebook-run-figures.ts): figure count
+  // and output line count; a completed run adds no status word, failed keeps it.
+  const figureCount =
+    run?.outputs.filter((output) => {
+      const data = output.data
+      if (!data) return false
+      return ['image/png', 'image/jpeg'].some((mime) => {
+        const image = data[mime]
+        return typeof image === 'string' && (image.startsWith('/') || image.startsWith('blob:'))
+      })
+    }).length ?? 0
+  const outputLines = run ? countNotebookOutputLines(run.outputs) : 0
+  const metaLabel =
+    [
+      figureCount > 0 ? `${figureCount} ${figureCount === 1 ? 'figure' : 'figures'}` : undefined,
+      outputLines > 0 ? `${outputLines} ${outputLines === 1 ? 'line' : 'lines'}` : undefined,
+      statusLabel
+    ]
+      .filter(Boolean)
+      .join(' · ') || undefined
 
   // Derive display name from language: python/r are Notebook runs, javascript
   // (repl) is Agent SDK, and bash is shell.
@@ -238,14 +272,51 @@ const buildNotebookDetails = (activity: NormalizedActivity): ActivityDetails => 
   return {
     displayName,
     subtitle: run?.cellId ?? getStringField(input, 'cellId'),
-    metaLabel: statusLabel,
+    metaLabel,
     sections
   }
 }
 
+// Output line counting ports the app's countNotebookRunOutputLines
+// (notebook-run-figures.ts): stream/error text first, then display/result
+// payloads that the stream text did not already cover, trimmed and deduped.
+const countTextLines = (text: string): number => {
+  const trimmed = text.trimEnd()
+  return trimmed.trim().length > 0 ? trimmed.split(/\r?\n/u).length : 0
+}
+
+const countNotebookOutputLines = (outputs: NormalizedOutput[]): number => {
+  const streamParts = outputs
+    .filter((output) => output.type === 'stream' || output.type === 'error')
+    .map((output) => (typeof output.text === 'string' ? output.text.trimEnd() : ''))
+    .filter((text) => text.length > 0)
+  const streamText = streamParts.join('\n')
+  const displayParts = outputs.flatMap((output) => {
+    if (output.type === 'stream' || output.type === 'error') return []
+    const parts: string[] = []
+    if (typeof output.text === 'string') parts.push(output.text.trimEnd())
+    if (output.data) {
+      for (const [mime, payload] of Object.entries(output.data)) {
+        if (mime.startsWith('image/')) continue
+        if (typeof payload === 'string') parts.push(payload.trimEnd())
+      }
+    }
+    return parts
+  })
+  const visibleParts = [
+    ...streamParts,
+    ...displayParts.filter((part) => part.trim().length > 0 && !streamText.includes(part))
+  ]
+  return countTextLines(visibleParts.join('\n'))
+}
+
 const notebookOutputSections = (output: NormalizedOutput): DetailSection[] => {
+  // Long outputs start collapsed so the code stays the focus (app: collapsible
+  // output sections in WorkspaceToolDetailsRow).
   if (!NOTEBOOK_OUTPUT_LANGUAGE.has(output.type)) {
-    return output.text ? [{ kind: 'code', label: output.type, text: output.text }] : []
+    return output.text
+      ? [{ kind: 'code', label: output.type, text: output.text, collapsible: true }]
+      : []
   }
   if (output.type === 'stream') {
     if (!output.text) return []
@@ -254,7 +325,8 @@ const notebookOutputSections = (output: NormalizedOutput): DetailSection[] => {
         kind: 'code',
         label: output.name ?? 'stream',
         text: output.text,
-        muted: output.name === 'stderr'
+        muted: output.name === 'stderr',
+        collapsible: true
       }
     ]
   }
@@ -264,13 +336,13 @@ const notebookOutputSections = (output: NormalizedOutput): DetailSection[] => {
       (typeof output.evalue === 'string'
         ? `${String(output.ename ?? 'Error')}: ${output.evalue}`
         : undefined)
-    return text ? [{ kind: 'code', label: 'Error', text, muted: true }] : []
+    return text ? [{ kind: 'code', label: 'Error', text, muted: true, collapsible: true }] : []
   }
   const sections: DetailSection[] = []
   const data = output.data
   if (data) {
     if (typeof data['text/plain'] === 'string') {
-      sections.push({ kind: 'code', label: 'Result', text: data['text/plain'] })
+      sections.push({ kind: 'code', label: 'Result', text: data['text/plain'], collapsible: true })
     }
     for (const mime of ['image/png', 'image/jpeg'] as const) {
       const image = data[mime]
@@ -280,7 +352,7 @@ const notebookOutputSections = (output: NormalizedOutput): DetailSection[] => {
     }
   }
   if (sections.length === 0 && output.text) {
-    sections.push({ kind: 'code', label: 'Result', text: output.text })
+    sections.push({ kind: 'code', label: 'Result', text: output.text, collapsible: true })
   }
   return sections
 }
@@ -933,6 +1005,7 @@ const SectionBody = ({ section }: { section: DetailSection }) => {
         <ToolCodeBlock
           code={section.text}
           language={section.language}
+          lineNumbers={section.lineNumbers}
           className={section.muted ? '[&_code]:text-text-200' : undefined}
         />
       )
@@ -1062,6 +1135,16 @@ export const ActivityRow = ({
               {collapsibleSections.map((section, index) =>
                 section.kind === 'summary' || section.kind === 'plan' ? (
                   <SectionBody key={`${section.kind}-${index}`} section={section} />
+                ) : section.kind === 'code' && section.collapsible ? (
+                  // Notebook outputs start collapsed (app: WorkspaceToolDetailsRow).
+                  <details key={`${section.kind}-${section.label}-${index}`} className="space-y-1">
+                    <summary className={`${sectionLabelClassName} cursor-pointer select-none`}>
+                      {section.label}
+                    </summary>
+                    <div className="mt-1">
+                      <SectionBody section={section} />
+                    </div>
+                  </details>
                 ) : (
                   <div key={`${section.kind}-${section.label}-${index}`} className="space-y-1">
                     <SectionLabel>{section.label}</SectionLabel>
@@ -1069,6 +1152,9 @@ export const ActivityRow = ({
                   </div>
                 )
               )}
+              {activity.essentialTruncated ? (
+                <div className="text-[11px] text-text-300">Output truncated</div>
+              ) : null}
             </div>
           </motion.div>
         ) : null}

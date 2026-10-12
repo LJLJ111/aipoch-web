@@ -165,3 +165,18 @@ test('parsePlanStepUpdate extracts step info and degrades on bad input', () => {
   expect(parsePlanStepUpdate(activity({ input: { status: 'completed' } }))).toBeUndefined()
   expect(parsePlanStepUpdate(activity({ input: 'nope' }))).toBeUndefined()
 })
+
+test('planSummaryOverflows compares against a fixed 3-line preview height', async () => {
+  const { planSummaryOverflows } = await import(
+    '../../app/(commonLayout)/open-science/use-cases/_components/plan-card'
+  )
+  // 20px line height → 60px preview. Expanded content (scrollHeight ===
+  // clientHeight at 200) still reports overflow, so the toggle stays mounted.
+  expect(planSummaryOverflows(200, 20, 200)).toBe(true)
+  expect(planSummaryOverflows(62, 20, 61)).toBe(true)
+  expect(planSummaryOverflows(61, 20, 61)).toBe(false)
+  expect(planSummaryOverflows(59, 20, 20)).toBe(false)
+  // Without a resolvable line height the measured height is the fallback.
+  expect(planSummaryOverflows(100, undefined, 50)).toBe(true)
+  expect(planSummaryOverflows(50, undefined, 50)).toBe(false)
+})

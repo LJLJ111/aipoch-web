@@ -509,3 +509,59 @@ test('execute tools show Command/Output sections and exit-code meta', () => {
   const empty = buildActivityDetails(activity({ toolKind: 'execute', input: { a: 1 } }), {})
   expect(empty.subtitle).toBeUndefined()
 })
+
+test('notebook meta counts figures and output lines; completed adds no status word', () => {
+  const details = buildActivityDetails(
+    activity({
+      providerToolName: 'mcp__open-science-notebook__notebook_execute',
+      input: { language: 'python' },
+      run: {
+        runId: 'r1',
+        status: 'completed',
+        script: 'a = 1\nb = 2\nplot(a, b)',
+        outputs: [
+          { type: 'stream', name: 'stdout', text: 'hello' },
+          { type: 'display', data: { 'image/png': 'blob:fig-1' } },
+          { type: 'display', data: { 'image/jpeg': 'blob:fig-2' } }
+        ]
+      }
+    }),
+    {}
+  )
+  // App semantics: output lines (not script lines), no "done" when completed.
+  expect(details.metaLabel).toBe('2 figures · 1 line')
+  // Code keeps line numbers; stream output collapses; figures never collapse.
+  expect(details.sections[0]).toMatchObject({ kind: 'code', label: 'Code', lineNumbers: true })
+  expect(details.sections[1]).toMatchObject({ kind: 'code', label: 'stdout', collapsible: true })
+  expect(details.sections[2]).toMatchObject({ kind: 'image' })
+  expect('collapsible' in details.sections[2]).toBe(false)
+
+  // Result payloads already covered by the stream text are not double-counted,
+  // trailing newlines do not inflate the count, and failed keeps its label.
+  const single = buildActivityDetails(
+    activity({
+      providerToolName: 'mcp__open-science-notebook__notebook_execute',
+      run: {
+        runId: 'r2',
+        status: 'failed',
+        script: 'x = 1',
+        outputs: [
+          { type: 'stream', name: 'stdout', text: '42\n' },
+          { type: 'execute_result', data: { 'text/plain': '42', 'image/png': 'blob:fig' } }
+        ]
+      }
+    }),
+    {}
+  )
+  expect(single.metaLabel).toBe('1 figure · 1 line · failed')
+
+  // No figures and no output: a completed run shows no meta at all.
+  const quiet = buildActivityDetails(
+    activity({
+      providerToolName: 'mcp__open-science-notebook__notebook_execute',
+      run: { runId: 'r3', status: 'completed', script: 'x = 1', outputs: [] }
+    }),
+    {}
+  )
+  expect(quiet.metaLabel).toBeUndefined()
+})

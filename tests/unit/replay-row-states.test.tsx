@@ -86,3 +86,94 @@ test('failed assistant turns show a Failed footer; completed turns keep Complete
   expect(completed).toContain('Completed ·')
   expect(completed).not.toContain('Failed ·')
 })
+
+test('notebook outputs collapse behind a closed details toggle while code stays open', async () => {
+  const notebookActivity = activity({
+    providerToolName: 'mcp__open-science-notebook__notebook_execute',
+    run: {
+      runId: 'r1',
+      status: 'completed',
+      script: 'print("coverage line")',
+      outputs: [{ type: 'stream', name: 'stdout', text: 'coverage stream output' }]
+    }
+  })
+  const html = await render(<ActivityRow activity={notebookActivity} assets={{}} defaultExpanded />)
+  // Code section renders open; the stream output sits in a closed <details>
+  // (the browser hides <details> content until opened; SSR HTML includes it).
+  expect(html).toContain('print(&quot;coverage line&quot;)')
+  expect(html).toContain('<details class=')
+  expect(html).toContain('<summary')
+  expect(html).not.toContain('<details open')
+})
+
+test('notebook code sections carry a line-number gutter', async () => {
+  const notebookActivity = activity({
+    providerToolName: 'mcp__open-science-notebook__notebook_execute',
+    run: { runId: 'r2', status: 'completed', script: 'a = 1\nb = 2', outputs: [] }
+  })
+  const html = await render(<ActivityRow activity={notebookActivity} assets={{}} defaultExpanded />)
+  expect(html.match(/grid grid-cols-\[auto_minmax\(0,1fr\)\]/g)?.length).toBe(2)
+})
+
+test('truncated activities disclose it below the expanded sections', async () => {
+  const truncated = activity({
+    providerToolName: 'mcp__acme__truncated_tool',
+    essentialTruncated: true,
+    input: { payload: 'x' }
+  })
+  const html = await render(<ActivityRow activity={truncated} assets={{}} defaultExpanded />)
+  expect(html).toContain('Output truncated')
+})
+
+test('user messages render collapsed with the clamp applied', async () => {
+  const longMessage = {
+    type: 'message' as const,
+    id: 'u1',
+    role: 'user' as const,
+    content: Array.from({ length: 20 }, (_, i) => `coverage line ${i + 1}`).join('\n'),
+    status: 'complete',
+    createdAt: 1788220800000
+  }
+  const html = await render(<SessionMessageItem message={longMessage} />)
+  expect(html).toContain('line-clamp-[12]')
+  expect(html).toContain('coverage line 20')
+})
+
+test('plan card starts compact: clamped summary, five steps, collapsed descriptions', async () => {
+  const sevenSteps = {
+    task_summary: 'Backtest the strategy and publish the report with all artifacts attached.',
+    phases: [
+      {
+        name: 'P1',
+        delegations: [
+          {
+            name: 'D1',
+            steps: Array.from({ length: 7 }, (_, i) => ({
+              title: `Coverage step ${i + 1}`,
+              description: `Coverage step ${i + 1} description.`
+            }))
+          }
+        ]
+      }
+    ],
+    desired_outputs: [],
+    feasibility: { confidence: 'high', rationale: 'Coverage rationale.' }
+  }
+  const planActivity = activity({
+    providerToolName: 'mcp.open-science-plan.generate_plan',
+    input: sevenSteps
+  })
+  const html = await render(<ActivityRow activity={planActivity} assets={{}} defaultExpanded />)
+  // The summary clamp applies only after measurement proves overflow, so SSR
+  // renders unclamped without the toggle; steps still start at five.
+  expect(html).not.toContain('line-clamp-3')
+  expect(html).not.toContain('Show full task')
+  expect(html).toContain('Coverage step 5')
+  expect(html).not.toContain('Coverage step 6')
+  // React SSR splits text nodes with <!-- --> markers; strip them to assert prose.
+  expect(html.replace(/<!-- -->/g, '')).toContain('+ 2 more steps')
+  expect(html).toContain('Expand all')
+  // Descriptions start collapsed behind the step toggle.
+  expect(html).not.toContain('Coverage step 1 description.')
+  expect(html).toContain('High confidence')
+})
