@@ -45,7 +45,11 @@ export const SessionTranscript = ({ session }: { session: UseCaseSession }) => {
             if (item.type === 'activity-group') {
               return (
                 <div key={item.id} className={rowClassName}>
-                  <SessionActivityGroup activities={item.activities} assets={session.assets} />
+                  <SessionActivityGroup
+                    activities={item.activities}
+                    assets={session.assets}
+                    planGroup={item.planGroup}
+                  />
                 </div>
               )
             }

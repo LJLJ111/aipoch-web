@@ -65,6 +65,13 @@ const matchToolName = (
   tool: string
 ): boolean => matchServerTool(toolName, server, [tool]) !== undefined
 
+// The session-plan server's tools (generate_plan / update_step_status), in any
+// provider namespacing form. Shared by the classifier and the timeline
+// grouping so both agree on which activities belong to the plan family.
+const isPlanToolName = (toolName: string | undefined | null): boolean =>
+  matchToolName(toolName, 'open-science-plan', 'generate_plan') ||
+  matchToolName(toolName, 'open-science-plan', 'update_step_status')
+
 const matchNotebookTool = (
   toolName: string | undefined | null,
   suffixes: readonly string[]
@@ -148,6 +155,7 @@ const detectCellLanguage = (code: string): string => {
 
 export {
   isNotebookSummaryToolName,
+  isPlanToolName,
   matchNotebookControlTool,
   matchNotebookRunTool,
   matchNotebookTool,

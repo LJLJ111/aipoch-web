@@ -16,14 +16,17 @@ import { RowErrorBoundary } from './error-boundary'
 
 // Port of WorkspaceActivityGroup: adjacent tool calls as one collapsible transcript row group,
 // collapsed by default, with the app's chevron header and natural-language summary.
+// Plan-family groups render as their own block, expanded by default.
 export const SessionActivityGroup = ({
   activities,
-  assets
+  assets,
+  planGroup = false
 }: {
   activities: NormalizedActivity[]
   assets: Record<string, UseCaseAsset>
+  planGroup?: boolean
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(planGroup)
 
   return (
     <div className="px-4 pb-0.5 pt-2.5 md:px-6">
@@ -43,7 +46,7 @@ export const SessionActivityGroup = ({
             <ChevronRight className="size-3.5" strokeWidth={2.2} aria-hidden="true" />
           </span>
           <span className="min-w-0 truncate text-left font-medium text-text-000">
-            {formatActivityGroupTitle(activities)}
+            {planGroup ? 'Created execution plan' : formatActivityGroupTitle(activities)}
           </span>
           <span className="ml-auto shrink-0 whitespace-nowrap text-[12px] tabular-nums text-text-000">
             {formatStepCount(activities)} ·{' '}

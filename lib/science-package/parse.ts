@@ -1,3 +1,4 @@
+import { isPlanToolName } from '@/app/(commonLayout)/open-science/use-cases/_components/notebook-tool-names'
 import type {
   MessageArtifact,
   MessageUpload,
@@ -334,7 +335,7 @@ function normalizeSession(
           const url = `${new URL(storagePathFor(key), assetBaseUrl).href}#${encodeAssetFilename(name)}`
           uploadUrlByVersionId.set(versionId, url)
         } catch {
-          continue
+          // display-only upload
         }
       }
     }
@@ -529,15 +530,24 @@ function normalizeSession(
   })
 
   // --- timeline: merge by timestamp, fold consecutive activities into groups ---
+  // Plan-family activities never fold into non-plan groups (and vice versa);
+  // consecutive plan activities form their own group. Non-plan merging is
+  // byte-identical to the original rule.
   const merged = [...messageItems, ...activityItems].sort((a, b) => a.ts - b.ts)
   const items: TranscriptItem[] = []
   for (const { item } of merged) {
     const last = items[items.length - 1]
-    if (item.type === 'activity-group' && last?.type === 'activity-group') {
-      last.activities.push(...item.activities)
-    } else {
-      items.push(item)
+    if (item.type === 'activity-group') {
+      const planGroup = item.activities.every((activity) =>
+        [activity.providerToolName, activity.title].some(isPlanToolName)
+      )
+      if (planGroup) item.planGroup = true
+      if (last?.type === 'activity-group' && Boolean(last.planGroup) === planGroup) {
+        last.activities.push(...item.activities)
+        continue
+      }
     }
+    items.push(item)
   }
 
   const model: UseCaseSession = {

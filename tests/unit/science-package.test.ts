@@ -378,3 +378,73 @@ test('derives upload URLs from session identifiers in extracted mode', async () 
     { name: 'no-version.txt', mimeType: undefined, size: undefined, url: undefined }
   ])
 })
+
+test('plan activities fold into their own group without touching other merging', async () => {
+  const act = (id: string, providerToolName: string, createdAt: number) => ({
+    id,
+    title: providerToolName,
+    providerToolName,
+    createdAt
+  })
+  const sample = buildSciencePackage('Plan grouping', {
+    conversationGraph: {
+      activities: [
+        act('n1', 'mcp__open-science-notebook__notebook_execute', 1),
+        act('n2', 'mcp__open-science-notebook__notebook_execute', 2),
+        act('p1', 'mcp.open-science-plan.generate_plan', 3),
+        act('p2', 'mcp.open-science-plan.update_step_status', 4),
+        act('n3', 'mcp__acme__mystery_tool', 5),
+        act('p3', 'mcp__open-science-plan__update_step_status', 6)
+      ]
+    }
+  })
+  const result = await parsePackage(new Blob([sample.bytes as BlobPart]), 'plan-grouping')
+  const groups = result.session.items
+    .filter((item) => item.type === 'activity-group')
+    .map((item) =>
+      item.type === 'activity-group'
+        ? {
+            ids: item.activities.map((activity) => activity.id),
+            planGroup: Boolean(item.planGroup)
+          }
+        : null
+    )
+  // Non-plan neighbors still fold together; plan activities never mix with
+  // them, and consecutive plan activities form their own marked group.
+  expect(groups).toEqual([
+    { ids: ['n1', 'n2'], planGroup: false },
+    { ids: ['p1', 'p2'], planGroup: true },
+    { ids: ['n3'], planGroup: false },
+    { ids: ['p3'], planGroup: true }
+  ])
+  // Timeline order is preserved; non-plan groups carry no marker.
+  const firstGroup = result.session.items.find((item) => item.type === 'activity-group')
+  expect(firstGroup?.type === 'activity-group' && firstGroup.planGroup).toBeUndefined()
+})
+
+test('a session without plan tools groups exactly as before', async () => {
+  const act = (id: string, providerToolName: string, createdAt: number) => ({
+    id,
+    title: providerToolName,
+    providerToolName,
+    createdAt
+  })
+  const sample = buildSciencePackage('No plan grouping', {
+    conversationGraph: {
+      activities: [
+        act('a', 'mcp__open-science-notebook__notebook_execute', 1),
+        act('b', 'mcp__acme__mystery_tool', 2),
+        act('c', 'Read', 3)
+      ]
+    }
+  })
+  const result = await parsePackage(new Blob([sample.bytes as BlobPart]), 'no-plan-grouping')
+  const groups = result.session.items.filter((item) => item.type === 'activity-group')
+  expect(groups).toHaveLength(1)
+  expect(groups[0].type === 'activity-group' && groups[0].activities.map((a) => a.id)).toEqual([
+    'a',
+    'b',
+    'c'
+  ])
+  expect(groups[0].type === 'activity-group' && groups[0].planGroup).toBeUndefined()
+})

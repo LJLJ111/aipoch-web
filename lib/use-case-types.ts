@@ -92,7 +92,13 @@ export type TranscriptItem =
       answers?: { fieldId: string; value: unknown }[]
       respondedAt?: number
     }
-  | { type: 'activity-group'; id: string; activities: NormalizedActivity[] }
+  | {
+      type: 'activity-group'
+      id: string
+      activities: NormalizedActivity[]
+      /** Plan-family group: renders as its own block, expanded by default. */
+      planGroup?: boolean
+    }
 
 export interface UseCaseSession {
   schemaVersion: 1
