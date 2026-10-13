@@ -39,9 +39,12 @@ const GalleryCard = ({ useCase }: { useCase: GalleryEntry }) => (
 
 export function UseCaseGallery({
   items,
+  category,
   initialCount = USE_CASE_BATCH_SIZE
 }: {
   items: GalleryEntry[]
+  /** Active catalog filter; kept on the pagination links so they stay filtered. */
+  category?: string
   initialCount?: number
 }) {
   const [visibleCount, setVisibleCount] = useState(initialCount)
@@ -79,7 +82,7 @@ export function UseCaseGallery({
       <div ref={sentinel} className="mt-10 flex min-h-11 items-center justify-center">
         {hasMore ? (
           <Link
-            href={`/open-science/use-cases?page=${Math.floor(visibleCount / USE_CASE_BATCH_SIZE) + 1}#use-case-grid`}
+            href={`/open-science/use-cases?page=${Math.floor(visibleCount / USE_CASE_BATCH_SIZE) + 1}${category ? `&category=${encodeURIComponent(category)}` : ''}#use-case-grid`}
             prefetch={false}
             aria-controls="use-case-grid"
             onClick={(event) => {

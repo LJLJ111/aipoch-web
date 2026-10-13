@@ -84,10 +84,28 @@ export const parseUseCaseManifest = (
     const releaseUrl = record(item.case, `${path}.case`).release_url
     if (typeof releaseUrl !== 'string')
       throw new ManifestValidationError(`${path}.case.release_url`, 'string', releaseUrl)
+    if (item.catalog !== undefined) {
+      if (typeof item.catalog !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(item.catalog))
+        throw new ManifestValidationError(
+          `${path}.catalog`,
+          'lowercase kebab-case key',
+          item.catalog
+        )
+      if (item.catalog_name !== undefined && typeof item.catalog_name !== 'string')
+        throw new ManifestValidationError(`${path}.catalog_name`, 'string', item.catalog_name)
+    }
 
     return {
       slug: item.name,
       title: item.title,
+      ...(item.catalog === undefined
+        ? {}
+        : {
+            catalog: item.catalog,
+            ...(typeof item.catalog_name === 'string' && item.catalog_name.trim()
+              ? { catalogName: item.catalog_name }
+              : {})
+          }),
       preview: { image: resourceUrl(cover) },
       package: {
         extractedBaseUrl: new URL(`${item.name}/extracted/`, base).href,

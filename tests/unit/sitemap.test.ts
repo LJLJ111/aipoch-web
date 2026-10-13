@@ -96,7 +96,7 @@ describe('sitemap', () => {
       '/open-science/use-cases/can-a-simple-algorithm-beat-ai-at-wordle/replay'
     ]) {
       expect(routes.find((route) => route.url === `${siteDomain}${path}`)?.lastModified).toEqual(
-        new Date(path === '/open-science/use-cases' ? '2026-10-12' : '2026-10-10')
+        new Date(path === '/open-science/use-cases' ? '2026-10-13' : '2026-10-10')
       )
     }
   })

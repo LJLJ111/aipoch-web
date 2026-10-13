@@ -106,6 +106,10 @@ export interface UseCaseIndexEntry {
   exportedAt?: number
   /** Optional taxonomy label shown as a pill (e.g. "Agriculture"). */
   category?: string
+  /** Taxonomy key for gallery filtering (manifest `catalog`, kebab-case). */
+  catalog?: string
+  /** Display label for `catalog` (manifest `catalog_name`). */
+  catalogName?: string
   /** Gallery card visual on the list page. */
   preview?: UseCasePreview
   /** Publisher-designated report file; the detail page prefers its own payload. */
@@ -182,4 +186,7 @@ export interface UseCaseManifestItem {
   cover: UseCaseManifestResource
   case: UseCaseManifestResource & { release_url: string }
   introduction?: UseCaseManifestResource
+  /** Optional taxonomy: kebab-case key plus its display label. */
+  catalog?: string
+  catalog_name?: string
 }
