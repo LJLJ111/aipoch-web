@@ -1,4 +1,5 @@
 import type { NormalizedActivity } from '@/lib/use-case-types'
+import { staticNotebookPhase } from './notebook-run-status'
 import { matchNotebookRunTool, matchToolName } from './notebook-tool-names'
 
 // Port of workspace-tool-activity-groups.ts (open-science) reduced to the static replay model:
@@ -118,9 +119,33 @@ export const formatActivityGroupTitle = (activities: NormalizedActivity[]): stri
 // Formats the group header's total visible-step count, flagging any failed steps.
 export const formatStepCount = (activities: NormalizedActivity[]): string => {
   const stepLabel = activities.length === 1 ? '1 step' : `${activities.length} steps`
-  const failedCount = activities.filter((activity) => activity.status === 'failed').length
+  // Notebook executions fail only on run evidence (app: getToolExecutionPhase);
+  // the outer observer status alone does not count as a failed step.
+  const failedCount = activities.filter((activity) =>
+    isNotebookExecutionActivity(activity)
+      ? staticNotebookPhase(activity) === 'failed'
+      : activity.status === 'failed'
+  ).length
 
   return failedCount > 0 ? `${stepLabel} · ${failedCount} failed` : stepLabel
+}
+
+// Static port of formatActivityGroupPresentationTitle: notebook execution
+// phases headline the group; groups without notebook runs keep the category
+// clause summary.
+export const formatStaticGroupTitle = (activities: NormalizedActivity[]): string => {
+  const notebookActivities = activities.filter(isNotebookExecutionActivity)
+  if (notebookActivities.length === 0) return formatActivityGroupTitle(activities)
+  const phases = notebookActivities.map(staticNotebookPhase)
+  const noun =
+    notebookActivities.length === 1 ? 'Notebook run' : `${notebookActivities.length} Notebook runs`
+  if (phases.includes('prepared')) return 'Notebook code shown'
+  if (phases.includes('declined')) return `Declined ${noun}`
+  if (phases.includes('failed')) return `Failed ${noun}`
+  if (phases.includes('limit-reached')) return `Execution limit reached for ${noun}`
+  if (phases.includes('interrupted')) return `Interrupted ${noun}`
+  if (phases.includes('cancelled')) return `Cancelled ${noun}`
+  return formatActivityGroupTitle(activities)
 }
 
 // Adds each tool's own runtime, excluding idle gaps between tools in the same group.

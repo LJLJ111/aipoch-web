@@ -3,6 +3,10 @@ import {
   ALL_ACTIVITY_RENDERERS,
   classifyActivityRenderer
 } from '../../app/(commonLayout)/open-science/use-cases/_components/activity-classify'
+import {
+  formatStaticGroupTitle,
+  formatStepCount
+} from '../../app/(commonLayout)/open-science/use-cases/_components/activity-group-title'
 import { buildActivityDetails } from '../../app/(commonLayout)/open-science/use-cases/_components/activity-row'
 import type { NormalizedActivity } from '../../lib/use-case-types'
 import { COVERAGE_FIXTURE_RENDERERS } from '../../mocks/fixtures/use-case-coverage'
@@ -798,4 +802,102 @@ test('bash_execute falls back to input.command when the run document is absent',
   const secondFirst = second.sections[0]
   if (secondFirst.kind !== 'code') throw new Error('expected a code section')
   expect(secondFirst.text).toBe('command-value')
+})
+
+test('notebook rows without run evidence show code shown, never failed', () => {
+  // Real export shape (nvda-bitcoin case): the observer failed with a plain
+  // artifact error, so no run summary exists — the code never executed.
+  const details = buildActivityDetails(
+    activity({
+      providerToolName: 'mcp.open-science-notebook.notebook_execute',
+      status: 'failed',
+      executionInvocationId: '46372dcf-62c7-4b8d-ae27-47e4abe3bd07',
+      input: { code: 'backtest()' },
+      output: {
+        result: {
+          content: [
+            {
+              type: 'text',
+              text: 'Artifact Version is unavailable in this Project: fc240505'
+            }
+          ]
+        }
+      }
+    }),
+    {}
+  )
+  expect(details.displayName).toBe('Notebook run')
+  expect(details.metaLabel).toBe('code shown')
+  // Explicit false: the row must not paint the failure icon from the outer status.
+  expect(details.failed).toBe(false)
+
+  // A matching failed run summary in the output keeps the failed label.
+  const failedRun = buildActivityDetails(
+    activity({
+      providerToolName: 'mcp.open-science-notebook.notebook_execute',
+      status: 'failed',
+      executionInvocationId: 'inv-1',
+      input: { code: 'backtest()' },
+      output: {
+        result: {
+          content: [
+            {
+              type: 'text',
+              text: '{"runId": "run-1", "executionInvocationId": "inv-1", "status": "failed"}'
+            }
+          ]
+        }
+      }
+    }),
+    {}
+  )
+  expect(failedRun.metaLabel).toBe('failed')
+  expect(failedRun.failed).toBe(true)
+
+  // A run summary for a different invocation never relabels the row.
+  const foreign = buildActivityDetails(
+    activity({
+      providerToolName: 'mcp.open-science-notebook.notebook_execute',
+      status: 'failed',
+      executionInvocationId: 'inv-2',
+      input: { code: 'backtest()' },
+      output: JSON.stringify({ runId: 'run-1', executionInvocationId: 'inv-1', status: 'failed' })
+    }),
+    {}
+  )
+  expect(foreign.metaLabel).toBe('code shown')
+  expect(foreign.failed).toBe(false)
+})
+
+test('group titles and step counts follow notebook run evidence', () => {
+  const prepared = activity({
+    providerToolName: 'mcp.open-science-notebook.notebook_execute',
+    status: 'failed',
+    executionInvocationId: 'inv-1',
+    input: { code: 'x = 1' },
+    output: 'Artifact Version is unavailable in this Project: fc240505'
+  })
+  const completedRun = activity({
+    providerToolName: 'mcp.open-science-notebook.notebook_execute',
+    id: 'a2',
+    executionInvocationId: 'inv-2',
+    input: { code: 'y = 2' },
+    output: JSON.stringify({ runId: 'run-2', executionInvocationId: 'inv-2', status: 'completed' })
+  })
+  // Any prepared notebook run headlines the group (app: Notebook code shown).
+  expect(formatStaticGroupTitle([prepared, completedRun])).toBe('Notebook code shown')
+  // The prepared row is not a failed step, despite the outer failed status.
+  expect(formatStepCount([prepared, completedRun])).toBe('2 steps')
+
+  const failedRun = activity({
+    providerToolName: 'mcp.open-science-notebook.notebook_execute',
+    status: 'failed',
+    executionInvocationId: 'inv-3',
+    output: JSON.stringify({ runId: 'run-3', executionInvocationId: 'inv-3', status: 'failed' })
+  })
+  expect(formatStaticGroupTitle([completedRun, failedRun])).toBe('Failed 2 Notebook runs')
+  expect(formatStepCount([completedRun, failedRun])).toBe('2 steps · 1 failed')
+
+  // All-completed groups keep the category clause summary.
+  expect(formatStaticGroupTitle([completedRun])).toBe('Completed a Notebook run')
 })

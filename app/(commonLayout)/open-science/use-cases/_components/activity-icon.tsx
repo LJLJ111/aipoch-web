@@ -29,7 +29,7 @@ export const ActivityIcon = ({
     'aria-hidden': true
   } as const
 
-  if (failed || activity.status === 'failed') return <CircleAlert {...iconProps} />
+  if (failed ?? activity.status === 'failed') return <CircleAlert {...iconProps} />
   if (
     activity.status === 'declined' ||
     activity.status === 'cancelled' ||

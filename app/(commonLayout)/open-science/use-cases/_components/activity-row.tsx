@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { classifyActivityRenderer } from './activity-classify'
 import { ActivityIcon } from './activity-icon'
 import { useFilePreview } from './file-preview'
+import { staticNotebookPhase } from './notebook-run-status'
 import {
   matchNotebookControlTool,
   matchNotebookRunTool,
@@ -260,13 +261,20 @@ const buildNotebookDetails = (activity: NormalizedActivity): ActivityDetails => 
     sections.push(...fallback)
   }
 
-  const statusLabel = run
-    ? run.status === 'completed'
-      ? undefined
-      : run.status || undefined
-    : activity.status === 'failed'
-      ? 'failed'
-      : undefined
+  // Execution truth comes from the run record or the run summary in the tool
+  // output (app: getToolExecutionPhase). Without either, the code was shown
+  // but never ran — the outer observer's failed status must not relabel it.
+  const phase = staticNotebookPhase(activity)
+  const statusLabel =
+    phase === 'prepared'
+      ? 'code shown'
+      : phase === 'completed'
+        ? undefined
+        : phase === 'limit-reached'
+          ? 'limit reached'
+          : phase === 'declined'
+            ? 'declined by you'
+            : phase
 
   // App meta (WorkspaceToolDetailsRow + notebook-run-figures.ts): figure count
   // and output line count; a completed run adds no status word, failed keeps it.
@@ -298,6 +306,9 @@ const buildNotebookDetails = (activity: NormalizedActivity): ActivityDetails => 
     displayName,
     subtitle: run?.cellId ?? getStringField(input, 'cellId'),
     metaLabel,
+    // Explicit false suppresses the row's outer-status failure styling when
+    // the run evidence says the code never executed (prepared/declined).
+    failed: phase === 'failed',
     sections
   }
 }
@@ -1431,7 +1442,7 @@ export const ActivityRow = ({
 }: {
   activity: NormalizedActivity
   assets: Record<string, UseCaseAsset>
-  /** Plan rows inside a plan group start expanded so the plan card is visible. */
+  /** Start expanded; used by SSR tests to render the detail panel. */
   defaultExpanded?: boolean
 }) => {
   const details = useMemo(() => buildActivityDetails(activity, assets), [activity, assets])
@@ -1443,7 +1454,9 @@ export const ActivityRow = ({
   const collapsibleSections = details.sections.filter((section) => section.kind !== 'image')
   const canExpand = collapsibleSections.length > 0
   const detailsDomId = createRowDetailsDomId(activity.id)
-  const failed = activity.status === 'failed'
+  // The details builder may override the outer status (e.g. a notebook run
+  // that never executed is prepared, not failed).
+  const failed = details.failed ?? activity.status === 'failed'
 
   return (
     <>
@@ -1461,7 +1474,7 @@ export const ActivityRow = ({
         <span
           className={cn(
             'mt-0.5 inline-flex shrink-0 items-center md:mt-0',
-            (details.failed || activity.status === 'failed') && 'text-status-failure-foreground'
+            failed && 'text-status-failure-foreground'
           )}
         >
           <ActivityIcon activity={activity} failed={details.failed} />
