@@ -73,7 +73,7 @@ export const HomeHero = ({ githubStars = DEFAULT_GITHUB_STAR_COUNT }: { githubSt
             <div
               key={stat.label}
               data-testid={'testId' in stat ? stat.testId : undefined}
-              className={`flex min-h-[100px] flex-col items-center justify-center px-3 py-4 text-center ${index % 2 === 0 ? 'border-r border-black/10' : ''} ${index < 2 ? 'border-b border-black/10 sm:border-b-0' : ''} sm:border-r sm:border-black/10 sm:last:border-r-0`}
+              className={`flex min-h-[100px] flex-col items-center justify-start px-3 py-4 text-center ${index % 2 === 0 ? 'border-r border-black/10' : ''} ${index < 2 ? 'border-b border-black/10 sm:border-b-0' : ''} sm:border-r sm:border-black/10 sm:last:border-r-0`}
             >
               <strong className="font-mono text-[30px] leading-none text-[#202020]">
                 {stat.value}
