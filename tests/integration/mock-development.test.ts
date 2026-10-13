@@ -574,7 +574,14 @@ describe('mock development end to end', () => {
       await browserExpect(page.getByTestId('use-case-grid').locator('h2')).toHaveCount(4)
       await page.getByRole('link', { name: /All areas/ }).click()
       await page.waitForURL('**/open-science/use-cases')
-      await browserExpect(page.getByTestId('use-case-grid').locator('h2')).toHaveCount(6)
+      // Unfiltered again: a Health & Climate card is back in the grid. (The
+      // scroll sentinel may already have auto-loaded extra batches, so don't
+      // pin an exact card count here.)
+      await browserExpect(
+        page
+          .getByTestId('use-case-grid')
+          .getByRole('link', { name: /Can GLP-1 Drugs Really Help Us Live Longer/ })
+      ).toBeVisible()
       // The first pill starts where the grid's first card starts.
       const stripX = await strip.evaluate((element) => element.getBoundingClientRect().x)
       const gridX = await page

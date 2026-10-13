@@ -36,13 +36,13 @@ export default async function OpenScienceUseCasesPage({ searchParams }: PageProp
   // always describe the full catalog, not the filtered view.
   const catalogSummaries = new Map<string, { key: string; label: string; count: number }>()
   for (const entry of useCases ?? []) {
-    if (!entry.catalog) continue
-    const summary = catalogSummaries.get(entry.catalog)
+    if (!entry.catalogKey) continue
+    const summary = catalogSummaries.get(entry.catalogKey)
     if (summary) summary.count += 1
     else
-      catalogSummaries.set(entry.catalog, {
-        key: entry.catalog,
-        label: entry.catalogName ?? entry.catalog,
+      catalogSummaries.set(entry.catalogKey, {
+        key: entry.catalogKey,
+        label: entry.catalog ?? entry.catalogKey,
         count: 1
       })
   }
@@ -55,7 +55,7 @@ export default async function OpenScienceUseCasesPage({ searchParams }: PageProp
     : undefined
   const visibleUseCases =
     useCases && activeCategory
-      ? useCases.filter((entry) => entry.catalog === activeCategory)
+      ? useCases.filter((entry) => entry.catalogKey === activeCategory)
       : useCases
 
   const pageCount = visibleUseCases

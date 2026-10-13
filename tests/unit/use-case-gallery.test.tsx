@@ -66,9 +66,9 @@ test('keeps empty and failed catalog states distinct without a loading control',
 
 test('derives the category strip from catalog fields and filters by URL param', async () => {
   result = [
-    { slug: 'a', title: 'Alpha', catalog: 'science', catalogName: 'Science' },
-    { slug: 'b', title: 'Beta', catalog: 'science', catalogName: 'Science' },
-    { slug: 'c', title: 'Gamma', catalog: 'health-climate', catalogName: 'Health & Climate' },
+    { slug: 'a', title: 'Alpha', catalog: 'Science', catalogKey: 'science' },
+    { slug: 'b', title: 'Beta', catalog: 'Science', catalogKey: 'science' },
+    { slug: 'c', title: 'Gamma', catalog: 'Health & Climate', catalogKey: 'health-climate' },
     { slug: 'd', title: 'Delta' }
   ]
   const html = await render()
@@ -101,8 +101,8 @@ test('keeps the category filter on pagination links', async () => {
   result = Array.from({ length: 8 }, (_, index) => ({
     slug: `sci-${index + 1}`,
     title: `Science case ${index + 1}`,
-    catalog: 'science',
-    catalogName: 'Science'
+    catalog: 'Science',
+    catalogKey: 'science'
   }))
   const filtered = await render(undefined, 'science')
   expect(filtered).toContain('Showing 6 of 8 use cases')
