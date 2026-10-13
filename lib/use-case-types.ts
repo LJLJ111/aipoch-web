@@ -46,6 +46,8 @@ export interface NormalizedActivity {
   contentBlocks?: unknown[]
   locations?: { path: string; line?: number | null }[]
   run?: NormalizedRun
+  /** Links the tool call to its notebook run record (app: executionInvocationId). */
+  executionInvocationId?: string
   /** Present only in the essential tier when oversized payloads were shortened. */
   essentialTruncated?: boolean
 }
@@ -96,8 +98,12 @@ export type TranscriptItem =
       type: 'activity-group'
       id: string
       activities: NormalizedActivity[]
-      /** Plan-family group: renders as its own block, expanded by default. */
-      planGroup?: boolean
+    }
+  | {
+      /** Standalone generate_plan card (app: plan-activity); never folds into groups. */
+      type: 'plan'
+      id: string
+      activity: NormalizedActivity
     }
 
 export interface UseCaseSession {

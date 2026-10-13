@@ -7,34 +7,23 @@ import type { NormalizedActivity, UseCaseAsset } from '@/lib/use-case-types'
 import { cn } from '@/lib/utils'
 import {
   formatActivityGroupElapsed,
-  formatActivityGroupTitle,
+  formatStaticGroupTitle,
   formatStepCount,
   getActivityGroupElapsedMs
 } from './activity-group-title'
 import { ActivityRow } from './activity-row'
 import { RowErrorBoundary } from './error-boundary'
-import { matchToolName } from './notebook-tool-names'
-
-// Inside a plan block, only the generate_plan row (the plan card itself)
-// starts expanded; step updates stay collapsed, matching the app.
-const isGeneratePlanActivity = (activity: NormalizedActivity): boolean =>
-  [activity.providerToolName, activity.title].some((name) =>
-    matchToolName(name, 'open-science-plan', 'generate_plan')
-  )
 
 // Port of WorkspaceActivityGroup: adjacent tool calls as one collapsible transcript row group,
 // collapsed by default, with the app's chevron header and natural-language summary.
-// Plan-family groups render as their own block, expanded by default.
 export const SessionActivityGroup = ({
   activities,
-  assets,
-  planGroup = false
+  assets
 }: {
   activities: NormalizedActivity[]
   assets: Record<string, UseCaseAsset>
-  planGroup?: boolean
 }) => {
-  const [isExpanded, setIsExpanded] = useState(planGroup)
+  const [isExpanded, setIsExpanded] = useState(false)
 
   return (
     <div className="px-4 pb-0.5 pt-2.5 md:px-6">
@@ -54,9 +43,7 @@ export const SessionActivityGroup = ({
             <ChevronRight className="size-3.5" strokeWidth={2.2} aria-hidden="true" />
           </span>
           <span className="min-w-0 truncate text-left font-medium text-text-000">
-            {planGroup && activities.some(isGeneratePlanActivity)
-              ? 'Created execution plan'
-              : formatActivityGroupTitle(activities)}
+            {formatStaticGroupTitle(activities)}
           </span>
           <span className="ml-auto shrink-0 whitespace-nowrap text-[12px] tabular-nums text-text-000">
             {formatStepCount(activities)} ·{' '}
@@ -76,11 +63,7 @@ export const SessionActivityGroup = ({
               {activities.map((activity) => (
                 <div key={activity.id} className="w-full overflow-hidden">
                   <RowErrorBoundary label={activity.providerToolName ?? activity.title}>
-                    <ActivityRow
-                      activity={activity}
-                      assets={assets}
-                      defaultExpanded={planGroup && isGeneratePlanActivity(activity)}
-                    />
+                    <ActivityRow activity={activity} assets={assets} />
                   </RowErrorBoundary>
                 </div>
               ))}

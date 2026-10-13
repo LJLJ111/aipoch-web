@@ -124,18 +124,18 @@ export async function verifyReplayCoverage(page: Page, url: string) {
   // Unanswered: dashed free-form placeholder.
   await expect(page.getByText('Free-form answer')).toBeVisible()
 
-  // -- expand the activity groups (the plan group starts expanded) --------------
+  // -- expand the activity groups ------------------------------------------------
   for (const groupButton of await page.getByRole('button', { name: /steps ·/ }).all()) {
-    const name = await groupButton.textContent()
-    if (name?.startsWith('Created execution plan')) continue
     await groupButton.click()
   }
 
-  // -- plan block: its own group, expanded by default, card visible without clicks --
+  // -- plan block: standalone card, no group chrome, visible without clicks -------
   const planSummary = page.getByText(/Coverage plan: collect inputs/)
   await planSummary.scrollIntoViewIfNeeded()
   await expect(planSummary).toBeVisible()
   await expect(page.getByText('Collect coverage inputs', { exact: true }).first()).toBeVisible()
+  // Step updates never reach the transcript (app: workspace-conversation-items).
+  await expect(page.getByText('Plan step update')).toHaveCount(0)
 
   // -- per-renderer rows + detail sections -----------------------------------------
   const expandRow = async (name: string | RegExp) => {

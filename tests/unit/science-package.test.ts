@@ -379,7 +379,9 @@ test('derives upload URLs from session identifiers in extracted mode', async () 
   ])
 })
 
-test('plan activities fold into their own group without touching other merging', async () => {
+test('plan tools leave the groups: updates drop, generate_plan stands alone', async () => {
+  // App parity (workspace-conversation-items.ts): update_step_status activities
+  // never reach the transcript; generate_plan is a standalone plan card item.
   const act = (id: string, providerToolName: string, createdAt: number) => ({
     id,
     title: providerToolName,
@@ -399,27 +401,22 @@ test('plan activities fold into their own group without touching other merging',
     }
   })
   const result = await parsePackage(new Blob([sample.bytes as BlobPart]), 'plan-grouping')
-  const groups = result.session.items
-    .filter((item) => item.type === 'activity-group')
+  const timeline = result.session.items
+    .filter((item) => item.type !== 'message')
     .map((item) =>
       item.type === 'activity-group'
-        ? {
-            ids: item.activities.map((activity) => activity.id),
-            planGroup: Boolean(item.planGroup)
-          }
-        : null
+        ? { type: 'group', ids: item.activities.map((activity) => activity.id) }
+        : item.type === 'plan'
+          ? { type: 'plan', ids: [item.activity.id] }
+          : { type: item.type, ids: [] }
     )
-  // Non-plan neighbors still fold together; plan activities never mix with
-  // them, and consecutive plan activities form their own marked group.
-  expect(groups).toEqual([
-    { ids: ['n1', 'n2'], planGroup: false },
-    { ids: ['p1', 'p2'], planGroup: true },
-    { ids: ['n3'], planGroup: false },
-    { ids: ['p3'], planGroup: true }
+  // Step updates vanish; the plan card splits the surrounding groups, which
+  // fold across the dropped updates exactly like the app's transcript.
+  expect(timeline).toEqual([
+    { type: 'group', ids: ['n1', 'n2'] },
+    { type: 'plan', ids: ['p1'] },
+    { type: 'group', ids: ['n3'] }
   ])
-  // Timeline order is preserved; non-plan groups carry no marker.
-  const firstGroup = result.session.items.find((item) => item.type === 'activity-group')
-  expect(firstGroup?.type === 'activity-group' && firstGroup.planGroup).toBeUndefined()
 })
 
 test('a session without plan tools groups exactly as before', async () => {
@@ -446,7 +443,6 @@ test('a session without plan tools groups exactly as before', async () => {
     'b',
     'c'
   ])
-  expect(groups[0].type === 'activity-group' && groups[0].planGroup).toBeUndefined()
 })
 
 test('essentialTruncated survives package parsing', async () => {

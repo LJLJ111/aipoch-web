@@ -1,9 +1,9 @@
 import { expect, test } from 'bun:test'
 import { renderToReadableStream } from 'react-dom/server'
-import { SessionActivityGroup } from '../../app/(commonLayout)/open-science/use-cases/_components/activity-group'
 import { ActivityRow } from '../../app/(commonLayout)/open-science/use-cases/_components/activity-row'
 import { SessionMessageItem } from '../../app/(commonLayout)/open-science/use-cases/_components/message-item'
-import type { NormalizedActivity } from '../../lib/use-case-types'
+import { SessionTranscript } from '../../app/(commonLayout)/open-science/use-cases/_components/session-transcript'
+import type { NormalizedActivity, UseCaseSession } from '../../lib/use-case-types'
 
 const render = async (element: React.JSX.Element) =>
   new Response(await renderToReadableStream(element)).text()
@@ -179,27 +179,29 @@ test('plan card starts compact: clamped summary, five steps, collapsed descripti
   expect(html).toContain('High confidence')
 })
 
-test('plan groups without a generate_plan row fall back to the generic title', async () => {
-  const stepUpdate = activity({
-    providerToolName: 'mcp.open-science-plan.update_step_status',
-    input: { step_id: 'p3', status: 'completed' }
+test('generate_plan renders as a standalone plan card without group chrome', async () => {
+  // App parity: the plan card is its own transcript item — no collapsible
+  // group header ("N steps · elapsed") wraps it.
+  const planActivity = activity({
+    providerToolName: 'mcp.open-science-plan.generate_plan',
+    input: planInput
   })
-  // A plan group holding only step updates is not a "created plan" event.
-  const withoutPlan = await render(
-    <SessionActivityGroup activities={[stepUpdate]} assets={{}} planGroup />
-  )
-  expect(withoutPlan).not.toContain('Created execution plan')
-  const withPlan = await render(
-    <SessionActivityGroup
-      activities={[
-        activity({ providerToolName: 'mcp.open-science-plan.generate_plan', input: planInput }),
-        stepUpdate
-      ]}
-      assets={{}}
-      planGroup
-    />
-  )
-  expect(withPlan).toContain('Created execution plan')
+  const session = {
+    schemaVersion: 1,
+    slug: 'plan-card',
+    title: 'Plan card',
+    projectName: 'Plan card',
+    exportedAt: 1,
+    sessionCreatedAt: 1,
+    items: [{ type: 'plan', id: planActivity.id, activity: planActivity }],
+    assets: {},
+    omissions: [],
+    excludedFiles: []
+  } satisfies UseCaseSession
+  const html = await render(<SessionTranscript session={session} />)
+  expect(html).toContain('Created execution plan')
+  expect(html).toContain('Backtest the strategy and publish.')
+  expect(html).not.toContain('1 step ·')
 })
 
 test('failed package installs render the app ledger table with per-package status', async () => {

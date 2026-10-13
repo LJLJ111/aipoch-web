@@ -1,4 +1,4 @@
-import { isPlanToolName } from '@/app/(commonLayout)/open-science/use-cases/_components/notebook-tool-names'
+import { matchToolName } from '@/app/(commonLayout)/open-science/use-cases/_components/notebook-tool-names'
 import type {
   MessageArtifact,
   MessageUpload,
@@ -391,6 +391,17 @@ function normalizeSession(
   for (const activity of graphActivities) {
     const ts =
       typeof activity.sortIndex === 'number' ? activity.sortIndex : Number(activity.createdAt)
+    // App parity (workspace-conversation-items.ts): plan step updates never
+    // render as transcript rows; their state lives in the plan card itself.
+    const activityNames = [activity.providerToolName, activity.title]
+    if (
+      activityNames.some(
+        (name) =>
+          typeof name === 'string' && matchToolName(name, 'open-science-plan', 'update_step_status')
+      )
+    ) {
+      continue
+    }
     const elicitation = activity.elicitation as JsonObject | undefined
     if (elicitation) {
       activityItems.push({
@@ -431,11 +442,20 @@ function normalizeSession(
       locations: deep(activity.toolLocations) as NormalizedActivity['locations'],
       // The essential tier shortens oversized payloads; the row discloses it.
       essentialTruncated: activity.essentialTruncated === true ? true : undefined,
-      run: invocationId ? runsByInvocation.get(invocationId) : undefined
+      run: invocationId ? runsByInvocation.get(invocationId) : undefined,
+      executionInvocationId: invocationId
     }
+    // generate_plan renders as a standalone plan card (app: plan-activity
+    // item); it never folds into an activity group.
+    const isGeneratePlan = activityNames.some(
+      (name) =>
+        typeof name === 'string' && matchToolName(name, 'open-science-plan', 'generate_plan')
+    )
     activityItems.push({
       ts,
-      item: { type: 'activity-group', id: normalized.id, activities: [normalized] }
+      item: isGeneratePlan
+        ? { type: 'plan', id: normalized.id, activity: normalized }
+        : { type: 'activity-group', id: normalized.id, activities: [normalized] }
     })
   }
 
@@ -532,22 +552,15 @@ function normalizeSession(
   })
 
   // --- timeline: merge by timestamp, fold consecutive activities into groups ---
-  // Plan-family activities never fold into non-plan groups (and vice versa);
-  // consecutive plan activities form their own group. Non-plan merging is
-  // byte-identical to the original rule.
+  // Plan cards and elicitations are standalone items; only adjacent activity
+  // groups fold together (app: groupConversationItems).
   const merged = [...messageItems, ...activityItems].sort((a, b) => a.ts - b.ts)
   const items: TranscriptItem[] = []
   for (const { item } of merged) {
     const last = items[items.length - 1]
-    if (item.type === 'activity-group') {
-      const planGroup = item.activities.every((activity) =>
-        [activity.providerToolName, activity.title].some(isPlanToolName)
-      )
-      if (planGroup) item.planGroup = true
-      if (last?.type === 'activity-group' && Boolean(last.planGroup) === planGroup) {
-        last.activities.push(...item.activities)
-        continue
-      }
+    if (item.type === 'activity-group' && last?.type === 'activity-group') {
+      last.activities.push(...item.activities)
+      continue
     }
     items.push(item)
   }
