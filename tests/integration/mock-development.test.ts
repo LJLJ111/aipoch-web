@@ -262,10 +262,10 @@ describe('mock development end to end', () => {
       const sitemap = (await (await fetch(`${web}/sitemap.xml`)).text()).replace(/>\s+</g, '><')
       for (const item of manifestSample) {
         expect(sitemap).toContain(
-          `/open-science/use-cases/${item.name}</loc><lastmod>2026-10-10T00:00:00.000Z</lastmod>`
+          `/open-science/use-cases/${item.name}</loc><lastmod>2026-10-13T00:00:00.000Z</lastmod>`
         )
         expect(sitemap).toContain(
-          `/open-science/use-cases/${item.name}/replay</loc><lastmod>2026-10-10T00:00:00.000Z</lastmod>`
+          `/open-science/use-cases/${item.name}/replay</loc><lastmod>2026-10-12T00:00:00.000Z</lastmod>`
         )
         const detailHtml = await (await fetch(`${web}/open-science/use-cases/${item.name}`)).text()
         expect(detailHtml).toContain(`href="/open-science/use-cases/${item.name}/replay"`)
@@ -462,7 +462,7 @@ describe('mock development end to end', () => {
     const sitemap = await (await fetch(`${web}/sitemap.xml`)).text()
     expect(sitemap).toContain('/agent-skills/literature-review</loc>')
     for (const [path, date] of [
-      ['', '2026-10-09'],
+      ['', '2026-10-12'],
       ['/agent-skills/list', '2026-10-09'],
       ['/agent-skills/literature-review', '2026-10-09'],
       ['/blog', '2026-10-09'],
@@ -498,10 +498,17 @@ describe('mock development end to end', () => {
           const cards = Array.from(element.children).map((card) => card.getBoundingClientRect())
           const title = element.querySelector('h2')
           const style = title ? getComputedStyle(title) : null
+          const image = element.querySelector('img')
+          const imageRect = image?.getBoundingClientRect()
           return {
             columns: new Set(cards.map((card) => Math.round(card.x))).size,
             cardWidth: cards[0].width,
             cardHeight: cards[0].height,
+            imageRatio: imageRect ? imageRect.width / imageRect.height : undefined,
+            naturalRatio:
+              image?.naturalWidth && image.naturalHeight
+                ? image.naturalWidth / image.naturalHeight
+                : undefined,
             clamp: style?.webkitLineClamp,
             fontSize: style?.fontSize,
             lineHeight: style?.lineHeight,
@@ -515,7 +522,8 @@ describe('mock development end to end', () => {
         expect(geometry.overflow).toBe(false)
         if (!mobile) {
           expect(geometry.cardWidth).toBeCloseTo(408, 0)
-          expect(geometry.cardHeight).toBeCloseTo(288, 0)
+          // #36: cards preserve the cover image's natural proportions.
+          expect(geometry.imageRatio).toBeCloseTo(geometry.naturalRatio ?? 0, 2)
         }
         await page.getByRole('link', { name: 'Load more use cases' }).scrollIntoViewIfNeeded()
         await browserExpect(grid.locator('h2')).toHaveText(manifestSample.map((item) => item.title))

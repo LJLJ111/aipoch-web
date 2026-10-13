@@ -46,6 +46,8 @@ export interface NormalizedActivity {
   contentBlocks?: unknown[]
   locations?: { path: string; line?: number | null }[]
   run?: NormalizedRun
+  /** Links the tool call to its notebook run record (app: executionInvocationId). */
+  executionInvocationId?: string
   /** Present only in the essential tier when oversized payloads were shortened. */
   essentialTruncated?: boolean
 }
@@ -59,6 +61,14 @@ export interface MessageArtifact {
   fullOnly?: boolean
 }
 
+/** A file the user attached to a message; url is present only when the package bundles the bytes. */
+export interface MessageUpload {
+  name: string
+  mimeType?: string
+  size?: number
+  url?: string
+}
+
 export type TranscriptItem =
   | {
       type: 'message'
@@ -70,6 +80,7 @@ export type TranscriptItem =
       completedAt?: number
       parts?: unknown[]
       artifacts?: MessageArtifact[]
+      uploads?: MessageUpload[]
     }
   | {
       type: 'elicitation'
@@ -83,7 +94,17 @@ export type TranscriptItem =
       answers?: { fieldId: string; value: unknown }[]
       respondedAt?: number
     }
-  | { type: 'activity-group'; id: string; activities: NormalizedActivity[] }
+  | {
+      type: 'activity-group'
+      id: string
+      activities: NormalizedActivity[]
+    }
+  | {
+      /** Standalone generate_plan card (app: plan-activity); never folds into groups. */
+      type: 'plan'
+      id: string
+      activity: NormalizedActivity
+    }
 
 export interface UseCaseSession {
   schemaVersion: 1
