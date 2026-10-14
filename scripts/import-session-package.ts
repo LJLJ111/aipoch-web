@@ -379,8 +379,12 @@ const importOne = (archivePath: string, slug: string): void => {
   const graphActivities = pkg.sessionFile.session.conversationGraph?.activities ?? []
   const activityItems: { ts: number; item: TranscriptItem }[] = []
   for (const activity of graphActivities) {
+    // sortIndex is trustworthy only on an epoch scale (see parse.ts): small
+    // sequence numbers would sort every activity ahead of all messages.
     const ts =
-      typeof activity.sortIndex === 'number' ? activity.sortIndex : Number(activity.createdAt)
+      typeof activity.sortIndex === 'number' && activity.sortIndex > 1_000_000_000_000
+        ? activity.sortIndex
+        : Number(activity.createdAt)
     // Keep in sync with lib/science-package/parse.ts: step updates never render
     // (their state lives in the plan card), generate_plan is a standalone item.
     const activityNames = [activity.providerToolName, activity.title]

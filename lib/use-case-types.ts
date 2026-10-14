@@ -67,6 +67,28 @@ export interface MessageUpload {
   mimeType?: string
   size?: number
   url?: string
+  /** Raw export fields; extracted mode derives the content URL from them. */
+  id?: string
+  versionId?: string
+  /** True when the upload came from an @-mention part: it renders inline in
+   * the message text instead of as a chip above it. */
+  mention?: boolean
+}
+
+/** A PDF quote/area card sent with a user message (app: SentAnnotationCards). */
+export interface MessagePdfAnnotation {
+  id: string
+  kind: 'quote' | 'area'
+  /** e.g. "StoryScope.pdf · Page 6". */
+  source: string
+  /** Quoted text for quotes, the region's extracted text for areas. */
+  content: string
+  /** Cropped region image for area annotations. */
+  image?: { mimeType: string; data: string }
+  /** The user's note attached to the annotation. */
+  note?: string
+  /** Preview URL of the source PDF, when resolvable from the package. */
+  url?: string
 }
 
 export type TranscriptItem =
@@ -81,6 +103,7 @@ export type TranscriptItem =
       parts?: unknown[]
       artifacts?: MessageArtifact[]
       uploads?: MessageUpload[]
+      annotations?: MessagePdfAnnotation[]
     }
   | {
       type: 'elicitation'

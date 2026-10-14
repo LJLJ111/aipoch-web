@@ -98,7 +98,7 @@ describe('sitemap', () => {
         new Date(date)
       )
     }
-    // Replay text previews corrected truncation detection on October 14.
+    // Replay text preview truncation fixes and message attachments landed October 14.
     for (const path of [
       '/open-science/use-cases/nvda-all-at-once-or-four-weeks/replay',
       '/open-science/use-cases/can-a-simple-algorithm-beat-ai-at-wordle/replay'

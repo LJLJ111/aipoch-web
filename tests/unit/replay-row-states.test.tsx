@@ -237,3 +237,102 @@ test('failed package installs render the app ledger table with per-package statu
   // The failure message renders as red prose below the table, not a code block.
   expect(html).toContain('conda install failed.')
 })
+
+test('pdf annotations render quote and area cards and suppress the empty bubble', async () => {
+  const session = {
+    schemaVersion: 1,
+    slug: 'annotations',
+    title: 'Annotations',
+    projectName: 'Annotations',
+    exportedAt: 1,
+    sessionCreatedAt: 1,
+    items: [
+      {
+        type: 'message',
+        id: 'u1',
+        role: 'user',
+        content: '',
+        status: 'complete',
+        createdAt: 1789473624904,
+        annotations: [
+          {
+            id: 'an1',
+            kind: 'quote',
+            source: 'StoryScope.pdf · Page 6',
+            content: 'Style signals are stronger but narrative features close the gap.',
+            note: '解释这段内容。'
+          },
+          {
+            id: 'an2',
+            kind: 'area',
+            source: 'StoryScope.pdf · Page 23',
+            content: 'Rarity percentile by author',
+            image: { mimeType: 'image/png', data: 'QUJD' }
+          }
+        ]
+      }
+    ],
+    assets: {},
+    omissions: [],
+    excludedFiles: []
+  } satisfies UseCaseSession
+  const html = await render(<SessionTranscript session={session} />)
+  expect(html).toContain('PDF quote')
+  expect(html).toContain('PDF area')
+  expect(html).toContain('StoryScope.pdf · Page 6')
+  expect(html).toContain('Style signals are stronger')
+  expect(html).toContain('解释这段内容。')
+  expect(html).toContain('data:image/png;base64,QUJD')
+  // The cards ride inside the same gray bubble as any user message.
+  expect(html).toContain('bg-bg-300 px-3.5 py-2')
+})
+
+test('@-mentioned files render inline once with the link color, never as chips', async () => {
+  const session = {
+    schemaVersion: 1,
+    slug: 'mentions',
+    title: 'Mentions',
+    projectName: 'Mentions',
+    exportedAt: 1,
+    sessionCreatedAt: 1,
+    items: [
+      {
+        type: 'message',
+        id: 'u1',
+        role: 'user',
+        content: '@coverage-notes.md compare with the draft.',
+        status: 'complete',
+        createdAt: 1,
+        parts: [
+          {
+            type: 'artifact',
+            source: 'upload',
+            name: 'coverage-notes.md',
+            mimeType: 'text/markdown',
+            path: 'upload-version:p/s/f/v',
+            versionId: 'v'
+          },
+          { type: 'text', text: ' compare with the draft.' }
+        ],
+        uploads: [
+          {
+            name: 'coverage-notes.md',
+            mimeType: 'text/markdown',
+            url: 'https://cdn.test/content#coverage-notes.md',
+            mention: true
+          }
+        ]
+      }
+    ],
+    assets: {},
+    omissions: [],
+    excludedFiles: []
+  } satisfies UseCaseSession
+  const html = await render(<SessionTranscript session={session} />)
+  // Exactly one rendering of the mention: the inline colored link (the name
+  // appears once in the link text and once in its preview tooltip).
+  expect(html.match(/coverage-notes\.md/g)?.length).toBe(2)
+  expect(html).toContain('text-sd-link')
+  // And it is the only preview trigger — no duplicate chip above the bubble.
+  expect(html.match(/title="Preview coverage-notes\.md"/g)?.length).toBe(1)
+})
