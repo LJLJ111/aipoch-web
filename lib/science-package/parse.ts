@@ -1,6 +1,7 @@
 import { matchToolName } from '@/app/(commonLayout)/open-science/use-cases/_components/notebook-tool-names'
 import type {
   MessageArtifact,
+  MessagePdfAnnotation,
   MessageUpload,
   NormalizedActivity,
   NormalizedOutput,
@@ -389,8 +390,14 @@ function normalizeSession(
   const graphActivities = session.conversationGraph?.activities ?? []
   const activityItems: { ts: number; item: TranscriptItem }[] = []
   for (const activity of graphActivities) {
+    // sortIndex is trustworthy only on an epoch scale: some exports carry
+    // small sequence numbers (107, 108, …), which would sort every activity
+    // ahead of all epoch-millisecond messages and collapse the transcript
+    // into one leading group.
     const ts =
-      typeof activity.sortIndex === 'number' ? activity.sortIndex : Number(activity.createdAt)
+      typeof activity.sortIndex === 'number' && activity.sortIndex > 1_000_000_000_000
+        ? activity.sortIndex
+        : Number(activity.createdAt)
     // App parity (workspace-conversation-items.ts): plan step updates never
     // render as transcript rows; their state lives in the plan card itself.
     const activityNames = [activity.providerToolName, activity.title]
@@ -534,6 +541,91 @@ function normalizeSession(
         }
       ]
     })
+    // @-mentioned files arrive as artifact parts, not uploads; resolve their
+    // upload-version path to a content URL so the chip previews/downloads.
+    const knownUploadKeys = new Set(
+      messageUploads.map((upload) => `${upload.name}${upload.url ?? ''}`)
+    )
+    const partUploads = (Array.isArray(message.parts) ? message.parts : []).flatMap(
+      (part): MessageUpload[] => {
+        if (!part || typeof part !== 'object') return []
+        const record = part as JsonObject
+        if (record.type !== 'artifact' || record.source !== 'upload') return []
+        const name = record.originalName ?? record.name
+        if (typeof name !== 'string' || !name) return []
+        const path = typeof record.path === 'string' ? record.path : undefined
+        const match = path
+          ? /^upload-version:([^/]+)\/([^/]+)\/([^/]+)\/([^/]+)$/u.exec(path)
+          : null
+        let url: string | undefined
+        if (match && assetBaseUrl) {
+          try {
+            url = `${new URL(storagePathFor(`uploads/${match[1]}/${match[2]}/${match[3]}/versions/${match[4]}/content`), assetBaseUrl).href}#${encodeAssetFilename(name)}`
+          } catch {
+            // display-only mention
+          }
+        }
+        if (knownUploadKeys.has(`${name}${url ?? ''}`)) return []
+        return [
+          { name, mimeType: typeof record.mimeType === 'string' ? record.mimeType : undefined, url }
+        ]
+      }
+    )
+    const allUploads = [...messageUploads, ...partUploads]
+    // PDF quote/area cards sent with the message (app: SentAnnotationCards).
+    const messageAnnotations = (
+      Array.isArray(message.annotations) ? (message.annotations as unknown[]) : []
+    ).flatMap((annotation): MessagePdfAnnotation[] => {
+      if (!annotation || typeof annotation !== 'object') return []
+      const record = annotation as JsonObject
+      if (record.kind !== 'pdf') return []
+      const selector = record.selector as JsonObject | undefined
+      const source = record.source as JsonObject | undefined
+      if (!selector || typeof selector !== 'object' || !source || typeof source !== 'object') {
+        return []
+      }
+      const name = typeof source.name === 'string' ? source.name : 'PDF'
+      const page = typeof selector.pageNumber === 'number' ? selector.pageNumber : undefined
+      const sourceLabel = `${name}${page ? ` · Page ${page}` : ''}`
+      const note =
+        typeof record.note === 'string' && record.note.trim() ? sanitize(record.note) : undefined
+      const versionId = typeof source.versionId === 'string' ? source.versionId : undefined
+      const url = versionId ? uploadUrlByVersionId.get(versionId) : undefined
+      if (selector.kind === 'text' && typeof selector.exact === 'string' && selector.exact.trim()) {
+        return [
+          {
+            id: String(record.id ?? ''),
+            kind: 'quote',
+            source: sourceLabel,
+            content: sanitize(selector.exact),
+            note,
+            url
+          }
+        ]
+      }
+      if (selector.kind === 'region') {
+        const selectorImage = selector.image as JsonObject | undefined
+        const image =
+          selectorImage &&
+          typeof selectorImage === 'object' &&
+          typeof selectorImage.mimeType === 'string' &&
+          typeof selectorImage.data === 'string'
+            ? { mimeType: selectorImage.mimeType, data: selectorImage.data }
+            : undefined
+        return [
+          {
+            id: String(record.id ?? ''),
+            kind: 'area',
+            source: sourceLabel,
+            content: typeof selector.text === 'string' ? sanitize(selector.text) : '',
+            image,
+            note,
+            url
+          }
+        ]
+      }
+      return []
+    })
     return {
       ts: Number(message.createdAt),
       item: {
@@ -546,7 +638,8 @@ function normalizeSession(
         completedAt: typeof message.completedAt === 'number' ? message.completedAt : undefined,
         parts: deep(message.parts) as unknown[] | undefined,
         artifacts: messageArtifacts.length > 0 ? messageArtifacts : undefined,
-        uploads: messageUploads.length > 0 ? messageUploads : undefined
+        uploads: allUploads.length > 0 ? allUploads : undefined,
+        annotations: messageAnnotations.length > 0 ? messageAnnotations : undefined
       }
     }
   })

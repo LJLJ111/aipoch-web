@@ -124,6 +124,17 @@ export async function verifyReplayCoverage(page: Page, url: string) {
   // Unanswered: dashed free-form placeholder.
   await expect(page.getByText('Free-form answer')).toBeVisible()
 
+  // -- pdf annotations: quote and area cards, no empty bubble behind them --------
+  await expect(page.getByText('PDF quote')).toBeVisible()
+  await expect(page.getByText('Coverage quote sentence from the paper.')).toBeVisible()
+  await expect(page.getByText('Coverage annotation note')).toBeVisible()
+  await expect(page.getByText('PDF area')).toBeVisible()
+  await expect(page.locator('img[src^="data:image/png;base64,"]').first()).toBeVisible()
+
+  // -- @-mentioned files render as previewable upload chips ------------------------
+  await expect(page.locator('button[title="Preview coverage-notes.md"]')).toBeVisible()
+  await expect(page.locator('button[title="Preview coverage-paper.pdf"]')).toBeVisible()
+
   // -- expand the activity groups ------------------------------------------------
   for (const groupButton of await page.getByRole('button', { name: /steps ·/ }).all()) {
     await groupButton.click()

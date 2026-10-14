@@ -16,6 +16,7 @@ import { CopyButton } from './copy-button'
 import { ExtensionPreservingFileName } from './extension-preserving-file-name'
 import { FileDownloadLink } from './file-download-link'
 import { previewKindFor, useFilePreview } from './file-preview'
+import { MessageAnnotationCards } from './message-annotation-cards'
 import { SessionMarkdown } from './session-markdown'
 
 type TranscriptMessage = Extract<TranscriptItem, { type: 'message' }>
@@ -359,24 +360,33 @@ export const SessionMessageItem = ({
   showTurnCompletion?: boolean
 }) => {
   if (message.role === 'user') {
+    // Annotation-only messages (PDF quote/area) carry no bubble content.
+    const hasBubbleContent = message.content.trim().length > 0 || (message.uploads?.length ?? 0) > 0
     return (
       <div className="px-4 pb-1 pt-3 md:px-6">
         <div className="group flex flex-col items-end">
-          <div className="flex w-full max-w-full items-center justify-end gap-1">
-            <div className="flex items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
-              <CopyButton text={message.content} />
+          {message.annotations?.length ? (
+            <div className="mb-1.5 w-full max-w-[90%] md:max-w-[min(85%,56rem)]">
+              <MessageAnnotationCards annotations={message.annotations} />
             </div>
-            <div className={userMessageBubbleClassName}>
-              {message.uploads?.length ? (
-                <div className="mb-1.5 flex flex-wrap items-start gap-1.5">
-                  {message.uploads.map((upload, index) => (
-                    <UploadChip key={`${upload.name}-${index}`} upload={upload} />
-                  ))}
-                </div>
-              ) : null}
-              <CollapsibleUserMessage message={message} />
+          ) : null}
+          {hasBubbleContent ? (
+            <div className="flex w-full max-w-full items-center justify-end gap-1">
+              <div className="flex items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
+                <CopyButton text={message.content} />
+              </div>
+              <div className={userMessageBubbleClassName}>
+                {message.uploads?.length ? (
+                  <div className="mb-1.5 flex flex-wrap items-start gap-1.5">
+                    {message.uploads.map((upload, index) => (
+                      <UploadChip key={`${upload.name}-${index}`} upload={upload} />
+                    ))}
+                  </div>
+                ) : null}
+                <CollapsibleUserMessage message={message} />
+              </div>
             </div>
-          </div>
+          ) : null}
           {Number.isFinite(message.createdAt) ? (
             <span className="mt-1 text-[11px] leading-4 text-text-000/70 tabular-nums">
               Sent · {formatCompleted(message.createdAt)}
