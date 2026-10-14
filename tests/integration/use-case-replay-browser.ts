@@ -131,8 +131,11 @@ export async function verifyReplayCoverage(page: Page, url: string) {
   await expect(page.getByText('PDF area')).toBeVisible()
   await expect(page.locator('img[src^="data:image/png;base64,"]').first()).toBeVisible()
 
-  // -- @-mentioned files render as previewable upload chips ------------------------
-  await expect(page.locator('button[title="Preview coverage-notes.md"]')).toBeVisible()
+  // -- @-mentioned files: one inline colored link, plain uploads stay chips -------
+  // The mention renders exactly once, inline in the message text.
+  await expect(page.locator('p button[title="Preview coverage-notes.md"]')).toHaveCount(1)
+  await expect(page.locator('button[title="Preview coverage-notes.md"]')).toHaveCount(1)
+  // Plain uploads keep the chip above the message.
   await expect(page.locator('button[title="Preview coverage-paper.pdf"]')).toBeVisible()
 
   // -- expand the activity groups ------------------------------------------------

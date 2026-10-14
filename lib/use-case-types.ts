@@ -70,6 +70,9 @@ export interface MessageUpload {
   /** Raw export fields; extracted mode derives the content URL from them. */
   id?: string
   versionId?: string
+  /** True when the upload came from an @-mention part: it renders inline in
+   * the message text instead of as a chip above it. */
+  mention?: boolean
 }
 
 /** A PDF quote/area card sent with a user message (app: SentAnnotationCards). */

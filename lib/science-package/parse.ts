@@ -567,7 +567,12 @@ function normalizeSession(
         }
         if (knownUploadKeys.has(`${name}${url ?? ''}`)) return []
         return [
-          { name, mimeType: typeof record.mimeType === 'string' ? record.mimeType : undefined, url }
+          {
+            name,
+            mimeType: typeof record.mimeType === 'string' ? record.mimeType : undefined,
+            url,
+            mention: true
+          }
         ]
       }
     )

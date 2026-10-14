@@ -595,12 +595,14 @@ test('@-mentioned upload parts become previewable upload chips', () => {
     {
       name: 'a.md',
       mimeType: 'text/markdown',
-      url: 'https://cdn.example.test/pkg/uploads/proj-1/sess-1/file-a/versions/ver-a/content#a.md'
+      url: 'https://cdn.example.test/pkg/uploads/proj-1/sess-1/file-a/versions/ver-a/content#a.md',
+      mention: true
     },
     {
       name: 'b.md',
       mimeType: undefined,
-      url: 'https://cdn.example.test/pkg/uploads/proj-1/sess-1/file-b/versions/ver-b/content#b.md'
+      url: 'https://cdn.example.test/pkg/uploads/proj-1/sess-1/file-b/versions/ver-b/content#b.md',
+      mention: true
     }
   ])
 })
