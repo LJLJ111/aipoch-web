@@ -98,7 +98,7 @@ describe('sitemap', () => {
         new Date(date)
       )
     }
-    // Replay return links share the same page modification date.
+    // Replay attachments and return links share the same page modification date.
     for (const path of [
       '/open-science/use-cases/nvda-all-at-once-or-four-weeks/replay',
       '/open-science/use-cases/can-a-simple-algorithm-beat-ai-at-wordle/replay'
