@@ -366,6 +366,7 @@ test('text quote, image point, and budget-omitted area cards render', async () =
             number: 2,
             x: 0.42,
             y: 0.18,
+            naturalSize: { width: 800, height: 600 },
             source: 'photo.png',
             note: 'what is here'
           },
@@ -388,7 +389,7 @@ test('text quote, image point, and budget-omitted area cards render', async () =
   expect(html).toContain('quoted conversation text')
   expect(html).toContain('why this?')
   expect(html).toContain('Image point 2')
-  expect(html).toContain('Point 2 at 42%, 18%')
+  expect(html).toContain('Point 2 at 336, 108')
   expect(html).toContain('photo.png')
   expect(html).toContain('Image not retained: session image budget reached.')
   expect(html).toContain('budget area text')

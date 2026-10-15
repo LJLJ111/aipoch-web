@@ -73,6 +73,9 @@ export interface MessageUpload {
   /** True when the upload came from an @-mention part: it renders inline in
    * the message text instead of as a chip above it. */
   mention?: boolean
+  /** The part's own name, when it differs from the display name; used to
+   * match inline mention pills to this upload. */
+  partName?: string
 }
 
 /** A PDF text-quote card sent with a user message (app: SentAnnotationCards). */
@@ -121,12 +124,16 @@ export type MessageAnnotation =
       url?: string
     }>
   | Readonly<{
-      /** A marked point on an image; number is its 1-based order in the message. */
+      /** A marked point on an image; number is its 1-based order among image
+       * points in the message (app: prepareImagePointAnnotations). */
       id: string
       kind: 'image-point'
       number: number
+      /** Normalized 0–1 coordinates. */
       x: number
       y: number
+      /** Natural image size, when the export retained it (pixel display). */
+      naturalSize?: { width: number; height: number }
       source?: string
       note: string
       url?: string

@@ -124,7 +124,7 @@ const decodeBase64 = (value: string) => {
 }
 
 // Encode Markdown destination delimiters as well as URL characters.
-const encodeAssetFilename = (filename: string) =>
+export const encodeAssetFilename = (filename: string) =>
   encodeURIComponent(filename).replace(/\(/g, '%28').replace(/\)/g, '%29')
 
 const validateManifest = (manifest: Manifest) => {
@@ -537,14 +537,17 @@ function normalizeSession(
           name,
           mimeType: typeof record.mimeType === 'string' ? record.mimeType : undefined,
           size: typeof record.size === 'number' ? record.size : undefined,
-          url: versionId ? uploadUrlByVersionId.get(versionId) : undefined
+          url: versionId ? uploadUrlByVersionId.get(versionId) : undefined,
+          versionId
         }
       ]
     })
     // @-mentioned files arrive as artifact parts, not uploads; resolve their
-    // upload-version path to a content URL so the chip previews/downloads.
-    const knownUploadKeys = new Set(
-      messageUploads.map((upload) => `${upload.name}${upload.url ?? ''}`)
+    // upload-version reference to a content URL so the mention previews/downloads.
+    const uploadByVersionId = new Map(
+      messageUploads
+        .filter((upload) => upload.versionId)
+        .map((upload) => [upload.versionId as string, upload])
     )
     const partUploads = (Array.isArray(message.parts) ? message.parts : []).flatMap(
       (part): MessageUpload[] => {
@@ -553,36 +556,55 @@ function normalizeSession(
         if (record.type !== 'artifact' || record.source !== 'upload') return []
         const name = record.originalName ?? record.name
         if (typeof name !== 'string' || !name) return []
-        const path = typeof record.path === 'string' ? record.path : undefined
-        const match = path
-          ? /^upload-version:([^/]+)\/([^/]+)\/([^/]+)\/([^/]+)$/u.exec(path)
-          : null
+        const versionId = typeof record.versionId === 'string' ? record.versionId : undefined
+        // The same file listed in both uploads and parts renders inline once.
+        if (versionId && uploadByVersionId.has(versionId)) {
+          const existing = uploadByVersionId.get(versionId) as MessageUpload
+          existing.mention = true
+          existing.partName = typeof record.name === 'string' ? record.name : undefined
+          return []
+        }
         let url: string | undefined
-        if (match && assetBaseUrl) {
+        // upload-version refs: <versionId> | <project>/<session>/<versionId> |
+        // <project>/<session>/<fileId>/<versionId>, segments URI-encoded.
+        const path = typeof record.path === 'string' ? record.path : undefined
+        const segments = path?.startsWith('upload-version:')
+          ? path.slice('upload-version:'.length).split('/')
+          : undefined
+        if (segments?.length === 4 && assetBaseUrl) {
           try {
-            url = `${new URL(storagePathFor(`uploads/${match[1]}/${match[2]}/${match[3]}/versions/${match[4]}/content`), assetBaseUrl).href}#${encodeAssetFilename(name)}`
+            const [projectId, sessionId, fileId, version] = segments.map((segment) =>
+              decodeURIComponent(segment)
+            )
+            url = `${new URL(storagePathFor(`uploads/${projectId}/${sessionId}/${fileId}/versions/${version}/content`), assetBaseUrl).href}#${encodeAssetFilename(name)}`
           } catch {
             // display-only mention
           }
         }
-        if (knownUploadKeys.has(`${name}${url ?? ''}`)) return []
+        // 1- and 3-segment refs (and every archive-mode case) join by versionId.
+        url ??= versionId ? uploadUrlByVersionId.get(versionId) : undefined
         return [
           {
             name,
             mimeType: typeof record.mimeType === 'string' ? record.mimeType : undefined,
             url,
-            mention: true
+            mention: true,
+            partName: typeof record.name === 'string' ? record.name : undefined
           }
         ]
       }
     )
     const allUploads = [...messageUploads, ...partUploads]
     // Quote/area/point cards sent with the message (app: SentAnnotationCards).
+    // Annotations without an id are dropped, same as the app sanitizer.
+    let imagePointCount = 0
     const messageAnnotations = (
       Array.isArray(message.annotations) ? (message.annotations as unknown[]) : []
-    ).flatMap((annotation, annotationIndex): MessageAnnotation[] => {
+    ).flatMap((annotation): MessageAnnotation[] => {
       if (!annotation || typeof annotation !== 'object') return []
       const record = annotation as JsonObject
+      const id = typeof record.id === 'string' && record.id ? record.id : undefined
+      if (!id) return []
       const note =
         typeof record.note === 'string' && record.note.trim() ? sanitize(record.note) : undefined
       const source = record.source as JsonObject | undefined
@@ -604,7 +626,7 @@ function normalizeSession(
             : undefined
         return [
           {
-            id: String(record.id ?? ''),
+            id,
             kind: 'text',
             content: sanitize(record.quote),
             source: fileName,
@@ -615,16 +637,29 @@ function normalizeSession(
       }
 
       if (record.kind === 'image-point' && source && typeof source === 'object') {
-        // A marked point on an image (coordinates are normalized 0–1).
+        // Marked points on an image; numbered among image points only (app:
+        // prepareImagePointAnnotations), shown in natural pixels like the app.
         const point = record.point as JsonObject | undefined
         if (!point || typeof point !== 'object') return []
+        imagePointCount += 1
+        const naturalSize = record.naturalSize as JsonObject | undefined
+        const x = typeof point.x === 'number' ? point.x : 0
+        const y = typeof point.y === 'number' ? point.y : 0
+        const natural =
+          naturalSize &&
+          typeof naturalSize === 'object' &&
+          typeof naturalSize.width === 'number' &&
+          typeof naturalSize.height === 'number'
+            ? { width: naturalSize.width, height: naturalSize.height }
+            : undefined
         return [
           {
-            id: String(record.id ?? ''),
+            id,
             kind: 'image-point',
-            number: annotationIndex + 1,
-            x: typeof point.x === 'number' ? point.x : 0,
-            y: typeof point.y === 'number' ? point.y : 0,
+            number: imagePointCount,
+            x,
+            y,
+            naturalSize: natural,
             source: typeof source.name === 'string' ? source.name : undefined,
             note: note ?? '',
             url: sourceUrl
@@ -643,7 +678,7 @@ function normalizeSession(
       if (selector.kind === 'text' && typeof selector.exact === 'string' && selector.exact.trim()) {
         return [
           {
-            id: String(record.id ?? ''),
+            id,
             kind: 'quote',
             source: sourceLabel,
             content: sanitize(selector.exact),
@@ -663,10 +698,13 @@ function normalizeSession(
             : undefined
         return [
           {
-            id: String(record.id ?? ''),
+            id,
             kind: 'area',
             source: sourceLabel,
-            content: typeof selector.text === 'string' ? sanitize(selector.text) : '',
+            content:
+              typeof selector.text === 'string' && selector.text.trim()
+                ? sanitize(selector.text)
+                : 'Selected area',
             image,
             ...(!image && selector.imageOmissionReason === 'session-budget'
               ? { imageOmitted: true as const }

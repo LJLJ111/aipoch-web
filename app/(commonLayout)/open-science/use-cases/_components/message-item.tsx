@@ -54,7 +54,14 @@ const MessagePartsContent = ({
   ref?: React.Ref<HTMLParagraphElement>
 }) => {
   const openPreview = useFilePreview()
-  const mentionByName = new Map((mentions ?? []).map((upload) => [upload.name, upload]))
+  const mentionByName = new Map(
+    (mentions ?? []).flatMap((upload): [string, MessageUpload][] => {
+      const entries: [string, MessageUpload][] = [[upload.name, upload]]
+      if (upload.partName && upload.partName !== upload.name)
+        entries.push([upload.partName, upload])
+      return entries
+    })
+  )
   return (
     <p
       ref={ref}
