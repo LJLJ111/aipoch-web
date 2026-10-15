@@ -336,3 +336,60 @@ test('@-mentioned files render inline once with the link color, never as chips',
   // And it is the only preview trigger — no duplicate chip above the bubble.
   expect(html.match(/title="Preview coverage-notes\.md"/g)?.length).toBe(1)
 })
+
+test('text quote, image point, and budget-omitted area cards render', async () => {
+  const session = {
+    schemaVersion: 1,
+    slug: 'more-annotations',
+    title: 'More annotations',
+    projectName: 'More annotations',
+    exportedAt: 1,
+    sessionCreatedAt: 1,
+    items: [
+      {
+        type: 'message',
+        id: 'u1',
+        role: 'user',
+        content: '',
+        status: 'complete',
+        createdAt: 1,
+        annotations: [
+          {
+            id: 'an1',
+            kind: 'text',
+            content: 'quoted conversation text',
+            note: 'why this?'
+          },
+          {
+            id: 'an2',
+            kind: 'image-point',
+            number: 2,
+            x: 0.42,
+            y: 0.18,
+            source: 'photo.png',
+            note: 'what is here'
+          },
+          {
+            id: 'an3',
+            kind: 'area',
+            source: 'paper.pdf · Page 4',
+            content: 'budget area text',
+            imageOmitted: true
+          }
+        ]
+      }
+    ],
+    assets: {},
+    omissions: [],
+    excludedFiles: []
+  } satisfies UseCaseSession
+  const html = await render(<SessionTranscript session={session} />)
+  expect(html).toContain('Text quote')
+  expect(html).toContain('quoted conversation text')
+  expect(html).toContain('why this?')
+  expect(html).toContain('Image point 2')
+  expect(html).toContain('Point 2 at 42%, 18%')
+  expect(html).toContain('photo.png')
+  expect(html).toContain('Image not retained: session image budget reached.')
+  expect(html).toContain('budget area text')
+})

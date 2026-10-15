@@ -1,18 +1,18 @@
 'use client'
 
-// Static port of the app's SentAnnotationCards (pdf-text / pdf-region) for the
-// replay: quote cards clamp to three lines with an expand toggle, area cards
-// show the cropped region image, and an activatable card opens the source PDF
-// in the preview dialog.
+// Static port of the app's SentAnnotationCards for the replay: pdf quote/area,
+// text quotes, and image points ride inside the user's bubble; quote cards
+// clamp to three lines with an expand toggle, and an activatable card opens
+// the source file in the preview dialog.
 
-import { FileText, ScanLine } from 'lucide-react'
+import { FileText, MapPin, Quote, ScanLine } from 'lucide-react'
 import { useLayoutEffect, useRef, useState } from 'react'
-import type { MessagePdfAnnotation } from '@/lib/use-case-types'
+import type { MessageAnnotation } from '@/lib/use-case-types'
 import { useFilePreview } from './file-preview'
 
 const QUOTE_PREVIEW_LINES = 3
 
-const QuoteCard = ({ annotation }: { annotation: MessagePdfAnnotation }) => {
+const ClampedQuote = ({ content }: { content: string }) => {
   const quoteRef = useRef<HTMLQuoteElement>(null)
   const [expanded, setExpanded] = useState(false)
   const [canExpand, setCanExpand] = useState(false)
@@ -37,7 +37,7 @@ const QuoteCard = ({ annotation }: { annotation: MessagePdfAnnotation }) => {
           expanded ? '' : 'line-clamp-3'
         }`}
       >
-        {annotation.content}
+        {content}
       </blockquote>
       {canExpand ? (
         <button
@@ -56,7 +56,7 @@ const QuoteCard = ({ annotation }: { annotation: MessagePdfAnnotation }) => {
   )
 }
 
-const AreaCard = ({ annotation }: { annotation: MessagePdfAnnotation }) => (
+const AreaBody = ({ annotation }: { annotation: Extract<MessageAnnotation, { kind: 'area' }> }) => (
   <div
     className={`mt-2 ${annotation.image ? 'grid grid-cols-[5rem_minmax(0,1fr)] gap-2' : 'block'}`}
   >
@@ -67,6 +67,10 @@ const AreaCard = ({ annotation }: { annotation: MessagePdfAnnotation }) => (
         alt=""
         className="h-14 w-20 rounded-md border border-border-200 bg-bg-100 object-cover"
       />
+    ) : annotation.imageOmitted ? (
+      <span className="block text-[11px] text-text-300">
+        Image not retained: session image budget reached.
+      </span>
     ) : null}
     <span className="line-clamp-3 self-center whitespace-pre-wrap break-words text-[12px] leading-5 text-text-000/90">
       {annotation.content}
@@ -74,63 +78,66 @@ const AreaCard = ({ annotation }: { annotation: MessagePdfAnnotation }) => (
   </div>
 )
 
-export const MessageAnnotationCards = ({
-  annotations
-}: {
-  annotations: MessagePdfAnnotation[]
-}) => {
+const headerFor = (annotation: MessageAnnotation) => {
+  if (annotation.kind === 'area') return { icon: ScanLine, title: 'PDF area' }
+  if (annotation.kind === 'quote') return { icon: FileText, title: 'PDF quote' }
+  if (annotation.kind === 'text') return { icon: Quote, title: 'Text quote' }
+  return { icon: MapPin, title: `Image point ${annotation.number}` }
+}
+
+const AnnotationCard = ({ annotation }: { annotation: MessageAnnotation }) => {
   const openPreview = useFilePreview()
+  const { icon: Icon, title } = headerFor(annotation)
   return (
-    <div className="mb-2 space-y-2">
-      {annotations.map((annotation) => (
-        <article
-          key={annotation.id}
-          className="overflow-hidden rounded-lg border border-border-200 bg-bg-000/80"
-        >
-          <button
-            type="button"
-            disabled={!annotation.url || !openPreview}
-            aria-label="Show annotation source"
-            onClick={() =>
-              annotation.url &&
-              openPreview?.({
-                name: annotation.source,
-                url: annotation.url,
-                mimeType: 'application/pdf'
-              })
-            }
-            className="group w-full p-2 text-left transition-colors hover:bg-bg-100 disabled:cursor-default"
-          >
-            <div className="flex min-w-0 items-start gap-2">
-              <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md bg-bg-200 text-text-100">
-                {annotation.kind === 'area' ? (
-                  <ScanLine className="size-3.5" aria-hidden="true" />
-                ) : (
-                  <FileText className="size-3.5" aria-hidden="true" />
-                )}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[12px] font-semibold text-text-000">
-                  {annotation.kind === 'area' ? 'PDF area' : 'PDF quote'}
-                </span>
-                <span className="block truncate text-[11px] text-text-200">
-                  {annotation.source}
-                </span>
-              </span>
-            </div>
-            {annotation.kind === 'area' ? (
-              <AreaCard annotation={annotation} />
-            ) : (
-              <QuoteCard annotation={annotation} />
-            )}
-            {annotation.note ? (
-              <span className="mt-2 block border-t border-border-200 pt-2 text-[12px] text-text-000">
-                {annotation.note}
-              </span>
+    <article className="overflow-hidden rounded-lg border border-border-200 bg-bg-000/80">
+      <button
+        type="button"
+        disabled={!annotation.url || !openPreview}
+        aria-label="Show annotation source"
+        onClick={() =>
+          annotation.url &&
+          openPreview?.({
+            name: annotation.source ?? title,
+            url: annotation.url,
+            mimeType: annotation.kind === 'image-point' ? undefined : 'application/pdf'
+          })
+        }
+        className="group w-full p-2 text-left transition-colors hover:bg-bg-100 disabled:cursor-default"
+      >
+        <div className="flex min-w-0 items-start gap-2">
+          <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md bg-bg-200 text-text-100">
+            <Icon className="size-3.5" aria-hidden="true" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[12px] font-semibold text-text-000">{title}</span>
+            {annotation.source ? (
+              <span className="block truncate text-[11px] text-text-200">{annotation.source}</span>
             ) : null}
-          </button>
-        </article>
-      ))}
-    </div>
+          </span>
+        </div>
+        {annotation.kind === 'area' ? (
+          <AreaBody annotation={annotation} />
+        ) : annotation.kind === 'image-point' ? (
+          <blockquote className="mt-2 whitespace-pre-wrap break-words border-l-2 border-border-300 pl-2 text-[12px] leading-5 text-text-000/90">
+            {`Point ${annotation.number} at ${Math.round(annotation.x * 100)}%, ${Math.round(annotation.y * 100)}%`}
+          </blockquote>
+        ) : (
+          <ClampedQuote content={annotation.content} />
+        )}
+        {annotation.note ? (
+          <span className="mt-2 block border-t border-border-200 pt-2 text-[12px] text-text-000">
+            {annotation.note}
+          </span>
+        ) : null}
+      </button>
+    </article>
   )
 }
+
+export const MessageAnnotationCards = ({ annotations }: { annotations: MessageAnnotation[] }) => (
+  <div className="mb-2 space-y-2">
+    {annotations.map((annotation) => (
+      <AnnotationCard key={annotation.id} annotation={annotation} />
+    ))}
+  </div>
+)

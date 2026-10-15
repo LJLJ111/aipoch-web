@@ -606,3 +606,100 @@ test('@-mentioned upload parts become previewable upload chips', () => {
     }
   ])
 })
+
+test('text quotes, image points, and budget-dropped area images survive parsing', () => {
+  const session = {
+    title: 'More annotations',
+    createdAt: 1,
+    projectId: 'proj-1',
+    id: 'sess-1',
+    messages: [
+      {
+        id: 'u1',
+        role: 'user',
+        content: '',
+        createdAt: 1,
+        uploads: [{ id: 'file-1', name: 'photo.png', mimeType: 'image/png', versionId: 'ver-1' }],
+        annotations: [
+          {
+            id: 'an1',
+            kind: 'text',
+            quote: 'quoted conversation text',
+            note: 'why this?',
+            source: { kind: 'agent-message', sessionId: 'sess-1', messageId: 'm0' }
+          },
+          {
+            id: 'an2',
+            kind: 'text',
+            quote: 'quoted file text',
+            source: {
+              kind: 'project-file',
+              projectId: 'proj-1',
+              path: 'src/main.ts',
+              name: 'main.ts'
+            }
+          },
+          {
+            id: 'an3',
+            kind: 'image-point',
+            note: 'what is here',
+            source: { kind: 'upload-version', versionId: 'ver-1', name: 'photo.png' },
+            point: { x: 0.42, y: 0.18 },
+            naturalSize: { width: 800, height: 600 }
+          },
+          {
+            id: 'an4',
+            kind: 'pdf',
+            source: { versionId: 'ver-1', name: 'paper.pdf' },
+            selector: {
+              kind: 'region',
+              pageNumber: 4,
+              text: 'budget area text',
+              imageOmissionReason: 'session-budget'
+            }
+          }
+        ]
+      }
+    ]
+  }
+  const result = parseExtractedSession(session as never, 'ann2', 'https://cdn.example.test/pkg/')
+  const message = result.session.items[0]
+  expect(message.type === 'message' && message.annotations).toEqual([
+    {
+      id: 'an1',
+      kind: 'text',
+      content: 'quoted conversation text',
+      source: undefined,
+      note: 'why this?',
+      url: undefined
+    },
+    {
+      id: 'an2',
+      kind: 'text',
+      content: 'quoted file text',
+      source: 'main.ts',
+      note: undefined,
+      url: undefined
+    },
+    {
+      id: 'an3',
+      kind: 'image-point',
+      number: 3,
+      x: 0.42,
+      y: 0.18,
+      source: 'photo.png',
+      note: 'what is here',
+      url: 'https://cdn.example.test/pkg/uploads/proj-1/sess-1/file-1/versions/ver-1/content#photo.png'
+    },
+    {
+      id: 'an4',
+      kind: 'area',
+      source: 'paper.pdf · Page 4',
+      content: 'budget area text',
+      image: undefined,
+      imageOmitted: true,
+      note: undefined,
+      url: 'https://cdn.example.test/pkg/uploads/proj-1/sess-1/file-1/versions/ver-1/content#photo.png'
+    }
+  ])
+})

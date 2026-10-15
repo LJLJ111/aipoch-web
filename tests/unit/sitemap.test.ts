@@ -98,13 +98,13 @@ describe('sitemap', () => {
         new Date(date)
       )
     }
-    // Replay text preview truncation fixes and message attachments landed October 14.
+    // Replay message attachment kinds widened on October 15.
     for (const path of [
       '/open-science/use-cases/nvda-all-at-once-or-four-weeks/replay',
       '/open-science/use-cases/can-a-simple-algorithm-beat-ai-at-wordle/replay'
     ]) {
       expect(routes.find((route) => route.url === `${siteDomain}${path}`)?.lastModified).toEqual(
-        new Date('2026-10-14')
+        new Date('2026-10-15')
       )
     }
   })

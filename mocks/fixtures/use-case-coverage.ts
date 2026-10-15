@@ -1,4 +1,4 @@
-import type { MessagePdfAnnotation, UseCaseSession } from '@/lib/use-case-types'
+import type { MessageAnnotation, UseCaseSession } from '@/lib/use-case-types'
 import type { ActivityRenderer } from '../../app/(commonLayout)/open-science/use-cases/_components/activity-classify'
 
 /**
@@ -117,7 +117,7 @@ export const coverageFixtureSession: UseCaseSession = {
             }
           }
         }
-      ] as unknown as MessagePdfAnnotation[]
+      ] as unknown as MessageAnnotation[]
     },
 
     // -- user message: @-mentioned files as upload parts ---------------------------

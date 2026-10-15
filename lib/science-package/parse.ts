@@ -1,7 +1,7 @@
 import { matchToolName } from '@/app/(commonLayout)/open-science/use-cases/_components/notebook-tool-names'
 import type {
+  MessageAnnotation,
   MessageArtifact,
-  MessagePdfAnnotation,
   MessageUpload,
   NormalizedActivity,
   NormalizedOutput,
@@ -577,25 +577,69 @@ function normalizeSession(
       }
     )
     const allUploads = [...messageUploads, ...partUploads]
-    // PDF quote/area cards sent with the message (app: SentAnnotationCards).
+    // Quote/area/point cards sent with the message (app: SentAnnotationCards).
     const messageAnnotations = (
       Array.isArray(message.annotations) ? (message.annotations as unknown[]) : []
-    ).flatMap((annotation): MessagePdfAnnotation[] => {
+    ).flatMap((annotation, annotationIndex): MessageAnnotation[] => {
       if (!annotation || typeof annotation !== 'object') return []
       const record = annotation as JsonObject
+      const note =
+        typeof record.note === 'string' && record.note.trim() ? sanitize(record.note) : undefined
+      const source = record.source as JsonObject | undefined
+      const sourceVersionId =
+        source && typeof source === 'object' && typeof source.versionId === 'string'
+          ? source.versionId
+          : undefined
+      const sourceUrl = sourceVersionId ? uploadUrlByVersionId.get(sourceVersionId) : undefined
+
+      if (record.kind === 'text' && typeof record.quote === 'string' && record.quote.trim()) {
+        // Quote from conversation text or a project file.
+        const fileName =
+          source && typeof source === 'object' && source.kind === 'project-file'
+            ? typeof source.name === 'string'
+              ? source.name
+              : typeof source.path === 'string'
+                ? source.path
+                : undefined
+            : undefined
+        return [
+          {
+            id: String(record.id ?? ''),
+            kind: 'text',
+            content: sanitize(record.quote),
+            source: fileName,
+            note,
+            url: sourceUrl
+          }
+        ]
+      }
+
+      if (record.kind === 'image-point' && source && typeof source === 'object') {
+        // A marked point on an image (coordinates are normalized 0–1).
+        const point = record.point as JsonObject | undefined
+        if (!point || typeof point !== 'object') return []
+        return [
+          {
+            id: String(record.id ?? ''),
+            kind: 'image-point',
+            number: annotationIndex + 1,
+            x: typeof point.x === 'number' ? point.x : 0,
+            y: typeof point.y === 'number' ? point.y : 0,
+            source: typeof source.name === 'string' ? source.name : undefined,
+            note: note ?? '',
+            url: sourceUrl
+          }
+        ]
+      }
+
       if (record.kind !== 'pdf') return []
       const selector = record.selector as JsonObject | undefined
-      const source = record.source as JsonObject | undefined
       if (!selector || typeof selector !== 'object' || !source || typeof source !== 'object') {
         return []
       }
       const name = typeof source.name === 'string' ? source.name : 'PDF'
       const page = typeof selector.pageNumber === 'number' ? selector.pageNumber : undefined
       const sourceLabel = `${name}${page ? ` · Page ${page}` : ''}`
-      const note =
-        typeof record.note === 'string' && record.note.trim() ? sanitize(record.note) : undefined
-      const versionId = typeof source.versionId === 'string' ? source.versionId : undefined
-      const url = versionId ? uploadUrlByVersionId.get(versionId) : undefined
       if (selector.kind === 'text' && typeof selector.exact === 'string' && selector.exact.trim()) {
         return [
           {
@@ -604,7 +648,7 @@ function normalizeSession(
             source: sourceLabel,
             content: sanitize(selector.exact),
             note,
-            url
+            url: sourceUrl
           }
         ]
       }
@@ -624,8 +668,11 @@ function normalizeSession(
             source: sourceLabel,
             content: typeof selector.text === 'string' ? sanitize(selector.text) : '',
             image,
+            ...(!image && selector.imageOmissionReason === 'session-budget'
+              ? { imageOmitted: true as const }
+              : {}),
             note,
-            url
+            url: sourceUrl
           }
         ]
       }

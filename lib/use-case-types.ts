@@ -75,21 +75,62 @@ export interface MessageUpload {
   mention?: boolean
 }
 
-/** A PDF quote/area card sent with a user message (app: SentAnnotationCards). */
-export interface MessagePdfAnnotation {
+/** A PDF text-quote card sent with a user message (app: SentAnnotationCards). */
+export interface MessagePdfQuoteAnnotation {
   id: string
-  kind: 'quote' | 'area'
+  kind: 'quote'
   /** e.g. "StoryScope.pdf · Page 6". */
   source: string
-  /** Quoted text for quotes, the region's extracted text for areas. */
+  /** The quoted text. */
   content: string
-  /** Cropped region image for area annotations. */
-  image?: { mimeType: string; data: string }
   /** The user's note attached to the annotation. */
   note?: string
   /** Preview URL of the source PDF, when resolvable from the package. */
   url?: string
 }
+
+/** A PDF region card sent with a user message (app: SentAnnotationCards). */
+export interface MessagePdfAreaAnnotation {
+  id: string
+  kind: 'area'
+  /** e.g. "StoryScope.pdf · Page 23". */
+  source: string
+  /** The region's extracted text. */
+  content: string
+  /** Cropped region image. */
+  image?: { mimeType: string; data: string }
+  /** The region image was dropped to the session image budget (app notice). */
+  imageOmitted?: boolean
+  /** The user's note attached to the annotation. */
+  note?: string
+  /** Preview URL of the source PDF, when resolvable from the package. */
+  url?: string
+}
+
+/** Any annotation card sent with a user message (app: SentAnnotationCards). */
+export type MessageAnnotation =
+  | MessagePdfQuoteAnnotation
+  | MessagePdfAreaAnnotation
+  | Readonly<{
+      /** Quote from conversation text or a project file. */
+      id: string
+      kind: 'text'
+      content: string
+      source?: string
+      note?: string
+      url?: string
+    }>
+  | Readonly<{
+      /** A marked point on an image; number is its 1-based order in the message. */
+      id: string
+      kind: 'image-point'
+      number: number
+      x: number
+      y: number
+      source?: string
+      note: string
+      url?: string
+    }>
 
 export type TranscriptItem =
   | {
@@ -103,7 +144,7 @@ export type TranscriptItem =
       parts?: unknown[]
       artifacts?: MessageArtifact[]
       uploads?: MessageUpload[]
-      annotations?: MessagePdfAnnotation[]
+      annotations?: MessageAnnotation[]
     }
   | {
       type: 'elicitation'
