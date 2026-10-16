@@ -18,13 +18,10 @@ export const UseCaseNavigation = ({ children }: { children: ReactNode }) => {
     const entry = navigationEntry()
     const parent = pathname.slice(0, pathname.lastIndexOf('/'))
     let saved = entry.views[BACK_VIEW]
-    // Only a real transition from the parent enables Back. Direct links retain their fallback.
-    if (
-      saved === undefined &&
-      previous.current?.id !== entry.id &&
-      previous.current?.pathname === parent
-    ) {
-      saved = parent
+    // Record direct visits too, so Back/Forward cannot later invent a different origin.
+    if (saved === undefined) {
+      saved =
+        previous.current?.id !== entry.id && previous.current?.pathname === parent ? parent : ''
       saveNavigationView(BACK_VIEW, saved, entry.id)
     }
     setBackPath(typeof saved === 'string' && saved === parent ? saved : '')

@@ -262,10 +262,10 @@ describe('mock development end to end', () => {
       const sitemap = (await (await fetch(`${web}/sitemap.xml`)).text()).replace(/>\s+</g, '><')
       for (const item of manifestSample) {
         expect(sitemap).toContain(
-          `/open-science/use-cases/${item.name}</loc><lastmod>2026-10-15T00:00:00.000Z</lastmod>`
+          `/open-science/use-cases/${item.name}</loc><lastmod>2026-10-16T00:00:00.000Z</lastmod>`
         )
         expect(sitemap).toContain(
-          `/open-science/use-cases/${item.name}/replay</loc><lastmod>2026-10-15T00:00:00.000Z</lastmod>`
+          `/open-science/use-cases/${item.name}/replay</loc><lastmod>2026-10-16T00:00:00.000Z</lastmod>`
         )
         const detailHtml = await (await fetch(`${web}/open-science/use-cases/${item.name}`)).text()
         expect(detailHtml).toContain(`href="/open-science/use-cases/${item.name}/replay"`)
@@ -481,6 +481,42 @@ describe('mock development end to end', () => {
   }, 120000)
 
   for (const mobile of [false, true]) {
+    test(`direct case return links keep their fallback after browser Back on ${mobile ? 'mobile' : 'desktop'}`, async () => {
+      const browser = await chromium.launch()
+      try {
+        const context = await browser.newContext(
+          mobile ? devices['Pixel 5'] : { viewport: { width: 1440, height: 700 } }
+        )
+        const page = await context.newPage()
+        page.setDefaultTimeout(15000)
+        const galleryUrl = `${web}/open-science/use-cases`
+        const detailUrl = `${galleryUrl}/${manifestSample[0].name}`
+        for (const [directUrl, parentUrl, label] of [
+          [detailUrl, galleryUrl, '← Use Cases'],
+          [`${detailUrl}/replay`, detailUrl, '← Back to overview']
+        ]) {
+          // The entry before this direct visit is deliberately outside the case routes.
+          await page.goto(`${web}/agent-skills/list`)
+          await page.goto(directUrl)
+          await page.waitForFunction(() => Boolean(window.history.state?.__aipochNavigation))
+          const backLink = page.getByRole('link', { name: label, exact: true })
+          await backLink.click()
+          await browserExpect(page).toHaveURL(parentUrl)
+          await page.goBack()
+          await browserExpect(page).toHaveURL(directUrl)
+          await backLink.click()
+          // Visiting the parent and then going Back must not invent a parent behind this entry.
+          await browserExpect(page).toHaveURL(parentUrl)
+          await page.goBack()
+          await page.reload()
+          await backLink.click()
+          await browserExpect(page).toHaveURL(parentUrl)
+        }
+      } finally {
+        await browser.close()
+      }
+    }, 90000)
+
     test(`gallery navbar starts a fresh list visit on ${mobile ? 'mobile' : 'desktop'}`, async () => {
       const browser = await chromium.launch()
       try {
