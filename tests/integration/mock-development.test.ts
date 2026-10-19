@@ -334,7 +334,8 @@ describe('mock development end to end', () => {
         () => (window as typeof window & { replayStates: string[] }).replayStates
       )
       expect(states).toContain('Parsing research session…')
-      expect(requests.some((url) => /\/extracted\/(manifest|records)\.json$/.test(url))).toBe(false)
+      expect(requests.some((url) => /\/extracted\/manifest\.json$/.test(url))).toBe(false)
+      expect(requests).toContain(`${api}/use-case-manifest/${item.name}/extracted/records.json`)
       // Retry after the extracted session fails schema validation.
       const sessionUrl = `${api}/use-case-manifest/${item.name}/extracted/session.json`
       await context.route(sessionUrl, (route) =>
@@ -366,6 +367,50 @@ describe('mock development end to end', () => {
       await page.getByRole('alert').filter({ hasText: 'Research package not found.' }).waitFor()
       expect(await page.getByRole('link', { name: 'Download research package' }).count()).toBe(0)
       expect(await page.getByRole('button', { name: 'Retry', exact: true }).count()).toBe(1)
+    } finally {
+      await browser.close()
+    }
+  }, 120000)
+
+  test('replay review records use verified archive fallback and retry metadata failures', async () => {
+    const browser = await chromium.launch()
+    try {
+      const context = await browser.newContext()
+      const page = await context.newPage()
+      const item = manifestSample[0]
+      const base = `${api}/use-case-manifest/${item.name}/`
+      const recordsUrl = `${base}extracted/records.json`
+      const requests: string[] = []
+      context.on('request', (request) => {
+        if (!request.serviceWorker()) requests.push(request.url())
+      })
+      const archiveRequests = () =>
+        requests.filter((url) => url.startsWith(base) && url.endsWith('.science')).length
+      const cards = page.getByTestId('reviewer-card')
+      await page.goto(`${web}/open-science/use-cases/${item.name}/replay`)
+      await browserExpect(cards).toHaveCount(2)
+      expect(requests).toContain(recordsUrl)
+      expect(archiveRequests()).toBe(0)
+      // Missing optional records fall back to the checksum-verified archive.
+      await context.route(recordsUrl, (route) => route.fulfill({ status: 404, body: '' }))
+      await page.reload()
+      await browserExpect(cards).toHaveCount(2)
+      expect(archiveRequests()).toBe(1)
+      await cards.last().getByRole('button').click()
+      await browserExpect(cards.last().getByTestId('reviewer-check')).toHaveCount(2)
+      await browserExpect(cards.last()).toContainText(
+        'Coverage missing calculations have been provided.'
+      )
+      await context.unroute(recordsUrl)
+      // A transient service failure must remain visible and retryable.
+      await context.route(recordsUrl, (route) => route.fulfill({ status: 503, body: '' }))
+      await page.reload()
+      await page.getByRole('alert').filter({ hasText: 'HTTP 503' }).waitFor()
+      expect(archiveRequests()).toBe(1)
+      await context.unroute(recordsUrl)
+      await page.getByRole('button', { name: 'Retry', exact: true }).click()
+      await browserExpect(cards).toHaveCount(2)
+      expect(archiveRequests()).toBe(1)
     } finally {
       await browser.close()
     }
@@ -420,7 +465,14 @@ describe('mock development end to end', () => {
         try {
           const context = await browser.newContext(mobile ? devices['Pixel 5'] : {})
           const page = await context.newPage()
+          page.setDefaultTimeout(15000)
           await verify(page, `${web}/open-science/use-cases/${manifestSample[0].name}/replay`)
+          if (name === 'renderer coverage') {
+            await page.getByTestId('reviewer-correction-message').first().scrollIntoViewIfNeeded()
+            await page.screenshot({
+              path: join(reviewArtifacts, `replay-reviewer-${mobile ? 'mobile' : 'desktop'}.png`)
+            })
+          }
         } finally {
           await browser.close()
         }

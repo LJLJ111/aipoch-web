@@ -9,6 +9,7 @@ const wikiSitemapUrl = 'http://openscience-wiki/sitemap'
 
 mock.module('@/service/open-science-use-cases.server', () => ({
   fetchUseCaseSitemapEntries: async () => [
+    { slug: 'diet-diversity-does-the-gut-microbiome-differ', title: 'Diet Diversity' },
     { slug: 'nvda-all-at-once-or-four-weeks', title: 'NVDA: ALL AT ONCE OR FOUR WEEKS?' },
     {
       slug: 'can-a-simple-algorithm-beat-ai-at-wordle',
@@ -88,9 +89,10 @@ describe('sitemap', () => {
     const { default: sitemap } = await import('../../app/sitemap')
     const routes = await sitemap()
     expect(routes.some((route) => route.url.includes('/replay/dot-science'))).toBe(false)
-    // Only overview/replay return navigation changed on October 16; keep the gallery date.
+    // Reviewer presentation changes only replay pages; gallery and overview dates stay fixed.
     for (const [path, date] of [
       ['/open-science/use-cases', '2026-10-15'],
+      ['/open-science/use-cases/diet-diversity-does-the-gut-microbiome-differ', '2026-10-16'],
       ['/open-science/use-cases/nvda-all-at-once-or-four-weeks', '2026-10-16'],
       ['/open-science/use-cases/can-a-simple-algorithm-beat-ai-at-wordle', '2026-10-16']
     ]) {
@@ -98,13 +100,14 @@ describe('sitemap', () => {
         new Date(date)
       )
     }
-    // Replay return links share the overview's page modification date.
+    // Every replay uses the updated shared reviewer presentation.
     for (const path of [
+      '/open-science/use-cases/diet-diversity-does-the-gut-microbiome-differ/replay',
       '/open-science/use-cases/nvda-all-at-once-or-four-weeks/replay',
       '/open-science/use-cases/can-a-simple-algorithm-beat-ai-at-wordle/replay'
     ]) {
       expect(routes.find((route) => route.url === `${siteDomain}${path}`)?.lastModified).toEqual(
-        new Date('2026-10-16')
+        new Date('2026-10-19')
       )
     }
   })
