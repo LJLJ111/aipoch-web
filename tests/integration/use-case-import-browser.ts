@@ -106,18 +106,21 @@ export async function verifyImportPreparation(
       }
       if (detail) {
         for (const region of [composer, opposite]) {
-          const buttonBox = await region
-            .getByRole('button', { name: idleLabel, exact: true })
-            .boundingBox()
-          const warningBox = await region.getByRole('alert').boundingBox()
-          const downloadBox = await region
-            .getByRole('link', { name: 'Download research package', exact: true })
-            .boundingBox()
-          expect(buttonBox && warningBox && downloadBox).toBeTruthy()
-          if (buttonBox && warningBox && downloadBox) {
-            expect(warningBox.y).toBeGreaterThanOrEqual(buttonBox.y + buttonBox.height)
-            expect(warningBox.y + warningBox.height).toBeLessThanOrEqual(downloadBox.y)
-          }
+          // Measure the settled layout after the first-interaction reveal finishes.
+          await expect(async () => {
+            const buttonBox = await region
+              .getByRole('button', { name: idleLabel, exact: true })
+              .boundingBox()
+            const warningBox = await region.getByRole('alert').boundingBox()
+            const downloadBox = await region
+              .getByRole('link', { name: 'Download research package', exact: true })
+              .boundingBox()
+            expect(buttonBox && warningBox && downloadBox).toBeTruthy()
+            if (buttonBox && warningBox && downloadBox) {
+              expect(warningBox.y).toBeGreaterThanOrEqual(buttonBox.y + buttonBox.height)
+              expect(warningBox.y + warningBox.height).toBeLessThanOrEqual(downloadBox.y)
+            }
+          }).toPass({ timeout: 2000 })
         }
       } else {
         await expect

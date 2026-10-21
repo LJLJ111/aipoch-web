@@ -1,6 +1,7 @@
 'use client'
 
 import { ArrowUpRight } from 'lucide-react'
+import { motion, useReducedMotion } from 'motion/react'
 import {
   createContext,
   type ReactNode,
@@ -198,6 +199,23 @@ export const ScienceImportToolbarFeedback = () => {
         </div>
       </div>
     </section>
+  )
+}
+
+/** Reveal detail guidance on first interaction while keeping the initial action layout unchanged. */
+export const ScienceImportDetailFeedback = () => {
+  const { hasInteracted } = useScienceImport()
+  const reduceMotion = useReducedMotion()
+  if (!hasInteracted) return null
+  return (
+    <motion.div
+      className="order-1 -mt-3 w-full overflow-hidden sm:order-last"
+      initial={reduceMotion ? false : { height: 0, opacity: 0 }}
+      animate={{ height: 'auto', opacity: 1 }}
+      transition={{ duration: reduceMotion ? 0 : 0.3, ease: 'easeOut' }}
+    >
+      <ScienceImportFeedback />
+    </motion.div>
   )
 }
 

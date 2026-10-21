@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import type { ReactNode } from 'react'
-import { ScienceImportButton, ScienceImportFeedback } from './science-import-controls'
+import { ScienceImportButton, ScienceImportDetailFeedback } from './science-import-controls'
 
 export const UseCaseActions = ({
   slug,
@@ -33,10 +33,6 @@ export const UseCaseActions = ({
         View the research session
       </Link>
     </div>
-    {packageUrl ? (
-      <div className="order-1 -mt-3 w-full empty:hidden sm:order-last">
-        <ScienceImportFeedback />
-      </div>
-    ) : null}
+    {packageUrl ? <ScienceImportDetailFeedback /> : null}
   </section>
 )
