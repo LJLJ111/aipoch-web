@@ -88,14 +88,18 @@ describe('mock development end to end', () => {
       mkdirSync(importArtifacts, { recursive: true })
       const browser = await chromium.launch()
       try {
-        for (const device of ['desktop', 'mobile']) {
+        for (const device of surface === 'replay'
+          ? ['desktop', 'narrow-desktop', 'mobile']
+          : ['desktop', 'mobile']) {
           const page = await browser.newPage(
-            device === 'mobile' ? devices['Pixel 5'] : { viewport: { width: 1440, height: 1000 } }
+            device === 'mobile'
+              ? devices['Pixel 5']
+              : { viewport: { width: device === 'narrow-desktop' ? 393 : 1440, height: 1000 } }
           )
           try {
             await verifyImportPreparation(
               page,
-              `${web}/open-science/use-cases/${device === 'desktop' ? 'first-flight-vs-evening-flight-which-is-more-reliable' : manifestSample[0].name}${surface === 'replay' ? '/replay' : ''}`,
+              `${web}/open-science/use-cases/${device !== 'mobile' ? 'first-flight-vs-evening-flight-which-is-more-reliable' : manifestSample[0].name}${surface === 'replay' ? '/replay' : ''}`,
               api,
               join(importArtifacts, `science-import-${surface}-${device}.png`),
               device === 'mobile',

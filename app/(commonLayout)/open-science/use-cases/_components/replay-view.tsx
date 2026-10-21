@@ -9,8 +9,8 @@ import type { UseCasePackage } from '@/lib/use-case-types'
 import { ImportComposer } from './import-composer'
 import {
   ScienceImportButton,
-  ScienceImportFeedback,
-  ScienceImportProvider
+  ScienceImportProvider,
+  ScienceImportToolbarFeedback
 } from './science-import-controls'
 import { SessionTranscript } from './session-transcript'
 import { UseCaseBackLink } from './use-case-navigation'
@@ -23,7 +23,7 @@ const TopBar = ({ slug, packageUrl }: { slug: string; packageUrl?: string }) => 
     <div className="mx-auto flex min-h-[47px] w-full max-w-4xl flex-wrap items-center gap-3 px-4 py-2.5 md:px-6">
       <UseCaseBackLink
         href={`/open-science/use-cases/${slug}`}
-        className="shrink-0 text-[13px] font-medium text-[#575853] transition-colors hover:text-[#10110f]"
+        className="shrink-0 text-[13px] font-medium text-[#575853] transition-colors hover:text-[#10110f] md:absolute md:top-1/2 md:-translate-y-1/2"
       >
         ← Back to overview
       </UseCaseBackLink>
@@ -40,17 +40,7 @@ const TopBar = ({ slug, packageUrl }: { slug: string; packageUrl?: string }) => 
         </>
       ) : null}
     </div>
-    {packageUrl ? (
-      <section
-        aria-label="Replay import feedback"
-        className="mx-auto flex w-full max-w-4xl justify-end px-4 pb-2.5 md:px-6"
-      >
-        {/* Group status with the right-hand import action without crowding mobile screens. */}
-        <div className="w-full rounded-md bg-[#f0f0ed] px-3 py-1.5 sm:w-fit sm:max-w-2xl">
-          <ScienceImportFeedback compact />
-        </div>
-      </section>
-    ) : null}
+    {packageUrl ? <ScienceImportToolbarFeedback /> : null}
   </section>
 )
 

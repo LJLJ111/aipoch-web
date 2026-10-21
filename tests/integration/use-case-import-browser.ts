@@ -28,7 +28,7 @@ export async function verifyImportPreparation(
     const composer = regions.first()
     const feedback = detail
       ? composer
-      : page.getByRole('region', { name: 'Replay import feedback', exact: true })
+      : page.locator('section[aria-label="Replay import feedback"]')
     const opposite = detail
       ? regions.last()
       : page.getByRole('region', { name: 'Import to Open-Science', exact: true })
@@ -41,6 +41,13 @@ export async function verifyImportPreparation(
     if (await cookies.isVisible()) await cookies.click()
     await composer.scrollIntoViewIfNeeded()
     await expect(regions).toHaveCount(detail ? 2 : 1)
+    for (const region of [composer, opposite]) {
+      await expect(
+        region.getByText(/Allow app and local network|You may need to allow your browser/)
+      ).toHaveCount(0)
+    }
+    const idleToolbarHeight = (await composer.boundingBox())?.height
+    const wideViewport = (page.viewportSize()?.width ?? 0) >= 640
     if (detail) {
       for (const region of [composer, opposite]) {
         const firstAction = region.locator('button, a').first()
@@ -56,13 +63,11 @@ export async function verifyImportPreparation(
       await expect(open).toHaveCSS('background-color', 'rgb(16, 17, 15)')
       await expect(open).toHaveCSS('color', 'rgb(255, 255, 255)')
       await expect(open).toHaveCSS('font-size', '13px')
-      // Keep the original action row; the compact feedback now belongs to the sticky toolbar.
-      if (!mobile) expect((await composer.locator(':scope > div').boundingBox())?.height).toBe(47)
-      await expect(
-        composer.getByRole('region', { name: 'Replay import feedback', exact: true })
-      ).toHaveCount(1)
+      // Keep ten pixels of vertical padding around the toolbar's 36px import button.
+      if (wideViewport)
+        expect((await composer.locator(':scope > div').boundingBox())?.height).toBe(56)
+      expect((await feedback.boundingBox())?.height).toBe(0)
       await opposite.scrollIntoViewIfNeeded()
-      await expect(feedback).toBeInViewport()
       await expect(open).toBeInViewport()
       await page.evaluate(() => window.scrollTo(0, 0))
       const downloadBox = await composer
@@ -70,7 +75,7 @@ export async function verifyImportPreparation(
         .boundingBox()
       const openBox = await open.boundingBox()
       expect(downloadBox && openBox).toBeTruthy()
-      if (!mobile && downloadBox && openBox)
+      if (wideViewport && downloadBox && openBox)
         expect(downloadBox.x + downloadBox.width).toBeLessThanOrEqual(openBox.x)
       await expect(opposite.getByRole('textbox')).toBeDisabled()
       for (const label of ['Attach files', 'Research tools', 'Configure your research']) {
@@ -137,8 +142,11 @@ export async function verifyImportPreparation(
     })
     await expect(busyButton).toBeDisabled()
     await expect(busyButton).toContainText('0%')
-    if (!detail && !mobile)
-      expect((await composer.locator(':scope > div').boundingBox())?.height).toBe(47)
+    await expect(opposite.getByText(/You may need to allow your browser/)).toBeVisible()
+    const expandedToolbarHeight = (await composer.boundingBox())?.height
+    if (!detail) expect(expandedToolbarHeight).toBeGreaterThan(idleToolbarHeight ?? 0)
+    if (!detail && wideViewport)
+      expect((await composer.locator(':scope > div').boundingBox())?.height).toBe(56)
     await expect(opposite.getByRole('button', { name: /^Downloading/ })).toBeDisabled()
     await expect(composer.getByRole('progressbar')).toHaveCount(0)
     await expect(feedback.getByRole('status')).toBeVisible()
@@ -160,6 +168,7 @@ export async function verifyImportPreparation(
     await busyButton.dispatchEvent('click')
     await opposite.getByRole('button', { name: 'Cancel', exact: true }).click()
     await expect(feedback.getByRole('status')).toContainText('Download canceled')
+    if (!detail) expect((await composer.boundingBox())?.height).toBe(expandedToolbarHeight)
     await expect(opposite.getByRole('button', { name: idleLabel, exact: true })).toBeEnabled()
     await expect
       .poll(async () => (await (await fetch(controls)).json()).packageRequests)
@@ -171,7 +180,8 @@ export async function verifyImportPreparation(
     expect((await downloadRequest).url()).toBe(
       `${api}/use-case-manifest/first-flight-vs-evening-flight-which-is-more-reliable/First%20Flight%20vs.%20Evening%20Flight%20-%20Which%20Is%20More%20Reliable.science`
     )
-    await expect(feedback.getByRole('status')).toHaveText('Waiting for Open-Science…')
+    await expect(feedback.getByRole('status')).toContainText('Waiting for Open-Science…')
+    if (!detail) expect((await composer.boundingBox())?.height).toBe(expandedToolbarHeight)
     await expect(composer.getByRole('button', { name: 'Waiting for Open-Science…' })).toBeDisabled()
     expect(protocolRequests).toBe(0)
     expect(page.url()).toBe(url)
@@ -180,7 +190,7 @@ export async function verifyImportPreparation(
     const openButton = composer.getByRole('button', { name: 'Open Open-Science', exact: true })
     await expect(openButton).toBeEnabled()
     await openButton.click()
-    await expect(feedback.getByRole('status')).toHaveText('Waiting for Open-Science…')
+    await expect(feedback.getByRole('status')).toContainText('Waiting for Open-Science…')
     expect((await (await fetch(controls)).json()).packageRequests).toBe(completedDownloads)
     expect(protocolRequests).toBe(0)
     expect(page.url()).toBe(url)

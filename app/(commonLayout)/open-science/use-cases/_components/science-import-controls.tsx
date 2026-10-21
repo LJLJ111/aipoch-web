@@ -22,6 +22,8 @@ const ImportContext = createContext<{
   state: ImportState
   session: RefObject<ImportSession | null>
   packageInfo: UseCasePackage
+  hasInteracted: boolean
+  revealFeedback: () => void
 } | null>(null)
 
 /** Own one transfer for every import entry point on the page. Dispose it on navigation. */
@@ -33,11 +35,13 @@ export const ScienceImportProvider = ({
   children: ReactNode
 }) => {
   const [state, setState] = useState<ImportState>(INITIAL_IMPORT_STATE)
+  const [hasInteracted, setHasInteracted] = useState(false)
   const session = useRef<ReturnType<typeof createScienceImport> | null>(null)
   const filename = packageInfo?.filename
   const importUrl = packageInfo?.importUrl ?? packageInfo?.url
   useEffect(() => {
     setState(INITIAL_IMPORT_STATE)
+    setHasInteracted(false)
     if (!importUrl || !filename) return
     const current = createScienceImport({ url: importUrl, filename }, setState)
     session.current = current
@@ -47,7 +51,19 @@ export const ScienceImportProvider = ({
     }
   }, [importUrl, filename])
   return (
-    <ImportContext.Provider value={packageInfo ? { state, session, packageInfo } : null}>
+    <ImportContext.Provider
+      value={
+        packageInfo
+          ? {
+              state,
+              session,
+              packageInfo,
+              hasInteracted,
+              revealFeedback: () => setHasInteracted(true)
+            }
+          : null
+      }
+    >
       {/* Announce the shared transfer once; each visible feedback area stays readable. */}
       {packageInfo ? (
         <p role="status" aria-live="polite" aria-atomic="true" className="sr-only">
@@ -71,7 +87,7 @@ export const ScienceImportButton = ({
 }: {
   variant?: 'composer' | 'detail' | 'toolbar'
 }) => {
-  const { state, session, packageInfo } = useScienceImport()
+  const { state, session, packageInfo, revealFeedback } = useScienceImport()
   const busy = ['checking', 'opening', 'downloading', 'sending', 'canceling'].includes(state.phase)
   const downloading = state.phase === 'downloading'
   const sending = state.phase === 'sending'
@@ -110,6 +126,7 @@ export const ScienceImportButton = ({
       aria-label={progressing ? `${progressLabel}: ${progressText}` : undefined}
       disabled={busy || !state.action}
       onClick={() => {
+        revealFeedback()
         if (state.action === 'prepare') void session.current?.prepareAndOpen()
         else if (state.action === 'resume') void session.current?.resume()
         else if (state.action === 'open') void session.current?.open()
@@ -117,7 +134,7 @@ export const ScienceImportButton = ({
       }}
       className={
         variant === 'toolbar'
-          ? 'inline-flex h-9 -my-1.5 items-center justify-center gap-2 bg-[#10110f] px-4 text-[13px] font-semibold text-white transition-colors hover:bg-[#4a4b46] active:bg-black focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#10110f] disabled:cursor-default max-sm:ml-auto'
+          ? 'inline-flex h-9 w-60 shrink-0 items-center justify-center gap-2 bg-[#10110f] px-4 text-[13px] font-semibold text-white transition-colors hover:bg-[#4a4b46] active:bg-black focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#10110f] disabled:cursor-default max-sm:ml-auto'
           : variant === 'detail'
             ? 'inline-flex min-h-11 items-center justify-center gap-2 bg-[#10110f] px-5 py-1 text-[13px] font-semibold text-white transition-colors hover:bg-[#4a4b46] active:bg-black focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#10110f] disabled:cursor-default'
             : 'inline-flex min-h-10 w-full items-center justify-center gap-3 rounded-xl bg-[#10110f] px-5 py-1 text-sm font-semibold text-white transition-colors hover:bg-[#34352f] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#10110f] disabled:cursor-default sm:w-auto sm:min-w-56'
@@ -163,13 +180,35 @@ export const ScienceImportButton = ({
   )
 }
 
+/** Expand the toolbar guidance after interaction without reserving empty space on arrival. */
+export const ScienceImportToolbarFeedback = () => {
+  const { hasInteracted } = useScienceImport()
+  return (
+    <section
+      aria-label="Replay import feedback"
+      aria-hidden={!hasInteracted}
+      className={`mx-auto grid w-full max-w-4xl px-4 transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none md:pr-6 md:pl-44 ${hasInteracted ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
+    >
+      <div className="min-h-0 overflow-hidden">
+        {/* Reserve the left column for the centered overview link once guidance is expanded. */}
+        <div className="-mt-1 flex min-h-16 w-full flex-col items-end justify-center px-3 sm:min-h-8">
+          <ScienceImportFeedback compact />
+        </div>
+      </div>
+    </section>
+  )
+}
+
 /** Keep every recovery action and browser permission hint beside each entry point. */
 export const ScienceImportFeedback = ({ compact = false }: { compact?: boolean }) => {
   const {
     state,
     session,
+    hasInteracted,
     packageInfo: { url, filename }
   } = useScienceImport()
+  // A click on either entry point reveals guidance for the shared page session, including retries.
+  if (!hasInteracted) return null
   const busy = ['checking', 'opening', 'downloading', 'sending', 'canceling'].includes(state.phase)
   const needsApp = state.needsApp
   const downloadPrompt = 'download it first'
@@ -177,24 +216,34 @@ export const ScienceImportFeedback = ({ compact = false }: { compact?: boolean }
   const waitingTimedOut = state.phase === 'ready' && state.action === 'resume'
   const opening = state.phase === 'opening' || state.action === 'resume'
   // The sticky toolbar shows only the current guidance; completed transfers need no permissions.
-  const showPermissionHint = !compact || !state.message || opening
+  const showPermissionHint = !compact || !state.message
   const message =
-    compact && state.phase === 'received' ? 'File sent. Confirm in Open-Science.' : state.message
+    compact && state.phase === 'received'
+      ? 'File sent. Confirm in Open-Science.'
+      : compact && state.phase === 'opening'
+        ? 'Waiting for Open-Science… Choose Open; allow local network access.'
+        : compact && waitingTimedOut
+          ? 'Not connected. Open the app, allow browser prompts, then continue.'
+          : state.message
+  const hasRecoveryActions =
+    (needsApp && !waitingTimedOut && !inlineDownload) ||
+    state.action === 'resume' ||
+    (state.phase === 'error' && state.action === 'open')
   return (
-    <>
+    <div
+      className={`flex flex-col gap-1 text-[13px] leading-5 text-[#777872] ${compact ? '' : 'mt-1.5'}`}
+    >
       {showPermissionHint ? (
-        <p className={`${compact ? '' : 'mt-1.5'} text-xs leading-5 text-[#777872]`}>
+        <p>
           {compact
-            ? opening
-              ? 'Choose Open and allow local network access if prompted.'
-              : 'Allow app and local network access if prompted. Keep this page open.'
+            ? 'Allow app and local network access if prompted. Keep this page open.'
             : opening
               ? 'If your browser asks to open Open-Science, choose Open. You may also need to allow local network access.'
               : 'You may need to allow your browser to open Open-Science and access your local network. Keep this page open until the file is sent.'}
         </p>
       ) : null}
-      <div className="space-y-2 text-[13px] leading-6 text-[#777872]">
-        <div className="flex items-center gap-x-4">
+      <div className="space-y-1">
+        <div className={`flex items-center gap-x-4 ${compact && state.message ? 'min-h-8' : ''}`}>
           <p
             role={state.phase === 'error' || state.phase === 'unsupported' ? 'alert' : 'status'}
             aria-live="off"
@@ -242,7 +291,7 @@ export const ScienceImportFeedback = ({ compact = false }: { compact?: boolean }
               type="button"
               disabled={state.phase === 'canceling'}
               onClick={() => session.current?.cancel()}
-              className="min-h-10 shrink-0 whitespace-nowrap font-medium text-[#10110f] underline underline-offset-4 disabled:opacity-50"
+              className="min-h-8 shrink-0 whitespace-nowrap font-medium text-[#10110f] underline underline-offset-4 disabled:opacity-50"
             >
               Cancel
             </button>
@@ -253,7 +302,7 @@ export const ScienceImportFeedback = ({ compact = false }: { compact?: boolean }
             {state.launchError}
           </p>
         ) : null}
-        {waitingTimedOut ? (
+        {waitingTimedOut && !compact ? (
           <p>
             If Open-Science does not open,{' '}
             <a
@@ -276,37 +325,61 @@ export const ScienceImportFeedback = ({ compact = false }: { compact?: boolean }
             and install it first.
           </p>
         ) : null}
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-          {needsApp && !waitingTimedOut && !inlineDownload ? (
-            <a
-              href="/open-science/download"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-h-10 items-center font-medium text-[#10110f] underline underline-offset-4"
-            >
-              Download Open-Science
-            </a>
-          ) : null}
-          {state.action === 'resume' ? (
-            <button
-              type="button"
-              onClick={() => void session.current?.open()}
-              className="min-h-10 font-medium text-[#10110f] underline underline-offset-4"
-            >
-              Open Open-Science
-            </button>
-          ) : null}
-          {(state.phase === 'error' && state.action === 'open') || state.action === 'resume' ? (
-            <button
-              type="button"
-              onClick={() => session.current?.restart()}
-              className="min-h-10 font-medium text-[#10110f] underline underline-offset-4"
-            >
-              Start a new transfer
-            </button>
-          ) : null}
-        </div>
+        {hasRecoveryActions && (
+          <div
+            className={`flex flex-wrap items-center gap-x-5 gap-y-1 ${compact ? 'justify-end' : ''}`}
+          >
+            {needsApp && !waitingTimedOut && !inlineDownload ? (
+              <a
+                href="/open-science/download"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-8 items-center font-medium text-[#10110f] underline underline-offset-4"
+              >
+                Download Open-Science
+              </a>
+            ) : null}
+            {state.action === 'resume' ? (
+              <button
+                type="button"
+                onClick={() => void session.current?.open()}
+                className="min-h-8 font-medium text-[#10110f] underline underline-offset-4"
+              >
+                Open Open-Science
+              </button>
+            ) : null}
+            {(state.phase === 'error' && state.action === 'open') || state.action === 'resume' ? (
+              <button
+                type="button"
+                onClick={() => session.current?.restart()}
+                className="min-h-8 font-medium text-[#10110f] underline underline-offset-4"
+              >
+                Start a new transfer
+              </button>
+            ) : null}
+            {/* Keep the manual download paths accessible without the toolbar's full tutorial. */}
+            {compact && waitingTimedOut ? (
+              <>
+                <a
+                  href={url}
+                  download={filename}
+                  className="inline-flex min-h-8 items-center font-medium text-[#10110f] underline underline-offset-4"
+                >
+                  Download .science
+                </a>
+                <a
+                  href="/open-science/download"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-8 items-center font-medium text-[#10110f] underline underline-offset-4"
+                >
+                  Get Open-Science
+                </a>
+              </>
+            ) : null}
+          </div>
+        )}
       </div>
-    </>
+    </div>
   )
 }

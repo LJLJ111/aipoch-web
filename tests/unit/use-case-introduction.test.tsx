@@ -81,6 +81,7 @@ test('renders the import action first in both overview action groups, before rep
   expect(groups).toHaveLength(2)
   for (const [group] of groups) {
     expect(group).toContain('Open in Open-Science')
+    expect(group).not.toContain('You may need to allow your browser')
     expect(group.indexOf('Open in Open-Science')).toBeLessThan(
       group.indexOf('Download research package')
     )

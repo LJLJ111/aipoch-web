@@ -100,6 +100,11 @@ for (const surface of ['composer', 'detail']) {
           exact: true
         })
         await expect(continueButton).toBeVisible()
+        for (const region of [controls, otherControls]) {
+          await expect(
+            region.getByText(/Allow app and local network|You may need to allow your browser/)
+          ).toHaveCount(0)
+        }
         await expect(
           otherControls.getByRole('button', {
             name: defaultLabel,
@@ -146,7 +151,7 @@ for (const surface of ['composer', 'detail']) {
         await page.evaluate(() => {
           ;(window as unknown as TestWindow).importTest.availability = 'unavailable'
         })
-        await continueButton.click()
+        await otherControls.getByRole('button', { name: defaultLabel, exact: true }).click()
         await expect(controls.getByRole('alert')).toHaveText(
           "Could not connect to Open-Science. If it's already installed, update to version 1.0.1 or later, then open the app and try again. If you haven't installed it, download it first."
         )
@@ -170,6 +175,7 @@ for (const surface of ['composer', 'detail']) {
         })
         await expect(downloading).toBeDisabled()
         await expect(downloading).toContainText('50%')
+        await expect(controls.getByText(/You may need to allow your browser/)).toBeVisible()
         await expect(announcements).toHaveText('Downloading .science package…')
         await expect(otherControls.getByRole('button', { name: /^Downloading/ })).toBeDisabled()
         await expect(otherControls.getByRole('button', { name: /^Downloading/ })).toContainText(
@@ -262,6 +268,7 @@ for (const surface of ['composer', 'detail']) {
         await page.evaluate(() => (window as unknown as TestWindow).importTest.finish(false))
         await expect(controls.getByRole('alert')).toContainText('not acknowledged')
         await controls.getByRole('button', { name: 'Start a new transfer' }).click()
+        await expect(controls.getByText(/You may need to allow your browser/)).toBeVisible()
         await openButton.click()
         unitExpect((await snapshot()).prepares).toBe(3)
         await page.evaluate(() => (window as unknown as TestWindow).importTest.finish())
@@ -365,6 +372,18 @@ for (const surface of ['composer', 'detail']) {
         await page.clock.runFor(104000)
         await expect(announcements).toHaveCount(1)
         await expect(announcements).toContainText('Open-Science has not connected yet')
+        if (surface === 'composer') {
+          await expect(otherControls.getByRole('status')).toHaveText(
+            'Not connected. Open the app, allow browser prompts, then continue.'
+          )
+          await expect(otherControls.getByText(/and double-click it/)).toHaveCount(0)
+          await expect(
+            otherControls.getByRole('link', { name: 'Download .science', exact: true })
+          ).toBeVisible()
+          await expect(
+            otherControls.getByRole('link', { name: 'Get Open-Science', exact: true })
+          ).toBeVisible()
+        }
         await expect(controls.getByRole('status')).toHaveText(
           'Open-Science has not connected yet. Open the app, allow any browser prompts, then continue.'
         )
