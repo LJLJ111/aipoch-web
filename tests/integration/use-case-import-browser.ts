@@ -33,7 +33,9 @@ export async function verifyImportPreparation(
       ? regions.last()
       : page.getByRole('region', { name: 'Import to Open-Science', exact: true })
     const idleLabel = detail ? 'Open in Open-Science' : 'Continue in Open-Science'
-    const startLabel = /^(Open in Open-Science|Continue in Open-Science|Try again)$/
+    const startLabel = detail
+      ? /^(Open in Open-Science|Try again)$/
+      : /^(Continue in Open-Science|Try again)$/
     await composer.waitFor({ timeout: 60000 })
     const cookies = page.getByRole('button', { name: 'Reject non-essential', exact: true })
     if (await cookies.isVisible()) await cookies.click()
@@ -82,7 +84,7 @@ export async function verifyImportPreparation(
       const start = composer.getByRole('button', { name: idleLabel, exact: true })
       await expect(feedback.getByRole('alert')).toHaveCount(0)
       await start.click()
-      await composer.getByRole('button', { name: 'Continue in Open-Science', exact: true }).click()
+      await composer.getByRole('button', { name: idleLabel, exact: true }).click()
       const warning = feedback.getByRole('alert')
       await expect(warning).toHaveText('Please continue on a desktop computer.')
       await expect(warning).toHaveClass(/text-status-warning-foreground/)
@@ -117,9 +119,7 @@ export async function verifyImportPreparation(
       await update({ packageMode })
       await composer.getByRole('button', { name: startLabel }).click()
       await expect(feedback.getByRole('alert')).toContainText(message)
-      await expect(
-        composer.getByRole('button', { name: 'Continue in Open-Science', exact: true })
-      ).toBeEnabled()
+      await expect(composer.getByRole('button', { name: idleLabel, exact: true })).toBeEnabled()
     }
     await update({ packageDelayMs: 1200 })
     const before = (await (await fetch(controls)).json()).packageRequests
@@ -152,9 +152,7 @@ export async function verifyImportPreparation(
     await busyButton.dispatchEvent('click')
     await opposite.getByRole('button', { name: 'Cancel', exact: true }).click()
     await expect(feedback.getByRole('status')).toContainText('Download canceled')
-    await expect(
-      opposite.getByRole('button', { name: 'Continue in Open-Science', exact: true })
-    ).toBeEnabled()
+    await expect(opposite.getByRole('button', { name: idleLabel, exact: true })).toBeEnabled()
     await expect
       .poll(async () => (await (await fetch(controls)).json()).packageRequests)
       .toBe(before + 1)

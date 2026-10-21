@@ -83,11 +83,8 @@ export const ScienceImportButton = ({
       : undefined
   const progressText = percent !== undefined ? `${percent}%` : '—%'
   const progressLabel = downloading ? 'Downloading .science package' : 'Sending to Open-Science'
-  // Overview opens a session for the first time; recovery states retain the shared wording.
-  const initialLabel =
-    variant === 'detail' && state.phase === 'idle' && !state.message
-      ? 'Open in Open-Science'
-      : 'Continue in Open-Science'
+  // Keep each entry point's default wording when cancellation or failure allows a fresh start.
+  const defaultLabel = variant === 'detail' ? 'Open in Open-Science' : 'Continue in Open-Science'
   const label =
     state.phase === 'checking'
       ? 'Checking Open-Science…'
@@ -105,7 +102,7 @@ export const ScienceImportButton = ({
                   ? 'Open Open-Science'
                   : state.needsApp
                     ? 'Try again'
-                    : initialLabel
+                    : defaultLabel
 
   return (
     <button
