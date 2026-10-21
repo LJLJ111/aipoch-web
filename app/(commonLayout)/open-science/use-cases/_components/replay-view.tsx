@@ -7,11 +7,19 @@ import type { PackageProgress } from '@/lib/science-package/archive'
 import { loadReplay, type ReplayState } from '@/lib/science-package/load'
 import type { UseCasePackage } from '@/lib/use-case-types'
 import { ImportComposer } from './import-composer'
+import {
+  ScienceImportButton,
+  ScienceImportFeedback,
+  ScienceImportProvider
+} from './science-import-controls'
 import { SessionTranscript } from './session-transcript'
 import { UseCaseBackLink } from './use-case-navigation'
 
 const TopBar = ({ slug, packageUrl }: { slug: string; packageUrl?: string }) => (
-  <div className="sticky top-[var(--nav-h)] z-10 border-b border-[#dfdfda] bg-[#fafaf8]/90 backdrop-blur-sm">
+  <section
+    aria-label="Replay import actions"
+    className="sticky top-[var(--nav-h)] z-10 border-b border-[#dfdfda] bg-[#fafaf8]/90 backdrop-blur-sm"
+  >
     <div className="mx-auto flex min-h-[47px] w-full max-w-4xl flex-wrap items-center gap-3 px-4 py-2.5 md:px-6">
       <UseCaseBackLink
         href={`/open-science/use-cases/${slug}`}
@@ -20,16 +28,19 @@ const TopBar = ({ slug, packageUrl }: { slug: string; packageUrl?: string }) => 
         ← Back to overview
       </UseCaseBackLink>
       {packageUrl ? (
-        <a
-          href={packageUrl}
-          className="ml-auto inline-flex items-center gap-1.5 text-[13px] font-medium text-[#575853] transition-colors hover:text-[#10110f]"
-        >
-          <Download className="size-4 shrink-0" aria-hidden="true" />
-          Download research package
-        </a>
+        <>
+          <a
+            href={packageUrl}
+            className="ml-auto inline-flex items-center gap-1.5 text-[13px] font-medium text-[#575853] transition-colors hover:text-[#10110f]"
+          >
+            <Download className="size-4 shrink-0" aria-hidden="true" />
+            Download research package
+          </a>
+          <ScienceImportButton variant="toolbar" />
+        </>
       ) : null}
     </div>
-  </div>
+  </section>
 )
 
 const labels = {
@@ -85,17 +96,27 @@ const ReplayProgress = ({ progress }: { progress: PackageProgress | { stage: 'me
 
 const ReplayFrame = ({
   slug,
-  packageUrl,
+  packageInfo,
   children
 }: {
   slug: string
-  packageUrl?: string
+  packageInfo?: UseCasePackage
   children: React.ReactNode
 }) => (
-  <main id="top" className="-mt-[var(--nav-h)] flex-1 bg-[#fafaf8] pt-[var(--nav-h)]">
-    <TopBar slug={slug} packageUrl={packageUrl} />
-    {children}
-  </main>
+  <ScienceImportProvider key={slug} packageInfo={packageInfo}>
+    <main id="top" className="-mt-[var(--nav-h)] flex-1 bg-[#fafaf8] pt-[var(--nav-h)]">
+      <TopBar slug={slug} packageUrl={packageInfo?.url} />
+      {packageInfo ? (
+        <section
+          aria-label="Replay import feedback"
+          className="mx-auto w-full max-w-4xl px-4 md:px-6"
+        >
+          <ScienceImportFeedback />
+        </section>
+      ) : null}
+      {children}
+    </main>
+  </ScienceImportProvider>
 )
 
 export const ReplayLoading = ({ slug }: { slug: string }) => (
@@ -130,7 +151,7 @@ export const ReplayView = ({
       : undefined
     : (error ?? 'Research package not found.')
   return (
-    <ReplayFrame slug={slug} packageUrl={packageInfo?.url}>
+    <ReplayFrame slug={slug} packageInfo={packageInfo ?? undefined}>
       {refreshing ? (
         <ReplayProgress progress={{ stage: 'metadata' }} />
       ) : failure ? (
@@ -153,7 +174,7 @@ export const ReplayView = ({
       ) : state.status === 'ready' ? (
         <>
           <SessionTranscript session={state.data} />
-          {packageInfo ? <ImportComposer packageInfo={packageInfo} /> : null}
+          {packageInfo ? <ImportComposer /> : null}
         </>
       ) : state.status === 'loading' ? (
         <ReplayProgress progress={state.progress} />

@@ -82,31 +82,34 @@ afterAll(async () => {
 }, 15000)
 
 describe('mock development end to end', () => {
-  test('prepares browser-held science imports with retry, cancellation and download fallback on desktop and mobile', async () => {
-    const importArtifacts = join(process.cwd(), '.codex/browser-import-2026-10-12')
-    mkdirSync(importArtifacts, { recursive: true })
-    const browser = await chromium.launch()
-    try {
-      for (const device of ['desktop', 'mobile']) {
-        const page = await browser.newPage(
-          device === 'mobile' ? devices['Pixel 5'] : { viewport: { width: 1440, height: 1000 } }
-        )
-        try {
-          await verifyImportPreparation(
-            page,
-            `${web}/open-science/use-cases/${device === 'desktop' ? 'first-flight-vs-evening-flight-which-is-more-reliable' : manifestSample[0].name}/replay`,
-            api,
-            join(importArtifacts, `science-import-${device}.png`),
-            device === 'mobile'
+  for (const surface of ['replay', 'detail']) {
+    test(`prepares ${surface} browser-held science imports with retry, cancellation and download fallback on desktop and mobile`, async () => {
+      const importArtifacts = join(process.cwd(), '.codex/browser-import-2026-10-21')
+      mkdirSync(importArtifacts, { recursive: true })
+      const browser = await chromium.launch()
+      try {
+        for (const device of ['desktop', 'mobile']) {
+          const page = await browser.newPage(
+            device === 'mobile' ? devices['Pixel 5'] : { viewport: { width: 1440, height: 1000 } }
           )
-        } finally {
-          await page.close()
+          try {
+            await verifyImportPreparation(
+              page,
+              `${web}/open-science/use-cases/${device === 'desktop' ? 'first-flight-vs-evening-flight-which-is-more-reliable' : manifestSample[0].name}${surface === 'replay' ? '/replay' : ''}`,
+              api,
+              join(importArtifacts, `science-import-${surface}-${device}.png`),
+              device === 'mobile',
+              surface === 'detail'
+            )
+          } finally {
+            await page.close()
+          }
         }
+      } finally {
+        await browser.close()
       }
-    } finally {
-      await browser.close()
-    }
-  }, 120000)
+    }, 120000)
+  }
   test('server-renders both GitHub counts and loads independent browser-intercepted results', async () => {
     const html = await renderedHtml(await fetch(web))
     expect(html.match(/aria-label="Open-Science on GitHub, 3\.5K stars"/g)).toHaveLength(1)

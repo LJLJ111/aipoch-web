@@ -386,7 +386,9 @@ export async function verifyReplayLoading(page: Page, url: string) {
     Object.assign(window, { Worker: ControlledWorker })
   })
   await page.goto(url)
-  await expect(page.getByRole('status')).toHaveText('Loading research session…')
+  await expect(page.getByRole('status').filter({ hasText: /\S/ })).toHaveText(
+    'Loading research session…'
+  )
   const downloadLink = page.getByRole('link', { name: 'Download research package', exact: true })
   await expect(downloadLink).toBeVisible()
   await expect(page.getByRole('progressbar')).not.toHaveAttribute('value')
@@ -404,7 +406,9 @@ export async function verifyReplayLoading(page: Page, url: string) {
     }, data)
   await emit({ type: 'progress', progress: { stage: 'downloading', loaded: 20, total: 100 } })
   // The percent sits inside the status line since the skeleton redesign (#28).
-  await expect(page.getByRole('status')).toHaveText('Downloading research package… 20%')
+  await expect(page.getByRole('status').filter({ hasText: /\S/ })).toHaveText(
+    'Downloading research package… 20%'
+  )
   await expect(page.getByRole('progressbar')).toHaveAttribute('value', '20')
   await emit({ type: 'progress', progress: { stage: 'downloading', loaded: 30 } })
   await expect(page.getByRole('progressbar')).not.toHaveAttribute('value')
@@ -413,7 +417,7 @@ export async function verifyReplayLoading(page: Page, url: string) {
     ['parsing', 'Parsing research session…']
   ]) {
     await emit({ type: 'progress', progress: { stage } })
-    await expect(page.getByRole('status')).toHaveText(label)
+    await expect(page.getByRole('status').filter({ hasText: /\S/ })).toHaveText(label)
     await expect(page.getByRole('progressbar')).not.toHaveAttribute('value')
   }
   await emit({ type: 'error', message: 'Package SHA-256 verification failed.' })
@@ -421,6 +425,9 @@ export async function verifyReplayLoading(page: Page, url: string) {
     'Package SHA-256 verification failed.'
   )
   await expect(downloadLink).toBeVisible()
+  // Consent may cover the retry action on narrow screens.
+  const cookies = page.getByRole('button', { name: 'Reject non-essential', exact: true })
+  if (await cookies.isVisible()) await cookies.click()
   await page.getByRole('button', { name: 'Retry', exact: true }).click()
   await page.waitForFunction(
     () => (window as unknown as { replayTestWorkers: unknown[] }).replayTestWorkers.length === 2

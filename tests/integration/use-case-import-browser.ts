@@ -6,7 +6,8 @@ export async function verifyImportPreparation(
   url: string,
   api: string,
   screenshot: string,
-  mobile = false
+  mobile = false,
+  detail = false
 ) {
   const cdp = await page.context().newCDPSession(page)
   await cdp.send('Page.enable')
@@ -20,18 +21,56 @@ export async function verifyImportPreparation(
   try {
     const response = await page.goto(url)
     expect(response?.status()).toBe(200)
-    const composer = page.getByRole('region', { name: 'Import to Open-Science', exact: true })
+    const regions = page.getByRole('region', {
+      name: detail ? 'Research actions' : 'Replay import actions',
+      exact: true
+    })
+    const composer = regions.first()
+    const feedback = detail
+      ? composer
+      : page.getByRole('region', { name: 'Replay import feedback', exact: true })
+    const opposite = detail
+      ? regions.last()
+      : page.getByRole('region', { name: 'Import to Open-Science', exact: true })
+    const idleLabel = 'Continue in Open-Science'
+    const startLabel = /^(Continue in Open-Science|Try again)$/
     await composer.waitFor({ timeout: 60000 })
     const cookies = page.getByRole('button', { name: 'Reject non-essential', exact: true })
     if (await cookies.isVisible()) await cookies.click()
     await composer.scrollIntoViewIfNeeded()
-    await expect(composer.getByRole('textbox')).toBeDisabled()
-    for (const label of ['Attach files', 'Research tools', 'Configure your research']) {
-      await expect(composer.getByRole('button', { name: new RegExp(label) })).toBeDisabled()
+    await expect(regions).toHaveCount(detail ? 2 : 1)
+    if (detail) {
+      for (const region of [composer, opposite]) {
+        const firstAction = region.locator('button, a').first()
+        await expect(firstAction).toHaveText('Continue in Open-Science')
+        await expect(firstAction).toHaveCSS('background-color', 'rgb(16, 17, 15)')
+        await expect(firstAction).toHaveCSS('color', 'rgb(255, 255, 255)')
+        await expect(
+          region.getByRole('link', { name: 'View the research session', exact: true })
+        ).toHaveAttribute('href', /\/replay$/)
+      }
+    } else {
+      const open = composer.getByRole('button', { name: idleLabel, exact: true })
+      await expect(open).toHaveCSS('background-color', 'rgb(16, 17, 15)')
+      await expect(open).toHaveCSS('color', 'rgb(255, 255, 255)')
+      await expect(open).toHaveCSS('font-size', '13px')
+      // The original 47px row plus its 1px bottom border.
+      if (!mobile) expect((await composer.boundingBox())?.height).toBe(48)
+      const downloadBox = await composer
+        .getByRole('link', { name: 'Download research package', exact: true })
+        .boundingBox()
+      const openBox = await open.boundingBox()
+      expect(downloadBox && openBox).toBeTruthy()
+      if (!mobile && downloadBox && openBox)
+        expect(downloadBox.x + downloadBox.width).toBeLessThanOrEqual(openBox.x)
+      await expect(opposite.getByRole('textbox')).toBeDisabled()
+      for (const label of ['Attach files', 'Research tools', 'Configure your research']) {
+        await expect(opposite.getByRole('button', { name: new RegExp(label) })).toBeDisabled()
+      }
     }
     await expect(
       page.getByRole('link', { name: 'Download research package', exact: true })
-    ).toHaveCount(1)
+    ).toHaveCount(detail ? 2 : 1)
     await page.screenshot({ path: screenshot })
     const initialPackages = (await (await fetch(controls)).json()).packageRequests
     if (mobile) {
@@ -40,13 +79,14 @@ export async function verifyImportPreparation(
         if (request.url().includes('/v1/browser-import/capabilities'))
           discoveryRequests.push(request.url())
       })
-      const start = composer.getByRole('button', { name: 'Continue in Open-Science', exact: true })
-      await expect(composer.getByRole('alert')).toHaveCount(0)
+      const start = composer.getByRole('button', { name: idleLabel, exact: true })
+      await expect(feedback.getByRole('alert')).toHaveCount(0)
       await start.click()
       await start.click()
-      const warning = composer.getByRole('alert')
+      const warning = feedback.getByRole('alert')
       await expect(warning).toHaveText('Please continue on a desktop computer.')
       await expect(warning).toHaveClass(/text-status-warning-foreground/)
+      await expect(opposite.getByRole('alert')).toHaveText('Please continue on a desktop computer.')
       expect(discoveryRequests).toEqual([])
       expect((await (await fetch(controls)).json()).packageRequests).toBe(initialPackages)
       await warning.scrollIntoViewIfNeeded()
@@ -55,16 +95,16 @@ export async function verifyImportPreparation(
     }
     for (const discoveryMode of ['unavailable', 'incompatible', 'timeout']) {
       await update({ discoveryMode })
-      await composer.getByRole('button', { name: /^(Continue in Open-Science|Try again)$/ }).click()
-      await expect(composer.getByRole('alert')).toHaveText(
+      await composer.getByRole('button', { name: startLabel }).click()
+      await expect(feedback.getByRole('alert')).toHaveText(
         "Could not connect to Open-Science. If it's already installed, update to version 1.0.1 or later, then open the app and try again. If you haven't installed it, download it first.",
         { timeout: 8000 }
       )
-      const link = composer.getByRole('alert').getByRole('link', { name: 'download it first' })
+      const link = feedback.getByRole('alert').getByRole('link', { name: 'download it first' })
       await expect(link).toHaveAttribute('href', '/open-science/download')
       await expect(link).toHaveAttribute('target', '_blank')
       await expect(
-        composer.getByRole('link', { name: 'Download Open-Science', exact: true })
+        feedback.getByRole('link', { name: 'Download Open-Science', exact: true })
       ).toHaveCount(0)
       expect((await (await fetch(controls)).json()).packageRequests).toBe(initialPackages)
       expect(page.url()).toBe(url)
@@ -75,26 +115,26 @@ export async function verifyImportPreparation(
       ['oversized', '2 GiB']
     ]) {
       await update({ packageMode })
-      await composer.getByRole('button', { name: /^(Continue in Open-Science|Try again)$/ }).click()
-      await expect(composer.getByRole('alert')).toContainText(message)
-      await expect(
-        composer.getByRole('button', { name: 'Continue in Open-Science', exact: true })
-      ).toBeEnabled()
+      await composer.getByRole('button', { name: startLabel }).click()
+      await expect(feedback.getByRole('alert')).toContainText(message)
+      await expect(composer.getByRole('button', { name: idleLabel, exact: true })).toBeEnabled()
     }
     await update({ packageDelayMs: 1200 })
     const before = (await (await fetch(controls)).json()).packageRequests
-    await composer.getByRole('button', { name: /^(Continue in Open-Science|Try again)$/ }).click()
-    await expect(composer.getByRole('status')).toContainText('Downloading')
+    await composer.getByRole('button', { name: startLabel }).click()
+    await expect(feedback.getByRole('status')).toContainText('Downloading')
     const busyButton = composer.getByRole('button', {
       name: /^Downloading \.science package:/
     })
     await expect(busyButton).toBeDisabled()
     await expect(busyButton).toContainText('0%')
+    if (!detail && !mobile) expect((await composer.boundingBox())?.height).toBe(48)
+    await expect(opposite.getByRole('button', { name: /^Downloading/ })).toBeDisabled()
     await expect(composer.getByRole('progressbar')).toHaveCount(0)
-    await expect(composer.getByRole('status')).toBeVisible()
-    await expect(composer.getByRole('status')).not.toContainText('%')
-    const statusBox = await composer.getByRole('status').boundingBox()
-    const cancelBox = await composer
+    await expect(feedback.getByRole('status')).toBeVisible()
+    await expect(feedback.getByRole('status')).not.toContainText('%')
+    const statusBox = await feedback.getByRole('status').boundingBox()
+    const cancelBox = await feedback
       .getByRole('button', { name: 'Cancel', exact: true })
       .boundingBox()
     expect(statusBox && cancelBox).toBeTruthy()
@@ -108,37 +148,43 @@ export async function verifyImportPreparation(
     await composer.scrollIntoViewIfNeeded()
     await page.screenshot({ path: screenshot.replace('.png', '-downloading.png') })
     await busyButton.dispatchEvent('click')
-    await composer.getByRole('button', { name: 'Cancel', exact: true }).click()
-    await expect(composer.getByRole('status')).toContainText('Download canceled')
+    await opposite.getByRole('button', { name: 'Cancel', exact: true }).click()
+    await expect(feedback.getByRole('status')).toContainText('Download canceled')
     await expect
       .poll(async () => (await (await fetch(controls)).json()).packageRequests)
       .toBe(before + 1)
     // Complete the real download, then exercise the no-op mock launch with the official SDK.
     await update({})
     const downloadRequest = page.waitForRequest((request) => request.url().endsWith('.science'))
-    await composer.getByRole('button', { name: /^(Continue in Open-Science|Try again)$/ }).click()
+    await composer.getByRole('button', { name: startLabel }).click()
     expect((await downloadRequest).url()).toBe(
       `${api}/use-case-manifest/first-flight-vs-evening-flight-which-is-more-reliable/First%20Flight%20vs.%20Evening%20Flight%20-%20Which%20Is%20More%20Reliable.science`
     )
-    await expect(composer.getByRole('status')).toHaveText('Waiting for Open-Science…')
+    await expect(feedback.getByRole('status')).toHaveText('Waiting for Open-Science…')
     await expect(composer.getByRole('button', { name: 'Waiting for Open-Science…' })).toBeDisabled()
     expect(protocolRequests).toBe(0)
     expect(page.url()).toBe(url)
     const completedDownloads = (await (await fetch(controls)).json()).packageRequests
-    await composer.getByRole('button', { name: 'Cancel', exact: true }).click()
+    await opposite.getByRole('button', { name: 'Cancel', exact: true }).click()
     const openButton = composer.getByRole('button', { name: 'Open Open-Science', exact: true })
     await expect(openButton).toBeEnabled()
     await openButton.click()
-    await expect(composer.getByRole('status')).toHaveText('Waiting for Open-Science…')
+    await expect(feedback.getByRole('status')).toHaveText('Waiting for Open-Science…')
     expect((await (await fetch(controls)).json()).packageRequests).toBe(completedDownloads)
     expect(protocolRequests).toBe(0)
     expect(page.url()).toBe(url)
-    await composer.getByRole('button', { name: 'Cancel', exact: true }).click()
+    await opposite.getByRole('button', { name: 'Cancel', exact: true }).click()
     await expect(openButton).toBeEnabled()
-    await expect(page.getByRole('link', { name: 'Download research package' })).toHaveAttribute(
+    await expect(
+      page.getByRole('link', { name: 'Download research package' }).first()
+    ).toHaveAttribute(
       'href',
       `${api}/use-case-manifest/releases/first-flight-vs-evening-flight-which-is-more-reliable.science`
     )
+    if (detail) {
+      await opposite.scrollIntoViewIfNeeded()
+      await page.screenshot({ path: screenshot.replace('.png', '-bottom.png') })
+    }
     expect(await composer.innerHTML()).not.toContain('open-science://')
     expect(await composer.innerText()).not.toContain('Import successful')
     const viewport = page.viewportSize()

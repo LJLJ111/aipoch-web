@@ -8,6 +8,7 @@ import { selectRelatedUseCases } from '@/lib/related-use-cases'
 import type { UseCaseIndexEntry } from '@/lib/use-case-types'
 import { fetchUseCaseAssetText } from '@/service/open-science-use-case-assets'
 import { fetchUseCaseDetail, fetchUseCaseList } from '@/service/open-science-use-cases.server'
+import { ScienceImportProvider } from '../_components/science-import-controls'
 import { ShareRow } from '../_components/share-row'
 import { UseCaseActions } from '../_components/use-case-actions'
 import { UseCaseBackLink } from '../_components/use-case-navigation'
@@ -142,179 +143,182 @@ export default async function OpenScienceUseCaseIntroPage({ params }: PageProps)
 
   return (
     // One continuous surface (#f7f7f5) for header, article, related, and CTA.
-    <main id="top" className={`-mt-[var(--nav-h)] flex-1 ${surfaceClass} text-[#10110f]`}>
-      <section className="pt-[var(--nav-h)]">
-        <div className={`${shellClass} pb-12 pt-14 lg:pt-16`}>
-          <UseCaseBackLink
-            href="/open-science/use-cases"
-            className="text-[13px] font-medium text-[#73746e] transition-colors hover:text-[#10110f]"
-          >
-            ← Use Cases
-          </UseCaseBackLink>
+    <ScienceImportProvider key={useCase.slug} packageInfo={useCase.package}>
+      <main id="top" className={`-mt-[var(--nav-h)] flex-1 ${surfaceClass} text-[#10110f]`}>
+        <section className="pt-[var(--nav-h)]">
+          <div className={`${shellClass} pb-12 pt-14 lg:pt-16`}>
+            <UseCaseBackLink
+              href="/open-science/use-cases"
+              className="text-[13px] font-medium text-[#73746e] transition-colors hover:text-[#10110f]"
+            >
+              ← Use Cases
+            </UseCaseBackLink>
 
-          <div className="mt-8 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-[#90908a]">
-            {category ? (
-              <>
-                <span className="bg-[#e8e2d6] px-1.5 py-0.5 text-[#10110f]">{category}</span>
-                <span aria-hidden="true">·</span>
-              </>
+            <div className="mt-8 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-[#90908a]">
+              {category ? (
+                <>
+                  <span className="bg-[#e8e2d6] px-1.5 py-0.5 text-[#10110f]">{category}</span>
+                  <span aria-hidden="true">·</span>
+                </>
+              ) : null}
+              {useCase.exportedAt !== undefined ? (
+                <span>{dateFormatter.format(new Date(useCase.exportedAt))}</span>
+              ) : null}
+              {reportPageCount ? (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span>{reportPageCount}-page report</span>
+                </>
+              ) : null}
+              {figureCount > 0 ? (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span>
+                    {figureCount} {figureCount === 1 ? 'figure' : 'figures'}
+                  </span>
+                </>
+              ) : null}
+            </div>
+
+            <h1 className={`${headingClass} mt-4 text-[clamp(32px,4.2vw,52px)] leading-[1.1]`}>
+              {useCase.title}
+            </h1>
+
+            {useCase.description ? (
+              <p className="mt-5 max-w-[760px] text-[16px] leading-[1.65] text-[#5c5d57]">
+                {useCase.description}
+              </p>
             ) : null}
-            {useCase.exportedAt !== undefined ? (
-              <span>{dateFormatter.format(new Date(useCase.exportedAt))}</span>
-            ) : null}
-            {reportPageCount ? (
-              <>
-                <span aria-hidden="true">·</span>
-                <span>{reportPageCount}-page report</span>
-              </>
-            ) : null}
-            {figureCount > 0 ? (
-              <>
-                <span aria-hidden="true">·</span>
-                <span>
-                  {figureCount} {figureCount === 1 ? 'figure' : 'figures'}
-                </span>
-              </>
+
+            <div className="mt-8">
+              <UseCaseActions slug={useCase.slug} packageUrl={useCase.package?.url}>
+                {reportUrl ? (
+                  <a
+                    href={reportUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex min-h-11 items-center gap-2 bg-[#10110f] px-5 text-[13px] font-semibold text-white transition-colors hover:bg-[#4a4b46] active:bg-black"
+                  >
+                    <PdfGlyph className="size-4" />
+                    Read the full report
+                  </a>
+                ) : null}
+              </UseCaseActions>
+            </div>
+
+            {heroImageUrl ? (
+              <div className="mt-8 overflow-hidden border border-[#e4e4df] bg-white">
+                {/* biome-ignore lint/performance/noImgElement: exported artifact asset, no Next image rewriting needed. */}
+                <img
+                  src={heroImageUrl}
+                  alt={useCase.title}
+                  className="block h-auto w-full"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </div>
             ) : null}
           </div>
+        </section>
 
-          <h1 className={`${headingClass} mt-4 text-[clamp(32px,4.2vw,52px)] leading-[1.1]`}>
-            {useCase.title}
-          </h1>
-
-          {useCase.description ? (
-            <p className="mt-5 max-w-[760px] text-[16px] leading-[1.65] text-[#5c5d57]">
-              {useCase.description}
-            </p>
+        <section className="pb-14">
+          {/* Keep the article actions outside the Markdown typography scope. */}
+          {reportMarkdown ? (
+            <div className={`${shellClass} osp-session ![background:transparent]`}>
+              <h2 className={`${headingClass} mb-6 text-[28px] leading-[1.2]`}>
+                What this research found
+              </h2>
+              {markdownBody}
+            </div>
+          ) : useCase.description ? (
+            <div className={shellClass}>
+              <h2 className={`${headingClass} text-[28px] leading-[1.2]`}>
+                What this research found
+              </h2>
+              <p className="mt-4 max-w-[760px] text-[16px] leading-[1.7] text-[#3f403b]">
+                {useCase.description}
+              </p>
+            </div>
           ) : null}
-
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            {reportUrl ? (
-              <a
-                href={reportUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex min-h-11 items-center gap-2 bg-[#10110f] px-5 text-[13px] font-semibold text-white transition-colors hover:bg-[#4a4b46] active:bg-black"
-              >
-                <PdfGlyph className="size-4" />
-                Read the full report
-              </a>
-            ) : null}
+          <div className={`${shellClass} mt-8`}>
             <UseCaseActions slug={useCase.slug} packageUrl={useCase.package?.url} />
           </div>
+        </section>
 
-          {heroImageUrl ? (
-            <div className="mt-8 overflow-hidden border border-[#e4e4df] bg-white">
-              {/* biome-ignore lint/performance/noImgElement: exported artifact asset, no Next image rewriting needed. */}
-              <img
-                src={heroImageUrl}
-                alt={useCase.title}
-                className="block h-auto w-full"
-                loading="lazy"
-                decoding="async"
+        {/* How this research was produced + share row (per the V2 design). */}
+        <section className="border-t border-[#e4e4df] py-12">
+          <div className={shellClass}>
+            <h2 className={`${headingClass} text-[24px] leading-[1.25]`}>
+              How this research was produced
+            </h2>
+            <p className="mt-3 max-w-[720px] text-[15px] leading-[1.7] text-[#5c5d57]">
+              AIPOCH planned and ran this
+              {category ? ` ${category.toLowerCase()}` : ''} investigation end to end — searching
+              the literature, producing the figures, and drafting the report. The full session
+              transcript is available to inspect.
+            </p>
+            <div className="mt-5">
+              <ShareRow
+                url={`${SITE_DOMAIN}/open-science/use-cases/${useCase.slug}`}
+                title={useCase.title}
               />
             </div>
-          ) : null}
-        </div>
-      </section>
-
-      <section className="pb-14">
-        {/* Keep the article actions outside the Markdown typography scope. */}
-        {reportMarkdown ? (
-          <div className={`${shellClass} osp-session ![background:transparent]`}>
-            <h2 className={`${headingClass} mb-6 text-[28px] leading-[1.2]`}>
-              What this research found
-            </h2>
-            {markdownBody}
           </div>
-        ) : useCase.description ? (
+        </section>
+
+        <section className="py-14">
           <div className={shellClass}>
-            <h2 className={`${headingClass} text-[28px] leading-[1.2]`}>
-              What this research found
-            </h2>
-            <p className="mt-4 max-w-[760px] text-[16px] leading-[1.7] text-[#3f403b]">
-              {useCase.description}
-            </p>
+            <div className="mb-8 flex items-end justify-between gap-4">
+              <h2 className={`${headingClass} text-[28px] leading-[1.2]`}>Related research</h2>
+              <Link
+                href="/open-science/use-cases"
+                className="text-[13px] font-medium text-[#575853] underline underline-offset-4"
+              >
+                View all →
+              </Link>
+            </div>
+            {index === null ? (
+              // List fetch failed: say so instead of claiming there is no content.
+              <p className="text-sm text-[#777872]">Related research could not be loaded.</p>
+            ) : related.length === 0 ? (
+              <p className="text-sm text-[#777872]">No other published use cases yet.</p>
+            ) : (
+              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {related.map((entry) => (
+                  <RelatedCard key={entry.slug} useCase={entry} />
+                ))}
+              </div>
+            )}
           </div>
-        ) : null}
-        <div className={`${shellClass} mt-8 flex flex-wrap items-center gap-3`}>
-          <UseCaseActions slug={useCase.slug} packageUrl={useCase.package?.url} />
-        </div>
-      </section>
+        </section>
 
-      {/* How this research was produced + share row (per the V2 design). */}
-      <section className="border-t border-[#e4e4df] py-12">
-        <div className={shellClass}>
-          <h2 className={`${headingClass} text-[24px] leading-[1.25]`}>
-            How this research was produced
+        <section className="px-5 py-16 text-center sm:px-10">
+          <h2 className={`${headingClass} text-[clamp(24px,2.8vw,36px)] leading-[1.2]`}>
+            Run this kind of analysis on your own question
           </h2>
-          <p className="mt-3 max-w-[720px] text-[15px] leading-[1.7] text-[#5c5d57]">
-            AIPOCH planned and ran this
-            {category ? ` ${category.toLowerCase()}` : ''} investigation end to end — searching the
-            literature, producing the figures, and drafting the report. The full session transcript
-            is available to inspect.
+          <p className="mx-auto mt-3 max-w-[720px] text-[14px] leading-[1.6] text-[#73746e]">
+            <span className="block">
+              Start a session and see how an AI co-scientist accelerates your research.
+              Pay-as-you-go, no
+            </span>
+            <span className="block">subscription required.</span>
           </p>
-          <div className="mt-5">
-            <ShareRow
-              url={`${SITE_DOMAIN}/open-science/use-cases/${useCase.slug}`}
-              title={useCase.title}
-            />
-          </div>
-        </div>
-      </section>
-
-      <section className="py-14">
-        <div className={shellClass}>
-          <div className="mb-8 flex items-end justify-between gap-4">
-            <h2 className={`${headingClass} text-[28px] leading-[1.2]`}>Related research</h2>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="/open-science"
+              className="inline-flex min-h-11 items-center bg-[#10110f] px-5 text-[13px] font-semibold text-white transition-colors hover:bg-[#4a4b46] active:bg-black"
+            >
+              Try AIPOCH Web
+            </Link>
             <Link
               href="/open-science/use-cases"
-              className="text-[13px] font-medium text-[#575853] underline underline-offset-4"
+              className="inline-flex min-h-11 items-center border border-[#10110f] bg-white px-5 text-[13px] font-semibold text-[#10110f] transition-colors hover:bg-[#10110f] hover:text-white"
             >
-              View all →
+              Browse all use cases
             </Link>
           </div>
-          {index === null ? (
-            // List fetch failed: say so instead of claiming there is no content.
-            <p className="text-sm text-[#777872]">Related research could not be loaded.</p>
-          ) : related.length === 0 ? (
-            <p className="text-sm text-[#777872]">No other published use cases yet.</p>
-          ) : (
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {related.map((entry) => (
-                <RelatedCard key={entry.slug} useCase={entry} />
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="px-5 py-16 text-center sm:px-10">
-        <h2 className={`${headingClass} text-[clamp(24px,2.8vw,36px)] leading-[1.2]`}>
-          Run this kind of analysis on your own question
-        </h2>
-        <p className="mx-auto mt-3 max-w-[720px] text-[14px] leading-[1.6] text-[#73746e]">
-          <span className="block">
-            Start a session and see how an AI co-scientist accelerates your research. Pay-as-you-go,
-            no
-          </span>
-          <span className="block">subscription required.</span>
-        </p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Link
-            href="/open-science"
-            className="inline-flex min-h-11 items-center bg-[#10110f] px-5 text-[13px] font-semibold text-white transition-colors hover:bg-[#4a4b46] active:bg-black"
-          >
-            Try AIPOCH Web
-          </Link>
-          <Link
-            href="/open-science/use-cases"
-            className="inline-flex min-h-11 items-center border border-[#10110f] bg-white px-5 text-[13px] font-semibold text-[#10110f] transition-colors hover:bg-[#10110f] hover:text-white"
-          >
-            Browse all use cases
-          </Link>
-        </div>
-      </section>
-    </main>
+        </section>
+      </main>
+    </ScienceImportProvider>
   )
 }

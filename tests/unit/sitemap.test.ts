@@ -93,18 +93,18 @@ describe('sitemap', () => {
     const { default: sitemap } = await import('../../app/sitemap')
     const routes = await sitemap()
     expect(routes.some((route) => route.url.includes('/replay/dot-science'))).toBe(false)
-    // The shared navigation update applies to gallery, overview, and replay pages.
+    // Overview import actions change detail pages; the gallery keeps its navigation date.
     for (const [path, date] of [
       ['/open-science/use-cases', '2026-10-20'],
-      ['/open-science/use-cases/diet-diversity-does-the-gut-microbiome-differ', '2026-10-20'],
-      ['/open-science/use-cases/nvda-all-at-once-or-four-weeks', '2026-10-20'],
-      ['/open-science/use-cases/can-a-simple-algorithm-beat-ai-at-wordle', '2026-10-20']
+      ['/open-science/use-cases/diet-diversity-does-the-gut-microbiome-differ', '2026-10-21'],
+      ['/open-science/use-cases/nvda-all-at-once-or-four-weeks', '2026-10-21'],
+      ['/open-science/use-cases/can-a-simple-algorithm-beat-ai-at-wordle', '2026-10-21']
     ]) {
       expect(routes.find((route) => route.url === `${siteDomain}${path}`)?.lastModified).toEqual(
         new Date(date)
       )
     }
-    // Track the October 20 replay SDK update independently of the gallery.
+    // The new replay toolbar import action updates replay pages independently of the gallery.
     for (const path of [
       '/open-science/use-cases/diet-diversity-does-the-gut-microbiome-differ/replay',
       '/open-science/use-cases/nvda-all-at-once-or-four-weeks/replay',
@@ -112,7 +112,7 @@ describe('sitemap', () => {
       '/open-science/use-cases/can-a-simple-algorithm-beat-ai-at-wordle/replay'
     ]) {
       expect(routes.find((route) => route.url === `${siteDomain}${path}`)?.lastModified).toEqual(
-        new Date('2026-10-20')
+        new Date('2026-10-21')
       )
     }
   })

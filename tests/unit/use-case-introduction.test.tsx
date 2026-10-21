@@ -70,6 +70,30 @@ test('renders introductions through the shared Markdown typography and GFM rende
   expect(articleDownload).toBeLessThan(html.indexOf('How this research was produced'))
 })
 
+test('renders the import action first in both overview action groups, before report and download links', async () => {
+  fetchDetail.mockResolvedValueOnce({
+    ...detail,
+    report: { url: 'https://cdn.example.test/report.pdf' }
+  } as typeof detail)
+  globalThis.fetch = mock(async () => new Response('# Findings')) as unknown as typeof fetch
+  const html = await renderIntroduction()
+  const groups = [...html.matchAll(/<section aria-label="Research actions"[\s\S]*?<\/section>/g)]
+  expect(groups).toHaveLength(2)
+  for (const [group] of groups) {
+    expect(group).toContain('Continue in Open-Science')
+    expect(group.indexOf('Continue in Open-Science')).toBeLessThan(
+      group.indexOf('Download research package')
+    )
+    expect(group.indexOf('Download research package')).toBeLessThan(
+      group.indexOf('View the research session')
+    )
+    expect(group).toMatch(/<button[^>]*bg-\[#10110f\][^>]*text-white/)
+  }
+  expect(groups[0][0].indexOf('Continue in Open-Science')).toBeLessThan(
+    groups[0][0].indexOf('Read the full report')
+  )
+})
+
 test('keeps the case and download available when the optional introduction body fails', async () => {
   spyOn(console, 'error').mockImplementation(() => {})
   globalThis.fetch = mock(
