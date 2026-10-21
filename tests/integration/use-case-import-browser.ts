@@ -143,6 +143,13 @@ export async function verifyImportPreparation(
     await expect(busyButton).toBeDisabled()
     await expect(busyButton).toContainText('0%')
     await expect(opposite.getByText(/You may need to allow your browser/)).toBeVisible()
+    // Inline cancellation must not add hidden padding between the two guidance lines.
+    const hintBox = await opposite.getByText(/You may need to allow your browser/).boundingBox()
+    const messageBox = await opposite.getByRole('status').boundingBox()
+    expect(hintBox && messageBox).toBeTruthy()
+    if (hintBox && messageBox) {
+      expect(messageBox.y - hintBox.y - hintBox.height).toBe(4)
+    }
     const expandedToolbarHeight = (await composer.boundingBox())?.height
     if (!detail) expect(expandedToolbarHeight).toBeGreaterThan(idleToolbarHeight ?? 0)
     if (!detail && wideViewport)
@@ -181,6 +188,14 @@ export async function verifyImportPreparation(
       `${api}/use-case-manifest/first-flight-vs-evening-flight-which-is-more-reliable/First%20Flight%20vs.%20Evening%20Flight%20-%20Which%20Is%20More%20Reliable.science`
     )
     await expect(feedback.getByRole('status')).toContainText('Waiting for Open-Science…')
+    const openingHintBox = await opposite
+      .getByText(/^If your browser asks to open Open-Science/)
+      .boundingBox()
+    const openingMessageBox = await opposite.getByRole('status').boundingBox()
+    expect(openingHintBox && openingMessageBox).toBeTruthy()
+    if (openingHintBox && openingMessageBox) {
+      expect(openingMessageBox.y - openingHintBox.y - openingHintBox.height).toBe(4)
+    }
     if (!detail) expect((await composer.boundingBox())?.height).toBe(expandedToolbarHeight)
     await expect(composer.getByRole('button', { name: 'Waiting for Open-Science…' })).toBeDisabled()
     expect(protocolRequests).toBe(0)

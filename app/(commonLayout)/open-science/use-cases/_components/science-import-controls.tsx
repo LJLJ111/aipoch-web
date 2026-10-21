@@ -291,7 +291,7 @@ export const ScienceImportFeedback = ({ compact = false }: { compact?: boolean }
               type="button"
               disabled={state.phase === 'canceling'}
               onClick={() => session.current?.cancel()}
-              className="min-h-8 shrink-0 whitespace-nowrap font-medium text-[#10110f] underline underline-offset-4 disabled:opacity-50"
+              className={`${compact ? 'min-h-8' : ''} shrink-0 whitespace-nowrap font-medium text-[#10110f] underline underline-offset-4 disabled:opacity-50`}
             >
               Cancel
             </button>
