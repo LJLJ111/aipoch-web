@@ -80,8 +80,8 @@ test('renders the import action first in both overview action groups, before rep
   const groups = [...html.matchAll(/<section aria-label="Research actions"[\s\S]*?<\/section>/g)]
   expect(groups).toHaveLength(2)
   for (const [group] of groups) {
-    expect(group).toContain('Continue in Open-Science')
-    expect(group.indexOf('Continue in Open-Science')).toBeLessThan(
+    expect(group).toContain('Open in Open-Science')
+    expect(group.indexOf('Open in Open-Science')).toBeLessThan(
       group.indexOf('Download research package')
     )
     expect(group.indexOf('Download research package')).toBeLessThan(
@@ -89,7 +89,7 @@ test('renders the import action first in both overview action groups, before rep
     )
     expect(group).toMatch(/<button[^>]*bg-\[#10110f\][^>]*text-white/)
   }
-  expect(groups[0][0].indexOf('Continue in Open-Science')).toBeLessThan(
+  expect(groups[0][0].indexOf('Open in Open-Science')).toBeLessThan(
     groups[0][0].indexOf('Read the full report')
   )
 })

@@ -94,9 +94,16 @@ for (const surface of ['composer', 'detail']) {
         )
         await expect(announcements).toHaveCount(1)
         const continueButton = controls.getByRole('button', {
-          name: 'Continue in Open-Science',
+          name: surface === 'detail' ? 'Open in Open-Science' : 'Continue in Open-Science',
           exact: true
         })
+        await expect(continueButton).toBeVisible()
+        await expect(
+          otherControls.getByRole('button', {
+            name: surface === 'detail' ? 'Open in Open-Science' : 'Continue in Open-Science',
+            exact: true
+          })
+        ).toBeVisible()
         const openButton = controls.getByRole('button', { name: 'Open Open-Science', exact: true })
         const snapshot = () =>
           page.evaluate(() => {
@@ -116,7 +123,9 @@ for (const surface of ['composer', 'detail']) {
           const before = downloads
           await expect(controls.getByRole('alert')).toHaveCount(0)
           await continueButton.click()
-          await continueButton.click()
+          await controls
+            .getByRole('button', { name: 'Continue in Open-Science', exact: true })
+            .click()
           await expect(controls.getByRole('alert')).toHaveText(
             'Please continue on a desktop computer.'
           )
@@ -395,6 +404,9 @@ for (const surface of ['composer', 'detail']) {
           await expect(controls.getByRole('progressbar')).toHaveCount(0)
           await otherControls.getByRole('button', { name: 'Cancel', exact: true }).click()
           await expect(controls.getByRole('status')).toContainText('Download canceled')
+          await expect(
+            controls.getByRole('button', { name: 'Continue in Open-Science', exact: true })
+          ).toBeEnabled()
         }
         includeContentLength = true
         unitExpect(errors).toEqual([])
