@@ -39,7 +39,11 @@ test('offers import after download in the replay toolbar while the transcript is
     html.indexOf('Continue in Open-Science')
   )
   expect(html).toMatch(/<button[^>]*bg-\[#10110f\][^>]*text-white/)
-  expect(html).toContain('Keep this page open until the file is sent.')
+  expect(html).toContain('Allow app and local network access if prompted. Keep this page open.')
+  const toolbar = html.slice(html.indexOf('aria-label="Replay import actions"'))
+  expect(toolbar.indexOf('aria-label="Replay import feedback"')).toBeLessThan(
+    toolbar.indexOf('</section>')
+  )
   expect(html).not.toContain('What would you explore next?')
 })
 

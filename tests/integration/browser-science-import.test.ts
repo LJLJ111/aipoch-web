@@ -269,7 +269,15 @@ for (const surface of ['composer', 'detail']) {
           'File sent to Open-Science. Please confirm the import in the app.'
         )
         await expect(openButton).toBeEnabled()
-        await expect(otherControls.getByRole('status')).toContainText('File sent to Open-Science')
+        await expect(otherControls.getByRole('status')).toContainText(
+          surface === 'composer'
+            ? 'File sent. Confirm in Open-Science.'
+            : 'File sent to Open-Science'
+        )
+        if (surface === 'composer') {
+          await expect(otherControls.getByText(/allow local network access/)).toHaveCount(0)
+          await expect(otherControls.getByText(/Clicked Cancel by mistake/)).toHaveCount(0)
+        }
         await expect(announcements).toHaveCount(1)
         await expect(announcements).toContainText('File sent to Open-Science')
         const receivedSnapshot = await snapshot()
@@ -285,9 +293,12 @@ for (const surface of ['composer', 'detail']) {
         await expect(controls.getByText(/You may need to allow your browser/)).toBeVisible()
         await expect(controls.getByText('Import successful', { exact: true })).toHaveCount(0)
         unitExpect(downloads).toBe(count + 1)
-        const retryImport = controls
+        const retryImport = (surface === 'composer' ? otherControls : controls)
           .getByRole('status')
-          .getByRole('button', { name: 'Retry the import.', exact: true })
+          .getByRole('button', {
+            name: surface === 'composer' ? 'Retry import' : 'Retry the import.',
+            exact: true
+          })
         await expect(retryImport).toBeVisible()
         await expect(retryImport).toHaveClass(/underline/)
         const beforeRetry = await snapshot()

@@ -164,7 +164,7 @@ export const ScienceImportButton = ({
 }
 
 /** Keep every recovery action and browser permission hint beside each entry point. */
-export const ScienceImportFeedback = () => {
+export const ScienceImportFeedback = ({ compact = false }: { compact?: boolean }) => {
   const {
     state,
     session,
@@ -175,15 +175,24 @@ export const ScienceImportFeedback = () => {
   const downloadPrompt = 'download it first'
   const inlineDownload = needsApp && state.message?.endsWith(`${downloadPrompt}.`)
   const waitingTimedOut = state.phase === 'ready' && state.action === 'resume'
+  const opening = state.phase === 'opening' || state.action === 'resume'
+  // The sticky toolbar shows only the current guidance; completed transfers need no permissions.
+  const showPermissionHint = !compact || !state.message || opening
+  const message =
+    compact && state.phase === 'received' ? 'File sent. Confirm in Open-Science.' : state.message
   return (
     <>
-      <p className="mt-1.5 text-xs leading-5 text-[#777872]">
-        <span>
-          {state.phase === 'opening' || state.action === 'resume'
-            ? 'If your browser asks to open Open-Science, choose Open. You may also need to allow local network access.'
-            : 'You may need to allow your browser to open Open-Science and access your local network. Keep this page open until the file is sent.'}
-        </span>
-      </p>
+      {showPermissionHint ? (
+        <p className={`${compact ? '' : 'mt-1.5'} text-xs leading-5 text-[#777872]`}>
+          {compact
+            ? opening
+              ? 'Choose Open and allow local network access if prompted.'
+              : 'Allow app and local network access if prompted. Keep this page open.'
+            : opening
+              ? 'If your browser asks to open Open-Science, choose Open. You may also need to allow local network access.'
+              : 'You may need to allow your browser to open Open-Science and access your local network. Keep this page open until the file is sent.'}
+        </p>
+      ) : null}
       <div className="space-y-2 text-[13px] leading-6 text-[#777872]">
         <div className="flex items-center gap-x-4">
           <p
@@ -213,17 +222,17 @@ export const ScienceImportFeedback = () => {
                 .
               </>
             ) : (
-              state.message
+              message
             )}{' '}
             {state.phase === 'received' ? (
               <span>
-                Clicked Cancel by mistake?{' '}
+                {compact ? '' : 'Clicked Cancel by mistake? '}
                 <button
                   type="button"
                   onClick={() => void session.current?.retryImport()}
                   className="font-medium text-[#10110f] underline underline-offset-4"
                 >
-                  Retry the import.
+                  {compact ? 'Retry import' : 'Retry the import.'}
                 </button>
               </span>
             ) : null}

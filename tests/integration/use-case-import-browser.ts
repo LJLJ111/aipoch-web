@@ -56,8 +56,15 @@ export async function verifyImportPreparation(
       await expect(open).toHaveCSS('background-color', 'rgb(16, 17, 15)')
       await expect(open).toHaveCSS('color', 'rgb(255, 255, 255)')
       await expect(open).toHaveCSS('font-size', '13px')
-      // The original 47px row plus its 1px bottom border.
-      if (!mobile) expect((await composer.boundingBox())?.height).toBe(48)
+      // Keep the original action row; the compact feedback now belongs to the sticky toolbar.
+      if (!mobile) expect((await composer.locator(':scope > div').boundingBox())?.height).toBe(47)
+      await expect(
+        composer.getByRole('region', { name: 'Replay import feedback', exact: true })
+      ).toHaveCount(1)
+      await opposite.scrollIntoViewIfNeeded()
+      await expect(feedback).toBeInViewport()
+      await expect(open).toBeInViewport()
+      await page.evaluate(() => window.scrollTo(0, 0))
       const downloadBox = await composer
         .getByRole('link', { name: 'Download research package', exact: true })
         .boundingBox()
@@ -130,7 +137,8 @@ export async function verifyImportPreparation(
     })
     await expect(busyButton).toBeDisabled()
     await expect(busyButton).toContainText('0%')
-    if (!detail && !mobile) expect((await composer.boundingBox())?.height).toBe(48)
+    if (!detail && !mobile)
+      expect((await composer.locator(':scope > div').boundingBox())?.height).toBe(47)
     await expect(opposite.getByRole('button', { name: /^Downloading/ })).toBeDisabled()
     await expect(composer.getByRole('progressbar')).toHaveCount(0)
     await expect(feedback.getByRole('status')).toBeVisible()

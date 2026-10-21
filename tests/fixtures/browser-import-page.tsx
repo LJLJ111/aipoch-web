@@ -31,7 +31,7 @@ root.render(
     <ScienceImportProvider packageInfo={packageInfo}>
       <section aria-label="Replay import actions">
         <ScienceImportButton variant="toolbar" />
-        <ScienceImportFeedback />
+        <ScienceImportFeedback compact />
       </section>
       <ImportComposer />
     </ScienceImportProvider>

@@ -40,6 +40,14 @@ const TopBar = ({ slug, packageUrl }: { slug: string; packageUrl?: string }) => 
         </>
       ) : null}
     </div>
+    {packageUrl ? (
+      <section
+        aria-label="Replay import feedback"
+        className="mx-auto w-full max-w-4xl px-4 pb-2.5 md:px-6"
+      >
+        <ScienceImportFeedback compact />
+      </section>
+    ) : null}
   </section>
 )
 
@@ -106,14 +114,6 @@ const ReplayFrame = ({
   <ScienceImportProvider key={slug} packageInfo={packageInfo}>
     <main id="top" className="-mt-[var(--nav-h)] flex-1 bg-[#fafaf8] pt-[var(--nav-h)]">
       <TopBar slug={slug} packageUrl={packageInfo?.url} />
-      {packageInfo ? (
-        <section
-          aria-label="Replay import feedback"
-          className="mx-auto w-full max-w-4xl px-4 md:px-6"
-        >
-          <ScienceImportFeedback />
-        </section>
-      ) : null}
       {children}
     </main>
   </ScienceImportProvider>
