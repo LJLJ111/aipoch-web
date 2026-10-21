@@ -43,9 +43,12 @@ const TopBar = ({ slug, packageUrl }: { slug: string; packageUrl?: string }) => 
     {packageUrl ? (
       <section
         aria-label="Replay import feedback"
-        className="mx-auto w-full max-w-4xl px-4 pb-2.5 md:px-6"
+        className="mx-auto flex w-full max-w-4xl justify-end px-4 pb-2.5 md:px-6"
       >
-        <ScienceImportFeedback compact />
+        {/* Group status with the right-hand import action without crowding mobile screens. */}
+        <div className="w-full rounded-md bg-[#f0f0ed] px-3 py-1.5 sm:w-fit sm:max-w-2xl">
+          <ScienceImportFeedback compact />
+        </div>
       </section>
     ) : null}
   </section>
