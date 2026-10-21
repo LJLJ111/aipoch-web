@@ -134,7 +134,7 @@ export const ScienceImportButton = ({
       }}
       className={
         variant === 'toolbar'
-          ? 'inline-flex h-9 w-60 shrink-0 items-center justify-center gap-2 bg-[#10110f] px-4 text-[13px] font-semibold text-white transition-colors hover:bg-[#4a4b46] active:bg-black focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#10110f] disabled:cursor-default max-sm:ml-auto'
+          ? 'inline-flex h-9 w-60 shrink-0 items-center justify-center gap-2 bg-[#10110f] px-4 text-[13px] font-semibold text-white transition-colors hover:bg-[#4a4b46] active:bg-black focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#10110f] disabled:cursor-default max-sm:ml-auto max-sm:w-auto max-sm:max-w-full max-sm:gap-1 max-sm:px-2 max-sm:text-xs max-sm:leading-4'
           : variant === 'detail'
             ? 'inline-flex min-h-11 items-center justify-center gap-2 bg-[#10110f] px-5 py-1 text-[13px] font-semibold text-white transition-colors hover:bg-[#4a4b46] active:bg-black focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#10110f] disabled:cursor-default'
             : 'inline-flex min-h-10 w-full items-center justify-center gap-3 rounded-xl bg-[#10110f] px-5 py-1 text-sm font-semibold text-white transition-colors hover:bg-[#34352f] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#10110f] disabled:cursor-default sm:w-auto sm:min-w-56'
@@ -180,18 +180,20 @@ export const ScienceImportButton = ({
   )
 }
 
-/** Expand the toolbar guidance after interaction without reserving empty space on arrival. */
+/** Share a smooth height and opacity reveal across desktop and mobile without idle spacing. */
 export const ScienceImportToolbarFeedback = () => {
-  const { hasInteracted } = useScienceImport()
+  const { hasInteracted, state } = useScienceImport()
   return (
     <section
       aria-label="Replay import feedback"
       aria-hidden={!hasInteracted}
-      className={`mx-auto grid w-full max-w-4xl px-4 transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none md:pr-6 md:pl-44 ${hasInteracted ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
+      className={`mx-auto grid w-full max-w-4xl px-4 transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none max-sm:pl-36 max-[375px]:pl-24 md:pr-6 md:pl-44 ${hasInteracted ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
     >
       <div className="min-h-0 overflow-hidden">
         {/* Reserve the left column for the centered overview link once guidance is expanded. */}
-        <div className="-mt-1 flex min-h-16 w-full flex-col items-end justify-center px-3 sm:min-h-8">
+        <div
+          className={`-mt-1 flex w-full flex-col items-end justify-center px-3 max-sm:px-0 sm:min-h-8 ${state.phase === 'unsupported' ? 'min-h-8 pb-1' : 'min-h-16'}`}
+        >
           <ScienceImportFeedback compact />
         </div>
       </div>
@@ -216,7 +218,7 @@ export const ScienceImportFeedback = ({ compact = false }: { compact?: boolean }
   const waitingTimedOut = state.phase === 'ready' && state.action === 'resume'
   const opening = state.phase === 'opening' || state.action === 'resume'
   // The sticky toolbar shows only the current guidance; completed transfers need no permissions.
-  const showPermissionHint = !compact || !state.message
+  const showPermissionHint = state.phase !== 'unsupported' && (!compact || !state.message)
   const message =
     compact && state.phase === 'received'
       ? 'File sent. Confirm in Open-Science.'
@@ -251,7 +253,9 @@ export const ScienceImportFeedback = ({ compact = false }: { compact?: boolean }
               state.phase === 'error'
                 ? 'text-status-failure-foreground'
                 : state.phase === 'unsupported'
-                  ? 'text-status-warning-foreground'
+                  ? compact
+                    ? 'text-status-warning-foreground max-sm:whitespace-nowrap max-sm:text-[11px] max-sm:leading-4'
+                    : 'text-status-warning-foreground'
                   : !state.message
                     ? 'sr-only'
                     : undefined

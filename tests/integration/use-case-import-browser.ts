@@ -62,7 +62,7 @@ export async function verifyImportPreparation(
       const open = composer.getByRole('button', { name: idleLabel, exact: true })
       await expect(open).toHaveCSS('background-color', 'rgb(16, 17, 15)')
       await expect(open).toHaveCSS('color', 'rgb(255, 255, 255)')
-      await expect(open).toHaveCSS('font-size', '13px')
+      await expect(open).toHaveCSS('font-size', wideViewport ? '13px' : '12px')
       // Keep ten pixels of vertical padding around the toolbar's 36px import button.
       if (wideViewport)
         expect((await composer.locator(':scope > div').boundingBox())?.height).toBe(56)
@@ -101,6 +101,37 @@ export async function verifyImportPreparation(
       await expect(warning).toHaveText('Please continue on a desktop computer.')
       await expect(warning).toHaveClass(/text-status-warning-foreground/)
       await expect(opposite.getByRole('alert')).toHaveText('Please continue on a desktop computer.')
+      for (const region of [composer, opposite]) {
+        await expect(region.getByText(/You may need to allow your browser/)).toHaveCount(0)
+      }
+      if (detail) {
+        for (const region of [composer, opposite]) {
+          const buttonBox = await region
+            .getByRole('button', { name: idleLabel, exact: true })
+            .boundingBox()
+          const warningBox = await region.getByRole('alert').boundingBox()
+          const downloadBox = await region
+            .getByRole('link', { name: 'Download research package', exact: true })
+            .boundingBox()
+          expect(buttonBox && warningBox && downloadBox).toBeTruthy()
+          if (buttonBox && warningBox && downloadBox) {
+            expect(warningBox.y).toBeGreaterThanOrEqual(buttonBox.y + buttonBox.height)
+            expect(warningBox.y + warningBox.height).toBeLessThanOrEqual(downloadBox.y)
+          }
+        }
+      } else {
+        await expect
+          .poll(async () => {
+            const toolbarBox = await composer.boundingBox()
+            const backBox = await composer
+              .getByRole('link', { name: /Back to overview/ })
+              .boundingBox()
+            return toolbarBox && backBox
+              ? Math.abs(backBox.y + backBox.height / 2 - toolbarBox.y - toolbarBox.height / 2)
+              : Infinity
+          })
+          .toBeLessThan(2)
+      }
       expect(discoveryRequests).toEqual([])
       expect((await (await fetch(controls)).json()).packageRequests).toBe(initialPackages)
       await warning.scrollIntoViewIfNeeded()

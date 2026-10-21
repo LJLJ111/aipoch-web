@@ -13,8 +13,9 @@ export const UseCaseActions = ({
   packageUrl?: string
   children?: ReactNode
 }) => (
-  <section aria-label="Research actions">
-    <div className="flex flex-wrap items-center gap-3">
+  <section aria-label="Research actions" className="flex flex-wrap items-center gap-3">
+    {/* On mobile, feedback follows import before the independent report and download actions. */}
+    <div className="contents max-sm:[&>a]:order-2">
       {packageUrl ? <ScienceImportButton variant="detail" /> : null}
       {children}
       {packageUrl ? (
@@ -32,6 +33,10 @@ export const UseCaseActions = ({
         View the research session
       </Link>
     </div>
-    {packageUrl ? <ScienceImportFeedback /> : null}
+    {packageUrl ? (
+      <div className="order-1 -mt-3 w-full empty:hidden sm:order-last">
+        <ScienceImportFeedback />
+      </div>
+    ) : null}
   </section>
 )

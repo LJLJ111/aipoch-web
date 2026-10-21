@@ -20,10 +20,10 @@ const TopBar = ({ slug, packageUrl }: { slug: string; packageUrl?: string }) => 
     aria-label="Replay import actions"
     className="sticky top-[var(--nav-h)] z-10 border-b border-[#dfdfda] bg-[#fafaf8]/90 backdrop-blur-sm"
   >
-    <div className="mx-auto flex min-h-[47px] w-full max-w-4xl flex-wrap items-center gap-3 px-4 py-2.5 md:px-6">
+    <div className="mx-auto flex min-h-[47px] w-full max-w-4xl flex-wrap items-center gap-3 px-4 py-2.5 max-sm:justify-end max-sm:gap-2 max-sm:pl-36 max-[375px]:pl-24 md:px-6">
       <UseCaseBackLink
         href={`/open-science/use-cases/${slug}`}
-        className="shrink-0 text-[13px] font-medium text-[#575853] transition-colors hover:text-[#10110f] md:absolute md:top-1/2 md:-translate-y-1/2"
+        className="shrink-0 text-[13px] font-medium text-[#575853] transition-colors hover:text-[#10110f] max-sm:absolute max-sm:left-4 max-sm:top-1/2 max-[375px]:max-w-20 max-sm:-translate-y-1/2 md:absolute md:top-1/2 md:-translate-y-1/2"
       >
         ← Back to overview
       </UseCaseBackLink>
@@ -31,7 +31,7 @@ const TopBar = ({ slug, packageUrl }: { slug: string; packageUrl?: string }) => 
         <>
           <a
             href={packageUrl}
-            className="ml-auto inline-flex items-center gap-1.5 text-[13px] font-medium text-[#575853] transition-colors hover:text-[#10110f]"
+            className="ml-auto inline-flex items-center gap-1.5 text-[13px] max-sm:text-xs font-medium text-[#575853] transition-colors hover:text-[#10110f]"
           >
             <Download className="size-4 shrink-0" aria-hidden="true" />
             Download research package
