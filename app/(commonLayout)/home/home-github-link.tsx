@@ -104,19 +104,11 @@ export const HomeGithubLink = ({ variant = 'hero' }: { variant?: 'hero' | 'compa
         <Star className="size-3.5" aria-hidden="true" />
         {loading ? (
           <span className="inline-flex min-w-[4.5ch] items-center">
-            {/* Stagger subtle dots without shifting the count or animating reduced-motion users. */}
+            {/* Reserve the count width and respect reduced-motion preferences while loading. */}
             <span
               aria-hidden="true"
-              className="inline-flex h-3 w-[4.5ch] shrink-0 items-center justify-center gap-1"
-            >
-              {['-800ms', '-400ms', '0ms'].map((delay) => (
-                <span
-                  key={delay}
-                  className="size-[3px] rounded-full bg-current opacity-70 motion-safe:animate-pulse motion-safe:[animation-duration:1.2s]"
-                  style={{ animationDelay: delay }}
-                />
-              ))}
-            </span>
+              className="h-3 w-[4.5ch] rounded-none bg-[#c4c4bf] motion-safe:animate-pulse"
+            />
             <span className="sr-only">Loading stars</span>
           </span>
         ) : (
